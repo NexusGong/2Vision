@@ -1,0 +1,270 @@
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 260px; /* 稍微加宽 */
+  background: var(--gf-bg-sidebar);
+  border-right: 1px solid var(--gf-border);
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  padding-top: 64px; // Header 高度
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
+
+  &.collapsed {
+    transform: translateX(-260px);
+  }
+
+  // 移动端适配
+  @media (max-width: 768px) {
+    width: 280px;
+    
+    &.collapsed {
+      transform: translateX(-280px);
+    }
+  }
+}
+
+.toggleButtonContainer {
+  position: absolute;
+  right: -24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  @media (max-width: 768px) {
+    right: -20px;
+  }
+}
+
+.toggleButton {
+  width: 24px;
+  height: 48px;
+  padding: 0;
+  margin: 0;
+  color: var(--gf-text-secondary);
+  background: var(--gf-bg-sidebar);
+  border: 1px solid var(--gf-border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    color: var(--gf-primary);
+    width: 28px;
+    background: #fff;
+  }
+}
+
+/* 上半部分：功能导航 */
+.navSection {
+  padding: 20px 16px 12px;
+  flex-shrink: 0;
+}
+
+.newChatButton {
+  /* 移除原来突出的样式，与其他导航项保持一致但保留强调色 */
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  color: var(--gf-primary); /* 使用主色强调 */
+  background: rgba(87, 102, 144, 0.08); /* 极淡的背景区分 */
+  font-size: 14px;
+  font-weight: 600;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  gap: 12px;
+  box-shadow: none;
+  
+  &:hover {
+    background: rgba(87, 102, 144, 0.15);
+    transform: none;
+    box-shadow: none;
+  }
+  
+  &:active {
+    background: rgba(87, 102, 144, 0.2);
+  }
+
+  /* 图标样式 */
+  :global(.arco-icon) {
+    font-size: 18px;
+  }
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  color: var(--gf-text-main);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 12px;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--gf-primary);
+  }
+
+  &.active {
+    background: #fff;
+    color: var(--gf-primary);
+    font-weight: 500;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  }
+
+  .navIcon {
+    font-size: 18px;
+    color: var(--gf-text-secondary);
+  }
+}
+
+/* 分割线 */
+.divider {
+  height: 1px;
+  background: var(--gf-border);
+  margin: 8px 20px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+/* 下半部分：历史记录 */
+.historySection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: 12px;
+}
+
+.sectionTitle {
+  padding: 0 20px 8px;
+  font-size: 12px;
+  color: var(--gf-text-secondary);
+  font-weight: 500;
+}
+
+.listContainer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden; /* 防止横向滚动 */
+  padding: 0 12px;
+}
+
+.listItem {
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  width: 100%; /* 确保宽度不溢出 */
+  box-sizing: border-box; /* 包含padding */
+  border: 1px solid transparent;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04); /* 使用中性灰背景 */
+  }
+
+  &.active {
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    
+    .itemTitle {
+      color: var(--gf-primary);
+      font-weight: 600;
+    }
+    
+    .itemMeta {
+      color: var(--gf-primary);
+      opacity: 0.8;
+    }
+  }
+}
+
+.itemContent {
+  flex: 1;
+  min-width: 0; /* 关键：允许flex子项收缩 */
+  margin-right: 4px; /* 留出删除按钮空间 */
+}
+
+.itemTitle {
+  font-size: 14px;
+  color: var(--gf-text-main);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.5;
+  max-width: 180px; /* 强制限制最大宽度，260px侧边栏 - padding - 图标等 */
+  display: block; /* 确保是块级元素 */
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* 两端对齐，日期在左，按钮在右 */
+  width: 100%;
+  font-size: 12px;
+  color: var(--gf-text-secondary);
+  opacity: 0.8;
+  height: 24px; /* 固定高度，确保对齐 */
+}
+
+.itemTimeWrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deleteButton {
+  /* 移除 opacity: 0 和 transition，让其常驻显示 */
+  flex-shrink: 0;
+  color: var(--gf-text-secondary); 
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  
+  /* 降低默认透明度，使其不喧宾夺主，Hover时再加深 */
+  opacity: 0.6; 
+  transition: all 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+    background: rgba(157, 41, 51, 0.1); 
+    color: var(--gf-accent); 
+  }
+}
+
+.empty {
+  padding: 40px 20px;
+  color: var(--gf-text-secondary);
+  opacity: 0.7;
+}
+
+.footer {
+  padding: 16px;
+  border-top: 1px solid var(--gf-border);
+  background: var(--gf-bg-sidebar);
+  flex-shrink: 0;
+}

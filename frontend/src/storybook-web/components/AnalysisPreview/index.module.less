@@ -1,0 +1,725 @@
+/*
+ * 诗词分析预览组件样式
+ */
+
+.analysisPreview {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  max-width: 100%;
+  
+  .header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin: 0 0 8px 0;
+    }
+    
+    .subtitle {
+      font-size: 14px;
+      color: #86868b;
+    }
+  }
+  
+  .content {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 8px;
+    
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 3px;
+    }
+  }
+  
+  .section {
+    margin-bottom: 24px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  .sectionTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin: 0 0 12px 0;
+    padding-left: 12px;
+    border-left: 3px solid #576690;
+  }
+  
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+  }
+}
+
+// 诗词信息样式
+.poetryInfo {
+  background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  
+  .poetryHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    
+    .poetryTitle {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1d1d1f;
+      margin: 0;
+      font-family: "STKaiti", "KaiTi", serif;
+    }
+    
+    .poetryMeta {
+      font-size: 14px;
+      color: #576690;
+      font-weight: 500;
+    }
+    
+    .editBtn {
+      margin-left: auto;
+      opacity: 0.6;
+      
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+  
+  .poetryText {
+    font-family: "STKaiti", "KaiTi", serif;
+    font-size: 18px;
+    line-height: 2;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    
+    p {
+      margin: 0;
+      text-indent: 2em;
+    }
+  }
+  
+  .background {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: rgba(87, 102, 144, 0.08);
+    border-radius: 8px;
+    
+    h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #576690;
+      margin: 0 0 8px 0;
+    }
+    
+    p {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #4a5568;
+      margin: 0;
+    }
+  }
+}
+
+// 诗词信息编辑器样式
+.poetryInfoEditor {
+  background: #fff;
+  border: 1px solid rgba(87, 102, 144, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  
+  .editorHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    
+    .editorTitle {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1d1d1f;
+    }
+  }
+}
+
+// 通用表单样式
+.editorForm,
+.lineEditor,
+.storyboardForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #576690;
+  }
+}
+
+.editorActions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+// 逐句分析样式
+.lineAnalysis {
+  :global(.arco-collapse-item) {
+    background: #fff;
+    border-radius: 8px !important;
+    margin-bottom: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    overflow: hidden;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  :global(.arco-collapse-item-header) {
+    padding: 12px 16px !important;
+    background: transparent !important;
+  }
+  
+  :global(.arco-collapse-item-content) {
+    padding: 0 16px 16px !important;
+  }
+}
+
+.lineHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  
+  .lineNumber {
+    font-size: 12px;
+    color: #fff;
+    background: #576690;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  
+  .lineText {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1d1d1f;
+    font-family: "STKaiti", "KaiTi", serif;
+  }
+}
+
+.lineContent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lineItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  
+  .label {
+    color: #86868b;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+// 分镜编辑器样式
+.storyboardEditor {
+  .storyboardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin: 0;
+      padding-left: 12px;
+      border-left: 3px solid #576690;
+    }
+  }
+}
+
+.storyboardList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.storyboardItem {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: rgba(87, 102, 144, 0.3);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+  
+  &.coverItem {
+    border-left: 4px solid #f5222d;
+    background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
+  }
+  
+  &.editing {
+    border-color: #576690;
+    box-shadow: 0 4px 16px rgba(87, 102, 144, 0.15);
+  }
+}
+
+.storyboardItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.storyboardIndex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  .indexNumber {
+    font-size: 18px;
+    font-weight: 700;
+    color: #576690;
+    min-width: 28px;
+  }
+}
+
+.storyboardActions {
+  display: flex;
+  gap: 4px;
+}
+
+.storyboardContent {
+  .storyboardTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 4px;
+  }
+  
+  .storyboardSubtitle {
+    font-size: 13px;
+    color: #86868b;
+    margin-bottom: 8px;
+  }
+  
+  .storyboardText {
+    font-size: 15px;
+    font-family: "STKaiti", "KaiTi", serif;
+    color: #2c3e50;
+    line-height: 1.8;
+    margin-bottom: 12px;
+  }
+  
+  .storyboardPrompt {
+    background: rgba(87, 102, 144, 0.06);
+    border-radius: 6px;
+    padding: 10px 12px;
+    
+    .promptLabel {
+      font-size: 12px;
+      font-weight: 500;
+      color: #576690;
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    .promptText {
+      font-size: 13px;
+      color: #4a5568;
+      line-height: 1.6;
+    }
+  }
+}
+
+// 已确认状态样式
+.confirmedPreview {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  border: 1px solid rgba(82, 196, 26, 0.2);
+}
+
+.confirmedHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f6ffed 0%, #fff 100%);
+}
+
+.confirmedInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  
+  .confirmedTitle {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d1d1f;
+    font-family: "STKaiti", "KaiTi", serif;
+  }
+  
+  .confirmedMeta {
+    font-size: 13px;
+    color: #576690;
+  }
+  
+  .confirmedCount {
+    font-size: 12px;
+    color: #86868b;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+  }
+}
+
+.confirmedActions {
+  flex-shrink: 0;
+}
+
+.confirmedContent {
+  padding: 16px 20px 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.readonlySection {
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #576690;
+    margin: 0 0 12px 0;
+  }
+  
+  .poetryText {
+    font-family: "STKaiti", "KaiTi", serif;
+    font-size: 15px;
+    line-height: 2;
+    color: #2c3e50;
+    
+    p {
+      margin: 0;
+      text-indent: 2em;
+    }
+  }
+  
+  .background {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(87, 102, 144, 0.06);
+    border-radius: 6px;
+    
+    p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: #4a5568;
+      margin: 0;
+    }
+  }
+}
+
+.lineList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  
+  .lineItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+    
+    .lineNumber {
+      font-size: 11px;
+      color: #fff;
+      background: #576690;
+      padding: 2px 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    
+    .lineText {
+      font-size: 14px;
+      font-family: "STKaiti", "KaiTi", serif;
+      color: #1d1d1f;
+      flex: 1;
+    }
+    
+    .lineEmotion {
+      flex-shrink: 0;
+    }
+  }
+  
+  // 完整显示的逐句分析样式
+  .lineItemFull {
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    padding: 12px 14px;
+    
+    .lineHeader {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      
+      .lineNumber {
+        font-size: 11px;
+        color: #fff;
+        background: #576690;
+        padding: 2px 6px;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+      
+      .lineText {
+        font-size: 15px;
+        font-family: "STKaiti", "KaiTi", serif;
+        color: #1d1d1f;
+        font-weight: 500;
+        flex: 1;
+      }
+    }
+    
+    .lineDetails {
+      padding-left: 8px;
+      border-left: 2px solid rgba(87, 102, 144, 0.2);
+      margin-left: 4px;
+      
+      .lineDetail {
+        font-size: 13px;
+        line-height: 1.8;
+        color: #4a5568;
+        margin-bottom: 6px;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+        
+        .detailLabel {
+          color: #86868b;
+          margin-right: 4px;
+        }
+      }
+    }
+  }
+}
+
+.storyboardSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  
+  .storyboardItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+    
+    .sbIndex {
+      font-size: 14px;
+      font-weight: 600;
+      color: #576690;
+      min-width: 20px;
+    }
+    
+    .sbText {
+      font-size: 13px;
+      color: #4a5568;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  
+  // 完整显示的分镜样式
+  .storyboardItemFull {
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    padding: 14px;
+    
+    .sbHeader {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      
+      .sbIndex {
+        font-size: 16px;
+        font-weight: 700;
+        color: #576690;
+        min-width: 24px;
+      }
+      
+      .sbTitle {
+        font-size: 14px;
+        font-weight: 500;
+        color: #1d1d1f;
+      }
+    }
+    
+    .sbContent {
+      padding-left: 34px;
+      
+      .sbText {
+        font-size: 15px;
+        font-family: "STKaiti", "KaiTi", serif;
+        color: #2c3e50;
+        line-height: 1.8;
+        margin-bottom: 10px;
+      }
+      
+      .sbScene {
+        font-size: 13px;
+        color: #4a5568;
+        line-height: 1.6;
+        margin-bottom: 8px;
+        
+        .sceneLabel {
+          color: #86868b;
+        }
+      }
+      
+      .sbPrompt {
+        font-size: 12px;
+        color: #718096;
+        line-height: 1.6;
+        padding: 10px 12px;
+        background: rgba(87, 102, 144, 0.06);
+        border-radius: 6px;
+        
+        .promptLabel {
+          color: #576690;
+          font-weight: 500;
+          display: block;
+          margin-bottom: 4px;
+        }
+      }
+    }
+  }
+}
+
+// 响应式适配
+@media (max-width: 768px) {
+  .analysisPreview {
+    padding: 16px;
+    border-radius: 12px;
+    
+    .header {
+      margin-bottom: 16px;
+      
+      .title {
+        font-size: 16px;
+      }
+    }
+    
+    .content {
+      max-height: 50vh;
+    }
+    
+    .actions {
+      flex-direction: column;
+      
+      button {
+        width: 100%;
+      }
+    }
+  }
+  
+  .poetryInfo {
+    padding: 16px;
+    
+    .poetryHeader {
+      .poetryTitle {
+        font-size: 18px;
+      }
+    }
+    
+    .poetryText {
+      font-size: 16px;
+    }
+  }
+  
+  .storyboardItem {
+    padding: 12px;
+  }
+  
+  .confirmedHeader {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .confirmedInfo {
+    gap: 8px;
+  }
+  
+  .confirmedContent {
+    padding: 0 16px 16px;
+    max-height: 300px;
+  }
+}
+
