@@ -36,11 +36,24 @@
   cursor: pointer;
   transition: all 0.25s ease;
   backdrop-filter: blur(8px);
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     color: var(--gf-primary);
     background: rgba(255, 255, 255, 0.9);
     transform: translateX(-2px);
+  }
+  
+  &:active {
+    background: rgba(255, 255, 255, 0.95);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 10px 16px;
+    
+    span {
+      display: none;
+    }
   }
 }
 
@@ -218,6 +231,7 @@
   border-radius: 6px;
   opacity: 0;
   transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
 
   :global(.group):hover & {
     opacity: 0.5;
@@ -227,6 +241,19 @@
     opacity: 1 !important;
     background: rgba(157, 41, 51, 0.1);
     color: var(--gf-accent);
+  }
+  
+  // 移动端始终显示删除按钮
+  @media (max-width: 768px) {
+    opacity: 0.5;
+    width: 32px;
+    height: 32px;
+    
+    &:active {
+      opacity: 1;
+      background: rgba(157, 41, 51, 0.1);
+      color: var(--gf-accent);
+    }
   }
 }
 

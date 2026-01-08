@@ -46,6 +46,7 @@ class PoetryAnalysisRequest(BaseModel):
     """诗词深度分析请求模型"""
     text: str
     mode: Literal["storybook", "comics"] = "storybook"
+    generation_type: Optional[Literal["image", "video"]] = "image"  # 生成类型
     history_id: Optional[str] = ""  # 前端历史记录 ID
     message_id: Optional[str] = ""  # 前端消息 ID
 
@@ -166,7 +167,7 @@ async def analyze_poetry(
             request.text
         )
         
-        logger.info(f"开始诗词分析，模式: {request.mode}，文本: {cleaned_text[:50]}...")
+        logger.info(f"开始诗词分析，模式: {request.mode}，生成类型: {request.generation_type or 'image'}，文本: {cleaned_text[:50]}...")
         
         # 初始化Ark客户端
         try:
@@ -176,13 +177,26 @@ async def analyze_poetry(
             ark_client = None
         
         # 执行深度分析
-        analysis_result = await analyze_poetry_with_storyboard(
-            text=cleaned_text,
-            mode=request.mode,
-            ark_client=ark_client
-        )
+        generation_type = request.generation_type or "image"
         
-        logger.info(f"诗词分析完成，生成 {len(analysis_result.get('storyboards', []))} 个分镜")
+        # 视频模式使用独立的分析函数
+        if generation_type == "video":
+            from app.services.text_analyzer import analyze_poetry_for_video
+            analysis_result = await analyze_poetry_for_video(
+                text=cleaned_text,
+                ark_client=ark_client
+            )
+            # 视频分析结果已经包含 video_prompt_data，不需要额外生成
+            logger.info(f"视频专用分析完成，生成 {len(analysis_result.get('line_analysis', []))} 个逐句分析")
+        else:
+            # 图像模式使用原有的分析函数
+            analysis_result = await analyze_poetry_with_storyboard(
+                text=cleaned_text,
+                mode=request.mode,
+                generation_type=generation_type,
+                ark_client=ark_client
+            )
+            logger.info(f"诗词分析完成，生成 {len(analysis_result.get('storyboards', []))} 个分镜")
         
         return {
             "status": "success",
@@ -216,11 +230,25 @@ async def _run_poetry_analysis(task_id: str, params: dict):
         task_manager.update_task_progress(task_id, 1, 3)
         
         # 执行分析
-        analysis_result = await analyze_poetry_with_storyboard(
-            text=text,
-            mode=mode,
-            ark_client=ark_client
-        )
+        generation_type = params.get("generation_type", "image")
+        
+        # 视频模式使用独立的分析函数
+        if generation_type == "video":
+            from app.services.text_analyzer import analyze_poetry_for_video
+            analysis_result = await analyze_poetry_for_video(
+                text=text,
+                ark_client=ark_client
+            )
+            # 视频分析结果已经包含 video_prompt_data，不需要额外生成
+            logger.info("视频专用分析完成")
+        else:
+            # 图像模式使用原有的分析函数
+            analysis_result = await analyze_poetry_with_storyboard(
+                text=text,
+                mode=mode,
+                generation_type=generation_type,
+                ark_client=ark_client
+            )
         
         # 更新进度：分析完成
         task_manager.update_task_progress(task_id, 3, 3)
@@ -271,7 +299,8 @@ async def analyze_poetry_async(
         # 创建任务
         params = {
             "text": cleaned_text,
-            "mode": request.mode
+            "mode": request.mode,
+            "generation_type": request.generation_type or "image"
         }
         task_id = task_manager.create_task(
             "poetry_analysis", 

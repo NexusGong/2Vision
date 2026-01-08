@@ -93,3 +93,20 @@ async def get_current_user(
         raise credentials_exception
     return user
 
+async def get_optional_user(
+    token: Optional[str] = Depends(OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """可选认证：如果提供了token则验证，否则返回None"""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, config.SECRET_KEY, algorithms=[config.ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        user = get_user_by_username(db, username=username)
+        return user
+    except JWTError:
+        return None
+

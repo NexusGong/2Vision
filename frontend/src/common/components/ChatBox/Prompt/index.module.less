@@ -35,4 +35,37 @@
         box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.05);
         border-color: rgba(255, 255, 255, 0.9);
     }
+    
+    // 移动端适配
+    @media (max-width: 768px) {
+        border-radius: 16px;
+        padding-bottom: 6px;
+        box-shadow: 0 2px 16px -1px rgba(0, 0, 0, 0.08);
+        
+        // 适配键盘弹出
+        &:focus-within {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.1);
+        }
+    }
+}
+
+// 移动端工具栏折叠样式
+.mobileToolbar {
+    display: none;
+    
+    @media (max-width: 768px) {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        gap: 8px;
+    }
+}
+
+.desktopToolbar {
+    display: flex;
+    
+    @media (max-width: 768px) {
+        display: none;
+    }
 }

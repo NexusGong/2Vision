@@ -58,6 +58,8 @@ export interface LineAnalysis {
   emotion: string;
   rhetoric: string;
   visual_scene?: string;
+  action?: string;  // 动作描述（用于视频）
+  time_marker?: string;  // 时间标记（用于视频）
 }
 
 // 分镜数据
@@ -79,11 +81,24 @@ export interface Storyboard {
   weather?: string;
 }
 
+// 视频提示词数据（所有字段可编辑）
+export interface VideoPromptData {
+  video_prompt: string;
+  scene_description: string;
+  visual_style: string;
+  background_music: string;
+  narration_style: string;
+  transitions: string;
+  camera_movement: string;
+  duration_suggestion: number;
+}
+
 // 诗词分析完整数据
 export interface PoetryAnalysisData {
   poetry_info: PoetryInfo;
   line_analysis: LineAnalysis[];
-  storyboards: Storyboard[];
+  storyboards?: Storyboard[];  // 视频模式不需要分镜，所以设为可选
+  video_prompt_data?: VideoPromptData;
   // 兼容旧的字段
   segments?: Array<{
     index: number;
@@ -103,6 +118,7 @@ export interface PoetryAnalysisData {
 export interface PoetryAnalysisParams {
   text: string;
   mode: "storybook" | "comics";
+  generation_type?: "image" | "video";
   history_id?: string;  // 前端历史记录 ID
   message_id?: string;  // 前端消息 ID
 }
@@ -174,12 +190,14 @@ export const generateStoryBook = async (
       throw new Error("图像生成失败");
     }
 
-    // 转换为我们需要的格式
-    const items = imageResult.data.map((item: any, index: number) => ({
-      Url: item.image_url || "",
-      Text: item.text_segment || "",
-      IsCover: item.is_cover || index === 0,
-    }));
+    // 转换为我们需要的格式，过滤掉空URL的项
+    const items = imageResult.data
+      .filter((item: any) => item.image_url && item.image_url.trim() !== "")
+      .map((item: any, index: number) => ({
+        Url: item.image_url || "",
+        Text: item.text_segment || "",
+        IsCover: item.is_cover || index === 0,
+      }));
 
     // 生成标题（从文本第一行或前20个字符）
     const title = params.query.split('\n')[0].trim().substring(0, 20) || "古诗词学习";
@@ -199,6 +217,15 @@ export const generateStoryBook = async (
 
 export const deleteStoryBook = async (id: string | number): Promise<boolean> => {
   try {
+    // 检查ID格式：只有数字ID才调用后端删除
+    // 前端chat ID格式是 "chat_xxx"，后端project ID是数字
+    const numericId = typeof id === "number" ? id : parseInt(id as string, 10);
+    if (isNaN(numericId)) {
+      // 如果不是数字ID，说明是前端chat ID，不需要调用后端删除
+      console.log(`跳过后端删除，ID ${id} 是前端chat ID，不是后端project ID`);
+      return true; // 返回true表示"成功"（因为不需要删除）
+    }
+
     const token = getAuthToken();
     const headers: HeadersInit = {
       "Content-Type": "application/json",
@@ -208,7 +235,7 @@ export const deleteStoryBook = async (id: string | number): Promise<boolean> => 
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`/api/project/${id}`, {
+    const response = await fetch(`/api/project/${numericId}`, {
       method: "DELETE",
       headers,
     });
@@ -217,7 +244,7 @@ export const deleteStoryBook = async (id: string | number): Promise<boolean> => 
       return true;
     }
     
-    console.warn(`Database deletion failed for id ${id}: ${response.status}`);
+    console.warn(`Database deletion failed for id ${numericId}: ${response.status}`);
     return false;
   } catch (error) {
     console.error("Database deletion error:", error);
@@ -246,6 +273,7 @@ export const startAsyncAnalysis = async (
     body: JSON.stringify({
       text: params.text,
       mode: params.mode,
+      generation_type: params.generation_type || "image",
       history_id: params.history_id || "",
       message_id: params.message_id || "",
     }),
@@ -432,11 +460,14 @@ export const generateFromStoryboard = async (
       if (taskStatus.status === "completed" && taskStatus.result) {
         // 任务完成，转换结果（图像生成任务返回数组）
         const resultData = taskStatus.result.data as any[];
-        const items = resultData.map((item: any) => ({
-          Url: item.image_url || "",
-          Text: item.text || "",
-          IsCover: item.is_cover || false,
-        }));
+        // 过滤掉空URL的项，只保留有效图片
+        const items = resultData
+          .filter((item: any) => item.image_url && item.image_url.trim() !== "")
+          .map((item: any) => ({
+            Url: item.image_url || "",
+            Text: item.text || "",
+            IsCover: item.is_cover || false,
+          }));
 
         return {
           Title: params.poetry_info.title,
@@ -462,4 +493,96 @@ export const generateFromStoryboard = async (
     console.error("基于分镜生成图像失败:", error);
     throw error;
   }
+};
+
+// ============ 视频生成 API ============
+
+export interface VideoGenerateParams {
+  video_prompt: string;  // 视频生成提示词（已由分析服务生成）
+  duration?: number;
+  fps?: number;
+  aspect_ratio?: string;
+  history_id?: string;
+  message_id?: string;
+}
+
+export interface VideoGenerateResponse {
+  status: string;
+  task_id: string;
+}
+
+export interface VideoTaskStatus {
+  status: "pending" | "processing" | "completed" | "failed";
+  task_id: string;
+  video_url?: string;
+  progress?: number;
+  error?: string;
+}
+
+/**
+ * 生成视频（异步）
+ */
+export const generateVideo = async (
+  params: VideoGenerateParams
+): Promise<VideoGenerateResponse> => {
+  const token = getAuthToken();
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  // 如果有 token，添加到请求头
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch("/api/video/generate_async", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      video_prompt: params.video_prompt,
+      duration: params.duration || 15,
+      fps: params.fps || 24,
+      aspect_ratio: params.aspect_ratio || "16:9",
+      history_id: params.history_id || "",
+      message_id: params.message_id || "",
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || `视频生成失败: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+/**
+ * 查询视频生成任务状态
+ */
+export const getVideoTaskStatus = async (
+  task_id: string
+): Promise<VideoTaskStatus> => {
+  const response = await fetch(`/api/video/task/${task_id}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMessage = `查询视频任务状态失败: ${response.status}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.detail || errorMessage;
+    } catch {
+      // 如果无法解析JSON，使用原始错误文本
+      if (errorText) {
+        errorMessage = errorText;
+      }
+    }
+    // 确保错误消息包含状态码信息
+    if (!errorMessage.includes(String(response.status))) {
+      errorMessage = `查询视频任务状态失败 (${response.status}): ${errorMessage}`;
+    }
+    const error = new Error(errorMessage);
+    (error as any).status = response.status;
+    (error as any).statusCode = response.status; // 也添加 statusCode 属性
+    throw error;
+  }
+  return response.json();
 };

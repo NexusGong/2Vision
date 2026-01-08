@@ -807,21 +807,32 @@
 
 @media (max-width: 768px) {
   .topSection {
-    padding: 16px 16px 12px;
+    padding: 0;
   }
 
   .header {
     flex-wrap: wrap;
     gap: 12px;
+    padding: 12px 16px;
   }
 
   .titleArea {
     order: 1;
-    flex: 1 1 100%;
+    flex: 0 0 auto;
   }
 
   .backBtn {
     order: 0;
+    padding: 10px 16px;
+    -webkit-tap-highlight-color: transparent;
+    
+    span {
+      display: none;
+    }
+    
+    &:active {
+      background: rgba(255, 255, 255, 0.95);
+    }
   }
 
   .searchWrapper {
@@ -830,12 +841,12 @@
   }
 
   .pageTitle {
-    font-size: 18px;
-    letter-spacing: 2px;
+    font-size: 16px;
+    letter-spacing: 1px;
   }
 
   .mainContent {
-    padding: 0 16px 20px;
+    padding: 0 12px 20px;
   }
 
   .poetryGrid {
@@ -848,5 +859,69 @@
 
   .title {
     font-size: 15px;
+  }
+  
+  // 移动端侧边导航优化
+  .sideNav {
+    max-height: 160px;
+    padding: 4px 0;
+  }
+  
+  .navTree {
+    padding: 4px 8px;
+  }
+  
+  .treeItem {
+    padding: 12px;
+    -webkit-tap-highlight-color: transparent;
+    
+    &:active {
+      background: rgba(255, 255, 255, 0.95);
+    }
+  }
+  
+  .treeLevel1 {
+    padding: 12px;
+    
+    &.active {
+      margin-left: -4px;
+      padding-left: 11px;
+    }
+  }
+  
+  // 移动端内容区优化
+  .contentArea {
+    padding: 12px 14px;
+    border-radius: 12px;
+  }
+  
+  .contentHeader {
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  
+  .pathTitle {
+    font-size: 13px;
+  }
+  
+  // 移动端诗词卡片优化
+  .poetryCard {
+    &:active {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.85);
+    }
+  }
+  
+  // 移动端删除按钮始终可见
+  .deleteBtn {
+    opacity: 0.5;
+    width: 32px;
+    height: 32px;
+    
+    &:active {
+      opacity: 1;
+      background: rgba(157, 41, 51, 0.1);
+      color: @accent-rust;
+    }
   }
 }

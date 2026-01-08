@@ -1,0 +1,14 @@
+# ngrok 配置文件
+# 用于同时暴露前端和后端服务
+# 使用方法: ngrok start --all --config ngrok.yml
+
+version: "2"
+tunnels:
+  frontend:
+    proto: http
+    addr: 8080
+    inspect: true
+  backend:
+    proto: http
+    addr: 8000
+    inspect: true

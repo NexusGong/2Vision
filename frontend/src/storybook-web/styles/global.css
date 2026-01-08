@@ -78,6 +78,52 @@
 /* 基础样式重置 */
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+}
+
+/* 移动端安全区域支持 */
+html {
+  /* 支持 iOS 安全区域 */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* 自定义安全区域工具类 */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* 移动端滚动优化 */
+@media (max-width: 768px) {
+  body {
+    /* 优化移动端滚动性能 */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* 防止移动端缩放 */
+  input, textarea, select {
+    font-size: 16px !important; /* 防止 iOS 自动缩放 */
+  }
+  
+  /* 优化触控体验 */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+/* 移动端固定底部元素 */
+@media (max-width: 768px) {
+  .fixed-bottom-mobile {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
 }
 
 /* 省略号动画 */

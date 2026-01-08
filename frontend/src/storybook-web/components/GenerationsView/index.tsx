@@ -27,7 +27,7 @@ import {
   updateGenerationRecordTitle,
   migrateFromChatHistory,
 } from "../../utils/generations";
-import { formatDate } from "../../utils";
+import { formatDate, ensureImageUrl } from "../../utils";
 import { GenerateStoryBookResponse } from "../../apis";
 import { VsStoryBookPureCoverPage } from "@/common/components/StoryBook";
 import styles from "./index.module.less";
@@ -244,7 +244,7 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
 
                   {/* 封面 - 使用原版组件 */}
                   <div className="absolute bottom-0 left-0 origin-top-left w-[126px] h-[174px] rotate-[-3.19deg] cursor-pointer">
-                    <VsStoryBookPureCoverPage url={record.coverUrl} />
+                    <VsStoryBookPureCoverPage url={ensureImageUrl(record.coverUrl)} />
                     {/* 模式标签 */}
                     <div className={`${styles.modeTag} ${record.mode === "comics" ? styles.comicsTag : ""}`}>
                       {record.mode === "storybook" ? "故事书" : "连环画"}

@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from "react";
 
 import { Modal } from "@arco-design/web-react";
+import { useIsMobile } from "@/common/components/StoryBook/hooks/useMobile";
 import { ReactComponent as CloseIcon } from "./assets/close.svg";
 import ImageGallery from "./ImageGallery";
 
@@ -30,6 +31,7 @@ export const ImageViewModal: React.FC<IImageViewModalProps> = ({
   initialIndex,
   onClose,
 }) => {
+  const isMobile = useIsMobile(768);
   const [selectedIndex, setSelectedIndex] = useState<number | undefined>(
     initialIndex
   );
@@ -59,12 +61,14 @@ export const ImageViewModal: React.FC<IImageViewModalProps> = ({
           >
             <div className={"absolute top-0 left-0 bottom-0 right-0"}></div>
             <CloseIcon
-              className={"absolute right-[32px] top-[32px] cursor-pointer"}
+              className={`absolute cursor-pointer ${isMobile ? 'right-4 top-4 w-6 h-6' : 'right-[32px] top-[32px]'}`}
             />
             <div
-              className={
-                "absolute top-[92px] bottom-[140px] left-[15px] right-[15px] flex items-center justify-center"
-              }
+              className={`absolute flex items-center justify-center ${
+                isMobile 
+                  ? 'top-14 bottom-24 left-2 right-2' 
+                  : 'top-[92px] bottom-[140px] left-[15px] right-[15px]'
+              }`}
               onClick={handleClose}
             >
               {imageList[selectedIndex!] && (
@@ -78,9 +82,7 @@ export const ImageViewModal: React.FC<IImageViewModalProps> = ({
               )}
             </div>
             <div
-              className={
-                "absolute bottom-[0px] left-[0px] right-[0px] h-[98px]"
-              }
+              className={`absolute left-0 right-0 ${isMobile ? 'bottom-0 h-[80px] pb-safe' : 'bottom-0 h-[98px]'}`}
               onClick={(event) => {
                 event.stopPropagation(); // 阻止事件冒泡
               }}

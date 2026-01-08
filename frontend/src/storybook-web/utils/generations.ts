@@ -19,7 +19,23 @@ export interface GenerationRecord {
   analysisData?: PoetryAnalysisData;
 }
 
+export interface VideoGenerationRecord {
+  id: string;
+  title: string;
+  videoUrl: string;
+  summary: string;
+  timestamp: number;
+  // 完整数据用于重新查看
+  data: {
+    video_url: string;
+    video_prompt?: string;
+    params?: any;
+  };
+  analysisData?: PoetryAnalysisData;
+}
+
 const STORAGE_KEY = "generation_records";
+const VIDEO_STORAGE_KEY = "video_generation_records";
 const MIGRATION_KEY = "generation_records_migrated";
 const MAX_RECORDS = 30; // 最多保存30条生成记录
 
@@ -215,6 +231,97 @@ export function updateGenerationRecordTitle(id: string, title: string): boolean 
     return true;
   } catch (error) {
     console.error("更新生成记录失败:", error);
+    return false;
+  }
+}
+
+/**
+ * 保存视频生成记录
+ */
+export function saveVideoGenerationRecord(
+  videoUrl: string,
+  analysisData?: PoetryAnalysisData,
+  params?: any,
+  videoPrompt?: string
+): string {
+  if (!videoUrl) {
+    return "";
+  }
+
+  const title = analysisData?.poetry_info?.title || "未命名视频";
+  const summary = analysisData?.poetry_info?.full_text || "";
+
+  const record: VideoGenerationRecord = {
+    id: `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    title: title,
+    videoUrl: videoUrl,
+    summary: summary,
+    timestamp: Date.now(),
+    data: {
+      video_url: videoUrl,
+      video_prompt: videoPrompt,
+      params: params,
+    },
+    analysisData: analysisData,
+  };
+
+  const records = getVideoGenerationRecords();
+  // 将新记录添加到最前面
+  records.unshift(record);
+
+  // 限制记录数量
+  if (records.length > MAX_RECORDS) {
+    records.splice(MAX_RECORDS);
+  }
+
+  try {
+    localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(records));
+    // 触发更新事件
+    window.dispatchEvent(new Event("generations-updated"));
+    return record.id;
+  } catch (error) {
+    console.error("保存视频生成记录失败:", error);
+    return "";
+  }
+}
+
+/**
+ * 获取所有视频生成记录
+ */
+export function getVideoGenerationRecords(): VideoGenerationRecord[] {
+  try {
+    const data = localStorage.getItem(VIDEO_STORAGE_KEY);
+    if (!data) {
+      return [];
+    }
+    return JSON.parse(data) as VideoGenerationRecord[];
+  } catch (error) {
+    console.error("读取视频生成记录失败:", error);
+    return [];
+  }
+}
+
+/**
+ * 根据ID获取视频生成记录
+ */
+export function getVideoGenerationRecordById(id: string): VideoGenerationRecord | null {
+  const records = getVideoGenerationRecords();
+  return records.find((r) => r.id === id) || null;
+}
+
+/**
+ * 删除视频生成记录
+ */
+export function deleteVideoGenerationRecord(id: string): boolean {
+  try {
+    const records = getVideoGenerationRecords();
+    const filtered = records.filter((r) => r.id !== id);
+    localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(filtered));
+    // 触发更新事件
+    window.dispatchEvent(new Event("generations-updated"));
+    return true;
+  } catch (error) {
+    console.error("删除视频生成记录失败:", error);
     return false;
   }
 }

@@ -132,21 +132,41 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
   };
 
   return (
-    <div className={classNames(styles.sidebar, { [styles.collapsed]: collapsed })}>
-      {/* 切换按钮 - 固定在侧边 */}
-      <div className={styles.toggleButtonContainer}>
-        <button
-          onClick={() => onCollapse(!collapsed)}
-          className={styles.toggleButton}
-          aria-label={collapsed ? "展开历史对话" : "收起历史对话"}
-        >
-          {collapsed ? <IconRight /> : <IconLeft />}
-        </button>
-      </div>
+    <>
+      {/* 移动端遮罩层 */}
+      {isMobile && (
+        <div 
+          className={classNames(styles.overlay, { [styles.hidden]: collapsed })}
+          onClick={() => onCollapse(true)}
+          aria-hidden="true"
+        />
+      )}
+      
+      <div className={classNames(styles.sidebar, { [styles.collapsed]: collapsed })}>
+        {/* 切换按钮 - 固定在侧边（桌面端显示） */}
+        {!isMobile && (
+          <div className={styles.toggleButtonContainer}>
+            <button
+              onClick={() => onCollapse(!collapsed)}
+              className={styles.toggleButton}
+              aria-label={collapsed ? "展开历史对话" : "收起历史对话"}
+            >
+              {collapsed ? <IconRight /> : <IconLeft />}
+            </button>
+          </div>
+        )}
 
-      {/* 侧边栏内容 */}
-      {!collapsed && (
-        <>
+        {/* 侧边栏内容 */}
+        {!collapsed && (
+          <>
+            {/* 移动端关闭按钮 */}
+            {isMobile && (
+              <div className={styles.mobileCloseBtn}>
+                <button onClick={() => onCollapse(true)} aria-label="关闭侧边栏">
+                  <IconLeft />
+                </button>
+              </div>
+            )}
           {/* 上部：功能导航区 */}
           <div className={styles.navSection}>
             <button className={styles.newChatButton} onClick={handleNewChat}>
@@ -231,9 +251,10 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
               </Popconfirm>
             </div>
           )}
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </div>
+    </>
   );
 };
 

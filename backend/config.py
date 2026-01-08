@@ -16,6 +16,7 @@ class Config:
     ARK_BASE_URL = os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
     MODEL_NAME = os.getenv("MODEL_NAME", "doubao-seed-1-6-251015")
     VISION_MODEL_NAME = os.getenv("VISION_MODEL_NAME", "doubao-seedream-4-0-250828")
+    VIDEO_MODEL_NAME = os.getenv("VIDEO_MODEL_NAME", "doubao-seedance-1-5-pro-251215")
     
     # JWT 配置
     SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")

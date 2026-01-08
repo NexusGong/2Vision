@@ -64,9 +64,9 @@ ANCIENT_TEXT_ANALYSIS_PROMPT = """
 请确保分析准确、深入，尊重原文的多义性和文学价值。
 """
 
-# 诗词深度分析与分镜生成提示词（通用版 - 适配所有古诗词古文风格）
+# 诗词深度分析与分镜生成提示词（图像生成版）
 POETRY_ANALYSIS_WITH_STORYBOARD_PROMPT = """
-你是古诗词古文分析专家。请分析文本并生成**忠实于原文意境**的分镜提示词。
+你是古诗词古文分析专家。请分析文本并生成**忠实于原文意境**的分镜提示词（用于图像生成）。
 
 ## 核心原则
 1. **image_prompt 必须严格基于原文描述的实际场景，不要臆造不存在的元素**
@@ -88,9 +88,9 @@ POETRY_ANALYSIS_WITH_STORYBOARD_PROMPT = """
 ## 任务
 1. 识别诗词/古文信息（标题、作者、朝代）
 2. 分析创作背景和核心主题
-3. 逐句分析，提取**原文实际描述的**场景、动作、意象
+3. **逐句分析，提取**原文实际描述的**场景、动作、意象（重要：必须分析每一句，不能遗漏任何一句）**
 4. 根据内容选择最合适的绘画风格
-5. 生成准确的图像提示词
+5. **为每一句生成对应的分镜和图像提示词（重要：除了封面，每个分镜必须对应一句原文，不能合并或跳过任何句子）**
 
 ## image_prompt 规范
 1. **只描绘原文明确表达的内容**，不添加原文没有的场景或动作
@@ -156,14 +156,124 @@ POETRY_ANALYSIS_WITH_STORYBOARD_PROMPT = """
 - 封面的 scene_description 和 image_prompt 必须体现作品的核心主题
 - 风格选择要与诗词内容和朝代相匹配，不要千篇一律用水墨
 - 每个分镜只描绘原文实际写到的内容
+- **必须逐句分析：line_analysis 数组中的元素数量必须等于原文的句数（按句号、问号、感叹号、换行符分割）**
+- **必须逐句生成分镜：storyboards 中除了封面（type="cover"），每个 content 类型的分镜必须对应一句原文，不能合并多句或跳过任何句子**
+- **如果原文有 N 句，line_analysis 必须有 N 个元素，storyboards 必须有 1 个封面 + N 个内容分镜，共 N+1 个分镜**
+
+## 逐句分析要求（非常重要）
+1. **必须严格按照原文的句数进行分析**：先对原文进行断句（按句号、问号、感叹号、换行符分割），然后为每一句生成一个 line_analysis 条目
+2. **每一句都必须包含完整的分析**：word_explanation（关键字词解释）、interpretation（句意解读）、imagery（意象列表）、emotion（情感）、rhetoric（修辞手法）
+3. **不能合并句子**：即使两句意思相近，也必须分开分析
+4. **不能跳过句子**：原文有多少句，line_analysis 就必须有多少个元素
+5. **示例**：如果原文是"床前明月光，疑是地上霜。举头望明月，低头思故乡。"，应该断句为4句，line_analysis 必须有4个元素
+"""
+
+# 诗词深度分析与分镜生成提示词（视频生成版）
+POETRY_ANALYSIS_FOR_VIDEO_PROMPT = """
+你是古诗词古文分析专家。请分析文本并生成**用于视频生成**的详细分析数据。
+
+## 核心原则
+1. **分析重点在于视频创作**：需要关注场景的动态变化、时间顺序、镜头运动等视频元素
+2. **逐句分析必须完整**：每一句都要分析其视觉场景、动作、情感变化等，为视频分镜提供基础
+3. **封面必须包含：标题、朝代、作者，并体现作品核心主题**
+
+## 任务
+1. 识别诗词/古文信息（标题、作者、朝代）
+2. 分析创作背景和核心主题
+3. **逐句分析，提取**原文实际描述的**场景、动作、意象、时间变化、情感变化（重要：必须分析每一句，不能遗漏任何一句）**
+4. 分析每句之间的逻辑关系和转场需求
+5. **为每一句生成对应的场景描述（重要：除了封面，每个场景必须对应一句原文，不能合并或跳过任何句子）**
+
+## JSON输出
+
+{
+  "poetry_info": {
+    "title": "标题",
+    "author": "作者",
+    "dynasty": "朝代",
+    "full_text": "完整文本",
+    "creation_background": "创作背景（50字）",
+    "era_background": "时代背景（50字）",
+    "poet_mood": "作者心情/情感基调"
+  },
+  "line_analysis": [
+    {
+      "line_number": 1,
+      "line": "原句",
+      "word_explanation": "关键字词解释",
+      "interpretation": "句意解读（30字）",
+      "imagery": ["意象1", "意象2"],
+      "emotion": "情感",
+      "rhetoric": "修辞手法",
+      "visual_scene": "视觉场景描述（用于视频）",
+      "action": "动作描述（如有）",
+      "time_marker": "时间标记（如有）"
+    }
+  ],
+  "storyboards": [
+    {
+      "index": 1,
+      "type": "cover",
+      "title": "标题",
+      "subtitle": "朝代·作者",
+      "text": "最能代表主题的名句",
+      "scene_description": "封面场景：体现作品核心主题的画面，包含标题、朝代、作者信息",
+      "image_prompt": "用于视频封面的画面描述",
+      "style_hints": "视觉风格",
+      "atmosphere": "整体氛围",
+      "color_tone": "主色调",
+      "composition": "构图方式"
+    },
+    {
+      "index": 2,
+      "type": "content",
+      "title": "第一句",
+      "text": "原文",
+      "scene_description": "这句描绘的具体场景（用于视频分镜）",
+      "image_prompt": "画面描述（用于视频生成）",
+      "style_hints": "视觉风格",
+      "atmosphere": "氛围",
+      "color_tone": "色调",
+      "composition": "构图",
+      "camera_movement": "镜头运动建议",
+      "duration_suggestion": "建议时长（秒）"
+    }
+  ]
+}
+
+## 重要提醒
+- **封面必须明确显示：标题（大字）、朝代、作者（小字）**
+- 封面的 scene_description 和 image_prompt 必须体现作品的核心主题
+- **必须逐句分析：line_analysis 数组中的元素数量必须等于原文的句数（按句号、问号、感叹号、换行符分割）**
+- **必须逐句生成场景：storyboards 中除了封面（type="cover"），每个 content 类型的分镜必须对应一句原文，不能合并多句或跳过任何句子**
+- **如果原文有 N 句，line_analysis 必须有 N 个元素，storyboards 必须有 1 个封面 + N 个内容分镜，共 N+1 个分镜**
+
+## 逐句分析要求（非常重要）
+1. **必须严格按照原文的句数进行分析**：先对原文进行断句（按句号、问号、感叹号、换行符分割），然后为每一句生成一个 line_analysis 条目
+2. **每一句都必须包含完整的分析**：word_explanation（关键字词解释）、interpretation（句意解读）、imagery（意象列表）、emotion（情感）、rhetoric（修辞手法）、visual_scene（视觉场景，用于视频）
+3. **不能合并句子**：即使两句意思相近，也必须分开分析
+4. **不能跳过句子**：原文有多少句，line_analysis 就必须有多少个元素
+5. **示例**：如果原文是"床前明月光，疑是地上霜。举头望明月，低头思故乡。"，应该断句为4句，line_analysis 必须有4个元素
 """
 
 def basic_segmentation(text: str) -> List[str]:
-    """基础断句处理"""
-    # 按标点符号断句
-    segments = re.split(r'[。！？；\n]', text)
-    # 过滤空字符串
-    segments = [s.strip() for s in segments if s.strip()]
+    """基础断句处理 - 按句号、问号、感叹号、换行符分割"""
+    # 先按换行符分割（处理多行诗词）
+    lines = text.split('\n')
+    segments = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        # 按句号、问号、感叹号分割
+        parts = re.split(r'[。！？]', line)
+        for part in parts:
+            part = part.strip()
+            if part:
+                segments.append(part)
+    # 如果没有任何分割结果，返回整个文本
+    if not segments:
+        segments = [text.strip()] if text.strip() else []
     return segments
 
 async def analyze_ancient_text(
@@ -311,6 +421,7 @@ def generate_image_prompt_for_segment(segment: Dict[str, Any], original_text: st
 async def analyze_poetry_with_storyboard(
     text: str,
     mode: Literal["storybook", "comics"] = "storybook",
+    generation_type: Literal["image", "video"] = "image",
     ark_client: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
@@ -319,12 +430,15 @@ async def analyze_poetry_with_storyboard(
     Args:
         text: 用户输入的诗词文本
         mode: 生成模式，storybook（故事书）或 comics（连环画）
+        generation_type: 生成类型，image（图像）或 video（视频）
         ark_client: Ark客户端实例
         
     Returns:
         包含诗词信息、逐句分析和分镜数据的结构化结果
     """
-    logger.info(f"开始深度分析诗词，模式: {mode}，文本长度: {len(text)}")
+    # 当生成类型是video时，模式应该显示为video
+    display_mode = "video" if generation_type == "video" else mode
+    logger.info(f"开始深度分析诗词，模式: {display_mode}，文本长度: {len(text)}")
     
     # 如果没有ark_client，返回基础结构
     if not ark_client:
@@ -332,22 +446,44 @@ async def analyze_poetry_with_storyboard(
         return _create_basic_poetry_analysis(text, mode)
     
     try:
-        # 构建消息，添加模式说明
-        mode_description = "故事书模式：竖版画面，画面细腻优美，强调意境" if mode == "storybook" else "连环画模式：方形画面，画面生动有趣，强调叙事"
+        # 根据生成类型选择不同的prompt
+        if generation_type == "video":
+            system_prompt = POETRY_ANALYSIS_FOR_VIDEO_PROMPT
+            mode_description = "视频生成模式：需要关注场景的动态变化、时间顺序、镜头运动等视频元素"
+        else:
+            system_prompt = POETRY_ANALYSIS_WITH_STORYBOARD_PROMPT
+            mode_description = "故事书模式：竖版画面，画面细腻优美，强调意境" if mode == "storybook" else "连环画模式：方形画面，画面生动有趣，强调叙事"
+        
+        # 先进行断句，明确告诉模型有多少句
+        lines = basic_segmentation(text)
+        line_count = len(lines)
+        
+        # 构建消息，明确要求逐句分析
+        user_content = f"""请分析以下古诗词/古文，并按照{mode_description}生成分镜：
+
+{text}
+
+**重要提示**：
+1. 原文共有 {line_count} 句（已按句号、问号、感叹号、换行符分割）
+2. 你必须为每一句生成一个 line_analysis 条目，共 {line_count} 个
+3. 你必须为每一句生成一个 content 类型的分镜，共 {line_count} 个（不包括封面）
+4. 不能合并句子，不能跳过任何句子
+5. 每一句的分析必须完整，包含 word_explanation、interpretation、imagery、emotion、rhetoric 等字段
+"""
         
         messages = [
-            {"role": "system", "content": POETRY_ANALYSIS_WITH_STORYBOARD_PROMPT},
-            {"role": "user", "content": f"请分析以下古诗词/古文，并按照{mode_description}生成分镜：\n\n{text}"}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content}
         ]
         
-        # 调用模型（减少 max_tokens 提高速度）
+        # 调用模型（增加 max_tokens 确保完整输出）
         result = ark_client.chat_completion(
             model=config.MODEL_NAME,
             messages=messages,
             stream=False,
             response_format='json_object',
             disable_thinking=True,
-            max_tokens=2500
+            max_tokens=4000  # 增加token数量，确保逐句分析完整
         )
         
         # 解析结果
@@ -461,8 +597,12 @@ def _create_basic_poetry_analysis(text: str, mode: str) -> Dict[str, Any]:
 
 def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, mode: str) -> Dict[str, Any]:
     """
-    验证并补全分析结果的结构
+    验证并补全分析结果的结构，确保逐句分析和逐句生成
     """
+    # 先进行基础断句，确定原文有多少句
+    lines = basic_segmentation(original_text)
+    expected_line_count = len(lines)
+    
     # 确保 poetry_info 存在并补全字段
     if "poetry_info" not in result:
         result["poetry_info"] = {
@@ -484,13 +624,51 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
         "nature": ""
     })
     
-    # 确保 line_analysis 存在
+    # 确保 line_analysis 存在并补全缺失的句子
     if "line_analysis" not in result:
         result["line_analysis"] = []
     
     # 补全 line_analysis 的新字段
     for line in result["line_analysis"]:
         line.setdefault("visual_scene", "")
+    
+    # 检查并补全缺失的逐句分析
+    existing_lines = {line.get("line", "").strip() for line in result["line_analysis"]}
+    for i, line_text in enumerate(lines):
+        if line_text.strip() not in existing_lines:
+            # 添加缺失的句子分析
+            result["line_analysis"].append({
+                "line_number": len(result["line_analysis"]) + 1,
+                "line": line_text.strip(),
+                "word_explanation": "待分析",
+                "interpretation": "待分析",
+                "imagery": [],
+                "emotion": "待分析",
+                "rhetoric": "待分析",
+                "visual_scene": ""
+            })
+            logger.warning(f"补全缺失的逐句分析: {line_text[:20]}...")
+    
+    # 重新编号 line_analysis
+    for i, line in enumerate(result["line_analysis"]):
+        line["line_number"] = i + 1
+    
+    # 如果 line_analysis 数量不对，重新创建
+    if len(result["line_analysis"]) != expected_line_count:
+        logger.warning(f"逐句分析数量不匹配：期望 {expected_line_count} 句，实际 {len(result['line_analysis'])} 句，重新创建")
+        result["line_analysis"] = [
+            {
+                "line_number": i + 1,
+                "line": line_text.strip(),
+                "word_explanation": "待分析",
+                "interpretation": "待分析",
+                "imagery": [],
+                "emotion": "待分析",
+                "rhetoric": "待分析",
+                "visual_scene": ""
+            }
+            for i, line_text in enumerate(lines)
+        ]
     
     # 根据模式设置默认风格
     if mode == "storybook":
@@ -531,7 +709,59 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
                 "composition": default_composition
             }
             result["storyboards"].insert(0, cover)
-            # 重新编号
+        
+        # 检查内容分镜数量：应该有 expected_line_count 个内容分镜（不包括封面）
+        content_storyboards = [sb for sb in result["storyboards"] if sb.get("type") == "content"]
+        if len(content_storyboards) != expected_line_count:
+            logger.warning(f"内容分镜数量不匹配：期望 {expected_line_count} 个，实际 {len(content_storyboards)} 个，补全缺失的分镜")
+            
+            # 获取已有的内容分镜文本
+            existing_texts = {sb.get("text", "").strip() for sb in content_storyboards}
+            
+            # 为缺失的句子创建分镜
+            for i, line_text in enumerate(lines):
+                if line_text.strip() not in existing_texts:
+                    # 创建缺失的分镜
+                    content_prompt = f'一幅展现「{line_text.strip()}」意境的{default_style}画作。画面描绘这句诗词所表达的场景和意境，{default_atmosphere}的氛围。采用中国古典绘画风格，色调{default_color_tone}，{default_composition}，整体意境优美深远。'
+                    
+                    new_storyboard = {
+                        "index": len(result["storyboards"]) + 1,
+                        "type": "content",
+                        "title": f"第{i + 1}句",
+                        "text": line_text.strip(),
+                        "scene_description": f"描绘「{line_text.strip()}」的场景，展现诗句中的意象和情感",
+                        "image_prompt": content_prompt,
+                        "style_hints": default_style,
+                        "atmosphere": default_atmosphere,
+                        "color_tone": default_color_tone,
+                        "composition": default_composition,
+                        "era_elements": "",
+                        "time_of_day": "",
+                        "weather": ""
+                    }
+                    result["storyboards"].append(new_storyboard)
+                    logger.info(f"补全缺失的分镜: {line_text[:20]}...")
+            
+            # 重新排序和编号所有分镜：封面在前，内容分镜按原文顺序排列
+            cover_sb = [sb for sb in result["storyboards"] if sb.get("type") == "cover"]
+            content_sbs = [sb for sb in result["storyboards"] if sb.get("type") == "content"]
+            
+            # 按原文顺序排序内容分镜
+            def get_line_index(storyboard):
+                text = storyboard.get("text", "").strip()
+                try:
+                    return lines.index(text)
+                except ValueError:
+                    # 如果找不到，尝试匹配部分文本
+                    for idx, line in enumerate(lines):
+                        if text in line or line in text:
+                            return idx
+                    return 999
+            
+            content_sbs.sort(key=get_line_index)
+            
+            # 重新组合：封面 + 按顺序的内容分镜
+            result["storyboards"] = cover_sb + content_sbs
             for i, sb in enumerate(result["storyboards"]):
                 sb["index"] = i + 1
     
@@ -604,4 +834,531 @@ def generate_image_prompt_for_storyboard(
         prompt_parts.append(f"封面需要体现：{title}，{dynasty}{author}，古典书卷气息")
     
     return "\n".join(prompt_parts)
+
+
+# 视频分析专用提示词（完全独立于图像分析）
+# 针对火山引擎 Seedance 1.5 Pro 文生视频（含音频）优化
+VIDEO_ANALYSIS_PROMPT = """
+你是古诗词视频创作专家，专门为火山引擎 Seedance 1.5 Pro 文生视频模型生成优化提示词。
+请分析用户输入的古诗词文本，生成用于视频创作的完整分析数据和视频生成提示词。
+
+## 核心任务
+
+你的任务是：
+1. **识别诗词信息**：从用户输入中识别标题、作者、朝代等元信息，以及完整的原文诗句
+2. **生成优化视频prompt**：基于诗词内容，生成一个完整、详细、专业的视频生成提示词，符合 Seedance 1.5 Pro 的最佳实践
+
+## Seedance 1.5 Pro Prompt 优化指南
+
+根据火山引擎官方文档，生成视频 prompt 时需遵循以下原则：
+
+### 1. 明确描述画面内容（最重要）
+- **主体描述**：明确描述画面中的主体（人物、动物、物品等），使用具体名词
+- **动作描述**：详细描述主体的动作、姿态、行为，使用具体动词
+- **环境描述**：详细描述场景环境、背景、周围元素，使用具体形容词
+- **示例**：不要写"美丽的风景"，要写"青山绿水，古树参天，溪流潺潺，鸟语花香"
+
+### 2. 使用专业视频术语
+- **镜头类型**：广角镜头、特写镜头、中景、远景、全景
+- **镜头运动**：缓慢推进、缓慢拉远、横移、环绕、俯拍、仰拍、固定机位
+- **画面效果**：慢动作、快动作、淡入淡出、渐隐渐显、光影变化
+- **示例**："广角镜头缓慢推进，展现远山近水，镜头横移展现全景"
+
+### 3. 强调风格和氛围（具体化）
+- **艺术风格**：中国古典绘画风格、水墨画、工笔画、写意画、青绿山水、淡彩、重彩
+- **视觉质感**：电影质感、超高清、4K画质、细腻、精致、古朴、典雅
+- **色调氛围**：淡雅、浓郁、清冷、温暖、明亮、昏暗、古典、现代
+- **示例**："中国古典水墨画风格，电影质感，超高清画质，淡雅色调，古典氛围"
+
+### 4. 音频元素描述（Seedance 1.5 Pro 支持音频生成）
+- **背景音乐**：明确描述音乐类型（古筝、古琴、笛子、二胡、琵琶、箫等）、节奏（缓慢、适中、明快）、情感（悲壮、宁静、激昂、婉约）
+- **古诗朗诵**：**必须包含要朗诵的完整诗词原文内容**，同时描述朗诵风格（古典、现代、抑扬顿挫）、节奏（舒缓、适中、明快）、情感表达（深沉、激昂、婉约、豪放）、语音特色（男声、女声、童声、老年声）
+- **环境音效**：描述环境声音（鸟鸣、流水、风声、雨声、钟声等）
+- **示例**："背景音乐：古筝演奏，节奏缓慢，情感深沉，配合流水声和鸟鸣声。古诗朗诵：男声，古典风格，抑扬顿挫，节奏舒缓，情感深沉，朗诵内容为「床前明月光，疑是地上霜。举头望明月，低头思故乡。」"
+
+### 5. 避免模糊描述
+- ❌ 避免：好看、漂亮、优美、美丽、精彩
+- ✅ 使用：具体描述，如"青山如黛，碧水如镜，古树苍劲，飞鸟翱翔"
+
+### 6. 视频参数（在 prompt 中明确）
+- 时长：根据诗词长度和内容复杂度，建议 15-60 秒
+- 节奏：根据诗词韵律，描述视频节奏（缓慢、适中、明快）
+
+## 重要说明
+
+**用户输入可能包含**：
+- 标题（如："示儿"）
+- 作者信息（如："宋 陆游" 或 "陆游"）
+- 完整的诗句内容
+
+**你必须**：
+1. 区分元信息（标题、作者、朝代）和诗句内容
+2. 只对**诗句本身**进行分析，不要将标题、作者等当作诗句
+3. 如果输入包含标题和作者，将它们提取到 poetry_info 中，不要放入诗句分析
+4. 诗句是指实际的诗词内容，通常以句号、问号、感叹号结尾
+
+## 输出格式
+
+请严格按照以下JSON格式输出：
+
+{
+  "poetry_info": {
+    "title": "诗词标题（从输入中识别，如果没有则为空字符串）",
+    "author": "作者姓名（从输入中识别，如果没有则为空字符串）",
+    "dynasty": "朝代（从输入中识别，如果没有则为空字符串）",
+    "full_text": "完整的原文诗句（只包含诗句内容，不包括标题和作者，按原格式保留换行）",
+    "creation_background": "创作背景（50-100字，如果无法确定则说明）",
+    "era_background": "时代背景（50-100字，如果无法确定则说明）",
+    "poet_mood": "作者心情/情感基调（如：思乡、悲壮、宁静、激昂、婉约等）"
+  },
+    "video_prompt_data": {
+    "video_prompt": "完整的、详细的视频生成prompt，这是最终会传入 Seedance 1.5 Pro 模型的完整提示词。必须包含：\n1. 画面主体、动作、环境的详细具体描述（最重要）\n2. 视觉风格、色调、氛围的具体描述\n3. 镜头类型和镜头运动的具体描述（使用专业术语）\n4. 背景音乐的具体描述（乐器、节奏、情感）\n5. 古诗朗诵的具体描述（**必须包含要朗诵的完整诗词原文内容**，以及风格、节奏、情感、语音特色）\n6. 环境音效的具体描述\n7. 转场效果的具体描述\n要求：使用具体描述，避免模糊词汇，使用专业术语，长度建议300-600字",
+    "scene_description": "主要场景的详细描述（连贯完整，使用具体描述，80-150字）",
+    "visual_style": "视觉风格描述（详细，包括艺术风格、色调、氛围、质感等，50-80字）",
+    "background_music": "背景音乐要求：乐器类型、风格、情感、节奏、具体效果等（详细，50-80字）",
+    "narration_style": "古诗朗诵要求：**必须包含要朗诵的完整诗词原文内容**，以及风格、节奏、情感表达、语调、语音特色（男声/女声）、具体效果等（详细，80-120字）",
+    "transitions": "转场效果描述（详细，使用专业术语，30-50字）",
+    "camera_movement": "镜头运动描述（详细，使用专业术语如广角、特写、推进、拉远、横移、环绕等，50-80字）",
+    "duration_suggestion": 15
+  }
+}
+
+## 重要要求
+
+1. **区分元信息和诗句**：标题、作者、朝代等信息不要当作诗句分析，只提取到 poetry_info 中
+2. **full_text 只包含诗句**：poetry_info.full_text 字段只包含实际的诗词内容，不包括标题和作者行
+3. **video_prompt 要详细专业**：这是最终传入 Seedance 1.5 Pro 模型的提示词，必须：
+   - 使用具体描述，避免模糊词汇
+   - 使用专业视频术语（镜头类型、镜头运动等）
+   - 明确描述画面主体、动作、环境
+   - 详细描述音频元素（背景音乐、朗诵、音效）
+   - **古诗朗诵部分必须包含要朗诵的完整诗词原文内容**（这是关键，否则无法生成朗诵音频）
+   - 强调风格和氛围，使用具体艺术风格词汇
+   - 长度建议 300-600 字，确保完整详细
+4. **忠实原文**：所有分析必须忠实于原诗词的意境和内容
+5. **连贯性**：video_prompt 要体现场景之间的连贯性和整体性，形成一个完整的视频描述
+6. **音频同步**：确保背景音乐、朗诵、音效与画面内容和情感基调相匹配
+"""
+
+
+async def analyze_poetry_for_video(
+    text: str,
+    ark_client: Optional[Any] = None
+) -> Dict[str, Any]:
+    """
+    专门用于视频生成的诗词分析函数（完全独立于图像分析）
+    
+    流程：
+    1. 识别原文诗句（区分标题、作者和诗句内容）
+    2. 生成完整视频prompt（直接生成，不需要逐句分析）
+    
+    Args:
+        text: 用户输入的诗词文本
+        ark_client: Ark客户端实例
+        
+    Returns:
+        包含诗词信息和视频prompt数据的结构化结果
+        （不包含 storyboards 和 line_analysis）
+    """
+    logger.info(f"开始视频专用诗词分析，文本长度: {len(text)}")
+    
+    # 如果没有ark_client，返回基础结构
+    if not ark_client:
+        logger.warning("未提供Ark客户端，返回基础分析结果")
+        return _create_basic_video_analysis(text)
+    
+    try:
+        # 构建消息
+        user_content = f"""请分析以下古诗词文本，按照 Seedance 1.5 Pro 文生视频（含音频）的要求生成完整的视频生成提示词：
+
+{text}
+
+**重要提示**：
+1. 请仔细区分标题、作者信息和诗句内容
+2. 标题和作者信息只提取到 poetry_info 中，不要当作诗句
+3. poetry_info.full_text 只包含实际的诗词内容，不包括标题和作者行
+4. video_prompt_data.video_prompt 是最终会传入 Seedance 1.5 Pro 模型的完整提示词，必须：
+   - 使用具体描述，避免模糊词汇（如"好看"、"漂亮"等）
+   - 明确描述画面主体、动作、环境（使用具体名词、动词、形容词）
+   - 使用专业视频术语（广角镜头、特写、推进、拉远、横移、环绕等）
+   - 详细描述视觉风格、色调、氛围（使用具体艺术风格词汇）
+   - 详细描述背景音乐（乐器类型、节奏、情感）
+   - **详细描述古诗朗诵，必须包含要朗诵的完整诗词原文内容**（这是关键，否则无法生成朗诵音频），以及风格、节奏、情感、语音特色
+   - 描述环境音效（鸟鸣、流水、风声等）
+   - 长度建议 300-600 字，确保完整详细
+5. 所有描述必须忠实于原诗词的意境和内容
+"""
+        
+        messages = [
+            {"role": "system", "content": VIDEO_ANALYSIS_PROMPT},
+            {"role": "user", "content": user_content}
+        ]
+        
+        # 调用模型（增加 max_tokens 确保完整输出）
+        result = ark_client.chat_completion(
+            model=config.MODEL_NAME,
+            messages=messages,
+            stream=False,
+            response_format='json_object',
+            disable_thinking=True,
+            max_tokens=4000  # 增加token数量，确保完整输出
+        )
+        
+        # 解析结果
+        content = result.get("content", "{}")
+        analysis_result = json.loads(content)
+        
+        # 验证和补全结果结构
+        analysis_result = _validate_and_complete_video_analysis(analysis_result, text)
+        
+        logger.info(f"视频分析完成，video_prompt长度: {len(analysis_result.get('video_prompt_data', {}).get('video_prompt', ''))}")
+        return analysis_result
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"解析分析结果失败: {str(e)}")
+        return _create_basic_video_analysis(text)
+    except Exception as e:
+        logger.error(f"分析诗词时发生错误: {str(e)}")
+        raise
+
+
+def _create_basic_video_analysis(text: str) -> Dict[str, Any]:
+    """
+    创建基础的视频分析结果（当无法调用模型时使用）
+    """
+    # 简单提取标题（第一行）和诗句内容
+    lines = text.strip().split('\n')
+    title = lines[0].strip() if lines else "未知诗词"
+    # 假设从第二行开始是诗句（如果只有一行，则整行都是诗句）
+    poetry_lines = lines[1:] if len(lines) > 1 else lines
+    
+    return {
+        "poetry_info": {
+            "title": title if len(lines) > 1 else "",
+            "author": "待查",
+            "dynasty": "待查",
+            "full_text": "\n".join(poetry_lines),
+            "creation_background": "暂无背景信息，请手动补充",
+            "era_background": "暂无时代背景信息，请手动补充",
+            "poet_mood": "待分析"
+        },
+        "video_prompt_data": {
+            "video_prompt": f"根据古诗词《{title}》创作视频，展现诗词意境，包含场景、画面、风格、音乐、朗诵等要素",
+            "scene_description": "古典诗词意境场景",
+            "visual_style": "中国古典绘画风格",
+            "background_music": "古典音乐，节奏适中，意境深远",
+            "narration_style": "古典诗词朗诵风格，节奏与诗词韵律相匹配",
+            "transitions": "淡入淡出，自然流畅",
+            "camera_movement": "缓慢推进，展现诗词意境",
+            "duration_suggestion": 15
+        }
+    }
+
+
+def _validate_and_complete_video_analysis(result: Dict[str, Any], original_text: str) -> Dict[str, Any]:
+    """
+    验证并补全视频分析结果的结构
+    （视频分析不需要 line_analysis 和 storyboards）
+    """
+    # 确保 poetry_info 存在并补全字段
+    if "poetry_info" not in result:
+        result["poetry_info"] = {
+            "title": "",
+            "author": "",
+            "dynasty": "",
+            "full_text": original_text,
+            "creation_background": "",
+            "era_background": "",
+            "poet_mood": ""
+        }
+    
+    poetry_info = result["poetry_info"]
+    poetry_info.setdefault("title", "")
+    poetry_info.setdefault("author", "")
+    poetry_info.setdefault("dynasty", "")
+    poetry_info.setdefault("full_text", original_text)
+    poetry_info.setdefault("creation_background", "")
+    poetry_info.setdefault("era_background", "")
+    poetry_info.setdefault("poet_mood", "")
+    
+    # 确保 video_prompt_data 存在并补全字段
+    if "video_prompt_data" not in result:
+        result["video_prompt_data"] = {}
+    
+    video_prompt_data = result["video_prompt_data"]
+    
+    # 如果 video_prompt 为空或太短，生成一个基础的（符合 Seedance 1.5 Pro 要求）
+    if not video_prompt_data.get("video_prompt") or len(video_prompt_data.get("video_prompt", "")) < 50:
+        title = poetry_info.get("title", "")
+        author = poetry_info.get("author", "")
+        dynasty = poetry_info.get("dynasty", "")
+        full_text = poetry_info.get("full_text", original_text)
+        emotion = poetry_info.get("poet_mood", "宁静")
+        
+        # 根据情感选择音乐和朗诵风格
+        music_map = {
+            "悲壮": "古筝或二胡演奏，节奏缓慢，情感深沉，配合低沉的鼓声",
+            "宁静": "古琴或笛子演奏，节奏舒缓，意境深远，配合流水声和鸟鸣声",
+            "激昂": "古筝或琵琶演奏，节奏明快，气势磅礴，配合鼓声和号角声",
+            "婉约": "古筝或箫演奏，节奏轻柔，情感细腻，配合风声和雨声",
+            "豪放": "古筝或鼓乐，节奏强烈，气势恢宏，配合雷鸣声和风声"
+        }
+        music_desc = music_map.get(emotion, "古筝演奏，节奏适中，意境深远，配合自然音效")
+        
+        narration_map = {
+            "悲壮": "男声，古典风格，抑扬顿挫，节奏缓慢，情感深沉，语调低沉",
+            "宁静": "男声或女声，古典风格，节奏舒缓，情感宁静，语调平和",
+            "激昂": "男声，古典风格，抑扬顿挫，节奏明快，情感激昂，语调高亢",
+            "婉约": "女声，古典风格，节奏轻柔，情感细腻，语调婉转",
+            "豪放": "男声，古典风格，节奏明快，情感豪放，语调洪亮"
+        }
+        narration_style = narration_map.get(emotion, "男声，古典风格，节奏适中，情感表达，语调自然")
+        
+        # 构建完整的朗诵描述，必须包含诗词原文
+        narration_desc = f"{narration_style}，朗诵内容为「{full_text}」"
+        
+        video_prompt_data["video_prompt"] = f"""根据古诗词《{title}》（{dynasty}·{author}）创作视频。
+
+画面内容：广角镜头展现古典诗词意境场景，画面主体包括{full_text[:30]}等元素，镜头缓慢推进，展现远山近水、古树苍劲、飞鸟翱翔等具体画面，中景展现人物或景物细节，特写镜头捕捉关键意象，画面构图精美，层次丰富。
+
+视觉风格：中国古典水墨画风格，{dynasty}时代特色，电影质感，超高清画质，色调淡雅，氛围深远，画面细腻精致，体现古典文学的美感。
+
+背景音乐：{music_desc}。
+
+古诗朗诵：{narration_desc}。
+
+镜头运动：广角镜头缓慢推进，展现全景，镜头横移展现不同场景，中景固定机位展现主体，特写镜头捕捉细节，镜头环绕展现整体氛围，俯拍和仰拍交替展现层次。
+
+转场效果：淡入淡出，渐隐渐显，自然流畅，光影变化柔和。
+
+环境音效：鸟鸣声、流水声、风声等自然音效，与画面内容同步。
+
+整体要求：画面精美，音画同步，体现古典文学的美感，视频节奏与诗词韵律相匹配，情感表达{emotion}。"""
+        logger.warning("video_prompt 为空或太短，已生成符合 Seedance 1.5 Pro 要求的基础版本")
+    
+    video_prompt_data.setdefault("scene_description", video_prompt_data.get("scene_description", "古典诗词意境场景"))
+    video_prompt_data.setdefault("visual_style", video_prompt_data.get("visual_style", "中国古典绘画风格"))
+    video_prompt_data.setdefault("background_music", video_prompt_data.get("background_music", "古典音乐，节奏适中"))
+    
+    # 确保 narration_style 包含诗词原文（如果没有的话）
+    narration_style = video_prompt_data.get("narration_style", "古典诗词朗诵风格")
+    full_text = poetry_info.get("full_text", "")
+    if full_text and full_text not in narration_style:
+        # 如果 narration_style 中没有包含诗词原文，添加进去
+        video_prompt_data["narration_style"] = f"{narration_style}，朗诵内容为「{full_text}」"
+    else:
+        video_prompt_data.setdefault("narration_style", f"古典诗词朗诵风格，朗诵内容为「{full_text}」" if full_text else "古典诗词朗诵风格")
+    
+    # 确保 video_prompt 中的古诗朗诵部分包含诗词原文
+    video_prompt = video_prompt_data.get("video_prompt", "")
+    if video_prompt and full_text:
+        # 检查 video_prompt 中的古诗朗诵部分是否包含诗词原文
+        if "古诗朗诵" in video_prompt and full_text not in video_prompt:
+            # 如果古诗朗诵部分存在但不包含诗词原文，添加进去
+            import re
+            # 尝试找到古诗朗诵部分并添加诗词原文
+            narration_pattern = r"(古诗朗诵[：:].*?)(?=\n|镜头运动|转场效果|环境音效|整体要求|$)"
+            match = re.search(narration_pattern, video_prompt, re.DOTALL)
+            if match:
+                narration_part = match.group(1)
+                if full_text not in narration_part:
+                    # 在古诗朗诵部分末尾添加诗词原文
+                    new_narration = f"{narration_part.rstrip('。')}，朗诵内容为「{full_text}」。"
+                    video_prompt_data["video_prompt"] = video_prompt.replace(narration_part, new_narration)
+    
+    video_prompt_data.setdefault("transitions", video_prompt_data.get("transitions", "淡入淡出，自然流畅"))
+    video_prompt_data.setdefault("camera_movement", video_prompt_data.get("camera_movement", "缓慢推进，展现诗词意境"))
+    video_prompt_data.setdefault("duration_suggestion", video_prompt_data.get("duration_suggestion", 15))
+    
+    return result
+
+
+# 视频生成提示词生成提示词模板（用于向后兼容）
+VIDEO_PROMPT_GENERATION_PROMPT = """
+你是专业的视频创作专家。请根据古诗词分析结果，生成完整的专业级视频生成提示词。
+
+## 任务
+根据提供的古诗词分析数据，生成一个完整的视频生成提示词，包含：
+1. **环境场景描述**：详细描述视频的主要场景、环境、背景
+2. **画面内容**：描述画面中的人物、动作、物品等
+3. **视觉风格**：描述画面的视觉风格、色调、氛围
+4. **背景音乐要求**：描述适合的背景音乐类型、风格、情感
+5. **古诗朗诵要求**：描述朗诵的风格、节奏、情感表达
+6. **转场效果**：描述场景之间的转场方式
+7. **镜头运动**：描述镜头的运动方式（推拉摇移等）
+
+## 输入数据
+你将收到以下格式的JSON数据：
+{
+  "poetry_info": {
+    "title": "标题",
+    "author": "作者",
+    "dynasty": "朝代",
+    "full_text": "完整文本",
+    "creation_background": "创作背景",
+    "era_background": "时代背景",
+    "poet_mood": "作者心情/情感基调"
+  },
+  "storyboards": [
+    {
+      "index": 1,
+      "type": "cover",
+      "text": "文本",
+      "scene_description": "场景描述",
+      "image_prompt": "图像提示词",
+      "emotion": "情感",
+      "atmosphere": "氛围"
+    }
+  ]
+}
+
+## 输出格式
+请生成一个完整的视频生成提示词，格式如下：
+
+{
+  "video_prompt": "完整的视频生成提示词，包含场景、画面、风格、音乐、朗诵等所有要素",
+  "scene_description": "主要场景的详细描述",
+  "visual_style": "视觉风格描述",
+  "background_music": "背景音乐要求：类型、风格、情感、节奏等",
+  "narration_style": "古诗朗诵要求：风格、节奏、情感表达、语调等",
+  "transitions": "转场效果描述",
+  "camera_movement": "镜头运动描述",
+  "duration_suggestion": "建议的视频时长（秒）"
+}
+
+## 要求
+1. 视频prompt必须忠实于原诗词的意境和内容
+2. 背景音乐要与诗词的情感基调相匹配（如：悲壮、宁静、激昂、婉约等）
+3. 朗诵风格要符合诗词的时代背景和作者风格
+4. 画面转场要自然流畅，符合诗词的节奏
+5. 整体风格要统一，体现古典文学的美感
+"""
+
+
+def generate_video_prompt_from_analysis(
+    analysis_result: Dict[str, Any],
+    ark_client: Optional[Any] = None
+) -> Dict[str, Any]:
+    """
+    根据诗词分析结果生成视频生成提示词（保留用于向后兼容）
+    
+    Args:
+        analysis_result: 诗词分析结果
+        ark_client: Ark客户端实例
+        
+    Returns:
+        包含视频生成提示词的字典
+    """
+    # 如果分析结果已经包含 video_prompt_data，直接返回
+    if "video_prompt_data" in analysis_result:
+        return analysis_result["video_prompt_data"]
+    
+    # 否则使用旧的逻辑（向后兼容）
+    try:
+        poetry_info = analysis_result.get("poetry_info", {})
+        storyboards = analysis_result.get("storyboards", [])
+        
+        # 构建输入数据
+        input_data = {
+            "poetry_info": poetry_info,
+            "storyboards": storyboards
+        }
+        
+        if ark_client:
+            # 使用大模型生成视频prompt
+            messages = [
+                {
+                    "role": "system",
+                    "content": VIDEO_PROMPT_GENERATION_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": f"请根据以下古诗词分析数据生成视频生成提示词：\n\n{json.dumps(input_data, ensure_ascii=False, indent=2)}"
+                }
+            ]
+            
+            response = ark_client.chat_completion(
+                model=config.MODEL_NAME,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=2000
+            )
+            
+            content = response.get("content", "")
+            
+            # 尝试解析JSON
+            try:
+                # 提取JSON部分
+                json_match = re.search(r'\{[\s\S]*\}', content)
+                if json_match:
+                    video_prompt_data = json.loads(json_match.group())
+                    return video_prompt_data
+            except json.JSONDecodeError:
+                logger.warning("无法解析视频prompt JSON，使用默认生成")
+        
+        # 如果大模型生成失败，使用规则生成
+        return _generate_video_prompt_fallback(poetry_info, storyboards)
+        
+    except Exception as e:
+        logger.error(f"生成视频prompt失败: {str(e)}")
+        return _generate_video_prompt_fallback(
+            analysis_result.get("poetry_info", {}),
+            analysis_result.get("storyboards", [])
+        )
+
+
+def _generate_video_prompt_fallback(
+    poetry_info: Dict[str, Any],
+    storyboards: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    使用规则生成视频prompt（备用方案）
+    """
+    title = poetry_info.get("title", "")
+    author = poetry_info.get("author", "")
+    dynasty = poetry_info.get("dynasty", "")
+    full_text = poetry_info.get("full_text", "")
+    emotion = poetry_info.get("poet_mood", "宁静")
+    
+    # 构建场景描述
+    scene_descriptions = []
+    for sb in storyboards:
+        if sb.get("type") == "content":
+            scene_descriptions.append(sb.get("scene_description", ""))
+    
+    main_scene = scene_descriptions[0] if scene_descriptions else "古典诗词意境场景"
+    
+    # 根据情感选择音乐风格
+    music_styles = {
+        "悲壮": "深沉悲壮的古筝或二胡音乐，节奏缓慢，情感深沉",
+        "宁静": "宁静悠远的古琴或笛子音乐，节奏舒缓，意境深远",
+        "激昂": "激昂有力的古筝或琵琶音乐，节奏明快，气势磅礴",
+        "婉约": "婉约柔美的古筝或箫音乐，节奏轻柔，情感细腻",
+        "豪放": "豪放不羁的古筝或鼓乐，节奏强烈，气势恢宏"
+    }
+    music_style = music_styles.get(emotion, "古典音乐，节奏适中，意境深远")
+    
+    # 构建视频prompt
+    video_prompt_parts = [
+        f"根据古诗词《{title}》（{dynasty}·{author}）创作视频",
+        f"主要场景：{main_scene}",
+        f"画面风格：中国古典绘画风格，{poetry_info.get('era_background', '')}时代特色",
+        f"情感基调：{emotion}",
+        "镜头运动：缓慢推进，展现诗词意境",
+        "转场效果：淡入淡出，自然流畅",
+        f"背景音乐：{music_style}",
+        f"古诗朗诵：用{dynasty}时期的语音风格，节奏与诗词韵律相匹配，情感表达{emotion}",
+        "整体要求：画面精美，音画同步，体现古典文学的美感"
+    ]
+    
+    return {
+        "video_prompt": "\n".join(video_prompt_parts),
+        "scene_description": main_scene,
+        "visual_style": f"中国古典绘画风格，{dynasty}时代特色",
+        "background_music": music_style,
+        "narration_style": f"用{dynasty}时期的语音风格，节奏与诗词韵律相匹配，情感表达{emotion}",
+        "transitions": "淡入淡出，自然流畅",
+        "camera_movement": "缓慢推进，展现诗词意境",
+        "duration_suggestion": 15
+    }
 

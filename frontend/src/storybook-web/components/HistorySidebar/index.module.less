@@ -19,10 +19,39 @@
 
   // 移动端适配
   @media (max-width: 768px) {
-    width: 280px;
+    width: 85%;
+    max-width: 320px;
+    z-index: 100; // 移动端提高层级，确保在遮罩之上
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    padding-top: calc(64px + env(safe-area-inset-top, 0px)); // 适配刘海屏
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     
     &.collapsed {
-      transform: translateX(-280px);
+      transform: translateX(-100%);
+    }
+  }
+}
+
+// 移动端遮罩层
+.overlay {
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99; // 在侧边栏之下
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+    
+    &.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
   }
 }
@@ -38,7 +67,39 @@
   justify-content: center;
 
   @media (max-width: 768px) {
-    right: -20px;
+    right: -18px;
+  }
+}
+
+// 移动端关闭按钮（在侧边栏内部顶部）
+.mobileCloseBtn {
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 8px 16px 0;
+    
+    button {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border: none;
+      background: rgba(0, 0, 0, 0.04);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--gf-text-secondary);
+      transition: all 0.2s;
+      
+      &:hover, &:active {
+        background: rgba(0, 0, 0, 0.08);
+        color: var(--gf-text-main);
+      }
+    }
   }
 }
 
@@ -70,6 +131,10 @@
 .navSection {
   padding: 20px 16px 12px;
   flex-shrink: 0;
+  
+  @media (max-width: 768px) {
+    padding: 12px 16px 8px;
+  }
 }
 
 .newChatButton {
@@ -117,6 +182,7 @@
   cursor: pointer;
   transition: all 0.2s;
   gap: 12px;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: rgba(0, 0, 0, 0.04);
@@ -133,6 +199,15 @@
   .navIcon {
     font-size: 18px;
     color: var(--gf-text-secondary);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 14px 12px; // 增加触控区域
+    font-size: 15px;
+    
+    &:active {
+      background: rgba(0, 0, 0, 0.06);
+    }
   }
 }
 
@@ -177,6 +252,7 @@
   width: 100%; /* 确保宽度不溢出 */
   box-sizing: border-box; /* 包含padding */
   border: 1px solid transparent;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: rgba(0, 0, 0, 0.04); /* 使用中性灰背景 */
@@ -194,6 +270,14 @@
     .itemMeta {
       color: var(--gf-primary);
       opacity: 0.8;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    padding: 14px 12px; // 增加触控区域
+    
+    &:active {
+      background: rgba(0, 0, 0, 0.06);
     }
   }
 }

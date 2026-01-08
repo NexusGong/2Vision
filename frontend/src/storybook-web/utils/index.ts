@@ -46,10 +46,28 @@ export function formatPromptData2Params(
 }
 
 export function formatImageUrl(url: string) {
+  if (!url) return "";
   return url.replace(
     "https://ark-content-generation-v2-cn-beijing.tos-cn-beijing.volces.com",
     ""
   );
+}
+
+/**
+ * 确保图片URL格式正确，支持完整URL和相对路径
+ */
+export function ensureImageUrl(url: string | undefined | null): string {
+  if (!url || url.trim() === "") return "";
+  // 如果已经是完整URL，直接返回
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // 如果是相对路径，添加完整域名
+  if (url.startsWith("/")) {
+    return `https://ark-content-generation-v2-cn-beijing.tos-cn-beijing.volces.com${url}`;
+  }
+  // 其他情况，假设是相对路径，添加完整域名
+  return `https://ark-content-generation-v2-cn-beijing.tos-cn-beijing.volces.com/${url}`;
 }
 
 export function formatFileName(filename: string) {
@@ -167,4 +185,37 @@ export function preloadImage(url: string) {
     img.onerror = reject;
     img.src = url;
   });
+}
+
+/**
+ * 下载视频文件
+ * @param {string} videoUrl - 视频URL
+ * @param {string} [filename] - 文件名（不含扩展名），如果不提供则自动生成
+ * @returns {Promise<void>}
+ */
+export async function downloadVideo(videoUrl: string, filename?: string) {
+  if (!videoUrl) {
+    throw new Error("视频URL不能为空");
+  }
+
+  try {
+    // 获取视频文件
+    const response = await fetch(videoUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP 错误: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    
+    // 生成文件名
+    const videoFilename = filename 
+      ? `${formatFileName(filename)}.mp4`
+      : `video-${dayjs().format("YYYY-MM-DD_HHmmss")}.mp4`;
+    
+    // 下载文件
+    saveAs(blob, videoFilename);
+  } catch (error: any) {
+    console.error("下载视频失败:", error);
+    throw new Error(`下载视频失败: ${error.message}`);
+  }
 }

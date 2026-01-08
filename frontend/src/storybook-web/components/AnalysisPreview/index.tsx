@@ -27,6 +27,7 @@ import type {
   PoetryInfo,
   LineAnalysis,
   Storyboard,
+  VideoPromptData,
 } from "../../apis";
 import styles from "./index.module.less";
 
@@ -36,6 +37,7 @@ const CollapseItem = Collapse.Item;
 export interface AnalysisPreviewProps {
   data: PoetryAnalysisData;
   mode: "storybook" | "comics";
+  generationType?: "image" | "video"; // 生成类型
   isLoading?: boolean;
   isConfirmed?: boolean; // 是否已确认（已确认时显示折叠的只读版本）
   onConfirm: (data: PoetryAnalysisData) => void;
@@ -524,6 +526,93 @@ const StoryboardEditor: React.FC<{
   );
 };
 
+// 视频提示词编辑组件
+const VideoPromptEditor: React.FC<{
+  data: VideoPromptData;
+  onChange: (data: VideoPromptData) => void;
+}> = ({ data, onChange }) => {
+  const [editData, setEditData] = useState<VideoPromptData>(data);
+
+  // 当外部数据变化时更新内部状态
+  React.useEffect(() => {
+    setEditData(data);
+  }, [data]);
+
+  const handleFieldChange = (field: keyof VideoPromptData, value: string | number) => {
+    const newData = { ...editData, [field]: value };
+    setEditData(newData);
+    onChange(newData);
+  };
+
+  return (
+    <div className={styles.videoPromptEditor}>
+      <div className={styles.promptItem}>
+        <div className={styles.promptLabel}>完整视频Prompt：</div>
+        <TextArea
+          value={editData.video_prompt}
+          onChange={(v) => handleFieldChange("video_prompt", v)}
+          autoSize={{ minRows: 4, maxRows: 8 }}
+          placeholder="完整的视频生成提示词，包含场景、画面、风格、音乐、朗诵等所有要素"
+        />
+      </div>
+      <div className={styles.promptItem}>
+        <div className={styles.promptLabel}>场景描述：</div>
+        <TextArea
+          value={editData.scene_description}
+          onChange={(v) => handleFieldChange("scene_description", v)}
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          placeholder="主要场景的详细描述（连贯完整）"
+        />
+      </div>
+      <div className={styles.promptItem}>
+        <div className={styles.promptLabel}>视觉风格：</div>
+        <TextArea
+          value={editData.visual_style}
+          onChange={(v) => handleFieldChange("visual_style", v)}
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          placeholder="视觉风格描述（详细，包括色调、氛围、绘画风格等）"
+        />
+      </div>
+      <div className={styles.promptItem}>
+        <div className={styles.promptLabel}>背景音乐：</div>
+        <TextArea
+          value={editData.background_music}
+          onChange={(v) => handleFieldChange("background_music", v)}
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          placeholder="背景音乐要求：类型、风格、情感、节奏、乐器等（详细）"
+        />
+      </div>
+      <div className={styles.promptItem}>
+        <div className={styles.promptLabel}>旁白风格：</div>
+        <TextArea
+          value={editData.narration_style}
+          onChange={(v) => handleFieldChange("narration_style", v)}
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          placeholder="古诗朗诵要求：风格、节奏、情感表达、语调、语音特色等（详细）"
+        />
+      </div>
+      <div className={styles.promptItem}>
+        <div className={styles.promptLabel}>转场效果：</div>
+        <TextArea
+          value={editData.transitions}
+          onChange={(v) => handleFieldChange("transitions", v)}
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          placeholder="转场效果描述（详细）"
+        />
+      </div>
+      <div className={styles.promptItem}>
+        <div className={styles.promptLabel}>镜头运动：</div>
+        <TextArea
+          value={editData.camera_movement}
+          onChange={(v) => handleFieldChange("camera_movement", v)}
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          placeholder="镜头运动描述（详细，包括推拉摇移等）"
+        />
+      </div>
+    </div>
+  );
+};
+
 // 主组件
 // 确保数据完整性的辅助函数
 const ensureValidData = (data: PoetryAnalysisData | undefined | null): PoetryAnalysisData => {
@@ -549,12 +638,14 @@ const ensureValidData = (data: PoetryAnalysisData | undefined | null): PoetryAna
     },
     line_analysis: data.line_analysis || [],
     storyboards: data.storyboards || [],
+    video_prompt_data: data.video_prompt_data, // 保留 video_prompt_data
   };
 };
 
 const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
   data,
   mode,
+  generationType = "image",
   isLoading,
   isConfirmed = false,
   onConfirm,
@@ -562,7 +653,14 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
   onCancel,
 }) => {
   // 确保初始数据完整性
-  const [analysisData, setAnalysisData] = useState<PoetryAnalysisData>(() => ensureValidData(data));
+  const [analysisData, setAnalysisData] = useState<PoetryAnalysisData>(() => {
+    const validData = ensureValidData(data);
+    // 视频模式不需要 storyboards，确保其为 undefined
+    if (generationType === "video") {
+      return { ...validData, storyboards: undefined };
+    }
+    return validData;
+  });
 
   const handlePoetryInfoChange = useCallback((newInfo: PoetryInfo) => {
     setAnalysisData((prev) => ({
@@ -585,6 +683,13 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
     }));
   }, []);
 
+  const handleVideoPromptChange = useCallback((newVideoPrompt: VideoPromptData) => {
+    setAnalysisData((prev) => ({
+      ...prev,
+      video_prompt_data: newVideoPrompt,
+    }));
+  }, []);
+
   const handleConfirm = () => {
     onConfirm(analysisData);
   };
@@ -602,9 +707,11 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
             <span className={styles.confirmedMeta}>
               {analysisData.poetry_info?.dynasty} · {analysisData.poetry_info?.author}
             </span>
-            <span className={styles.confirmedCount}>
-              共 {analysisData.storyboards?.length || 0} 个分镜
-            </span>
+            {generationType === "image" && (
+              <span className={styles.confirmedCount}>
+                共 {analysisData.storyboards?.length || 0} 个分镜
+              </span>
+            )}
           </div>
         </div>
         
@@ -630,8 +737,8 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
             )}
           </div>
 
-          {/* 逐句分析完整内容 */}
-          {analysisData.line_analysis && analysisData.line_analysis.length > 0 && (
+          {/* 逐句分析完整内容 - 仅图像模式显示 */}
+          {generationType === "image" && analysisData.line_analysis && analysisData.line_analysis.length > 0 && (
             <div className={styles.readonlySection}>
               <h4>逐句分析</h4>
               <div className={styles.lineList}>
@@ -678,11 +785,12 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
             </div>
           )}
 
-          {/* 分镜完整内容 */}
-          <div className={styles.readonlySection}>
-            <h4>分镜列表</h4>
-            <div className={styles.storyboardSummary}>
-              {analysisData.storyboards?.map((sb, idx) => (
+          {/* 分镜完整内容 - 仅图像模式显示 */}
+          {generationType === "image" && analysisData.storyboards && analysisData.storyboards.length > 0 && (
+            <div className={styles.readonlySection}>
+              <h4>分镜列表</h4>
+              <div className={styles.storyboardSummary}>
+                {analysisData.storyboards.map((sb, idx) => (
                 <div key={idx} className={styles.storyboardItemFull}>
                   <div className={styles.sbHeader}>
                     <span className={styles.sbIndex}>{sb.index}</span>
@@ -707,9 +815,47 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
                     )}
                   </div>
                 </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* 视频提示词完整内容 - 仅视频模式显示 */}
+          {generationType === "video" && analysisData.video_prompt_data && (
+            <div className={styles.readonlySection}>
+              <h4>视频生成提示词</h4>
+              <div className={styles.videoPromptPreview}>
+                <div className={styles.promptItem}>
+                  <div className={styles.promptLabel}>完整视频Prompt：</div>
+                  <div className={styles.promptContent}>{analysisData.video_prompt_data.video_prompt}</div>
+                </div>
+                <div className={styles.promptItem}>
+                  <div className={styles.promptLabel}>场景描述：</div>
+                  <div className={styles.promptContent}>{analysisData.video_prompt_data.scene_description}</div>
+                </div>
+                <div className={styles.promptItem}>
+                  <div className={styles.promptLabel}>视觉风格：</div>
+                  <div className={styles.promptContent}>{analysisData.video_prompt_data.visual_style}</div>
+                </div>
+                <div className={styles.promptItem}>
+                  <div className={styles.promptLabel}>背景音乐：</div>
+                  <div className={styles.promptContent}>{analysisData.video_prompt_data.background_music}</div>
+                </div>
+                <div className={styles.promptItem}>
+                  <div className={styles.promptLabel}>旁白风格：</div>
+                  <div className={styles.promptContent}>{analysisData.video_prompt_data.narration_style}</div>
+                </div>
+                <div className={styles.promptItem}>
+                  <div className={styles.promptLabel}>转场效果：</div>
+                  <div className={styles.promptContent}>{analysisData.video_prompt_data.transitions}</div>
+                </div>
+                <div className={styles.promptItem}>
+                  <div className={styles.promptLabel}>镜头运动：</div>
+                  <div className={styles.promptContent}>{analysisData.video_prompt_data.camera_movement}</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -719,9 +865,13 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
   return (
     <div className={styles.analysisPreview}>
       <div className={styles.header}>
-        <h3 className={styles.title}>诗词分析结果</h3>
+        <h3 className={styles.title}>
+          {generationType === "video" ? "视频生成提示词" : "诗词分析结果"}
+        </h3>
         <span className={styles.subtitle}>
-          请检查以下分析内容，可以进行编辑后再生成图像
+          {generationType === "video"
+            ? "请检查并编辑以下视频生成提示词，确认后即可生成视频"
+            : "请检查以下分析内容，可以进行编辑后再生成图像"}
         </span>
       </div>
 
@@ -734,8 +884,8 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
           />
         </section>
 
-        {/* 逐句分析 */}
-        {analysisData.line_analysis && analysisData.line_analysis.length > 0 && (
+        {/* 逐句分析 - 仅图像模式显示 */}
+        {generationType === "image" && analysisData.line_analysis && analysisData.line_analysis.length > 0 && (
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>逐句分析</h3>
             <LineAnalysisView
@@ -745,14 +895,30 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
           </section>
         )}
 
-        {/* 分镜编辑器 */}
-        <section className={styles.section}>
-          <StoryboardEditor
-            data={analysisData.storyboards}
-            mode={mode}
-            onChange={handleStoryboardChange}
-          />
-        </section>
+        {/* 分镜编辑器 - 仅图像模式显示 */}
+        {generationType === "image" && analysisData.storyboards && (
+          <section className={styles.section}>
+            <StoryboardEditor
+              data={analysisData.storyboards}
+              mode={mode}
+              onChange={handleStoryboardChange}
+            />
+          </section>
+        )}
+
+        {/* 视频Prompt编辑器 - 仅视频模式显示 */}
+        {generationType === "video" && analysisData.video_prompt_data && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>视频生成提示词</h3>
+            <p className={styles.sectionSubtitle}>
+              请检查并编辑以下视频生成提示词，确认后即可生成视频
+            </p>
+            <VideoPromptEditor
+              data={analysisData.video_prompt_data}
+              onChange={handleVideoPromptChange}
+            />
+          </section>
+        )}
       </div>
 
       {/* 操作按钮 */}
@@ -778,7 +944,7 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
           onClick={handleConfirm}
           loading={isLoading}
         >
-          确认生成图像
+          {generationType === "video" ? "确认生成视频" : "确认生成图像"}
         </Button>
       </div>
     </div>

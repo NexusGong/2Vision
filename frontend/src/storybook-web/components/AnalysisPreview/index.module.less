@@ -723,3 +723,35 @@
   }
 }
 
+// 视频Prompt预览样式
+.videoPromptPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(87, 102, 144, 0.04);
+  border-radius: 12px;
+  padding: 16px;
+  
+  .promptItem {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    
+    .promptLabel {
+      font-size: 13px;
+      font-weight: 600;
+      color: #576690;
+    }
+    
+    .promptContent {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #4a5568;
+      background: #fff;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(87, 102, 144, 0.1);
+    }
+  }
+}
+

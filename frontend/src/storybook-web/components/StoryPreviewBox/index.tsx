@@ -16,6 +16,7 @@ import {
   IDataItem,
   VSStoryBookProvider,
 } from "@/common/components/StoryBook";
+import { useIsMobile } from "@/common/components/StoryBook/hooks/useMobile";
 import { StorybookContent } from "./StorybookContent";
 import { IconDownload } from "@arco-design/web-react/icon";
 
@@ -32,17 +33,19 @@ export const StoryPreviewBox: React.FC<StoryPreviewBoxProps> = ({
   onClose,
   onDownload,
 }) => {
+  const isMobile = useIsMobile(768);
+  
   return (
     <VSStoryBookProvider list={pages}>
-      <div className="w-full h-full bg-[#fafbfd] p-5">
-        <div className="w-full h-full relative bg-white rounded-[12px] border border-solid border-[rgb(229,231,235)]">
-          <div className="absolute flex items-center justify-between w-full py-4 px-5 border-b border-solid border-b-[rgb(229,231,235)] border-t-0 border-r-0 border-l-0">
+      <div className={`w-full h-full bg-[#fafbfd] ${isMobile ? 'p-0 pb-safe' : 'p-5'}`}>
+        <div className={`w-full h-full relative bg-white ${isMobile ? 'rounded-none' : 'rounded-[12px]'} border border-solid border-[rgb(229,231,235)]`}>
+          <div className={`absolute flex items-center justify-between w-full ${isMobile ? 'py-3 px-3' : 'py-4 px-5'} border-b border-solid border-b-[rgb(229,231,235)] border-t-0 border-r-0 border-l-0 z-10 bg-white`}>
             <CanvasHeader
               title={title}
               changeButton={{
                 btnText: {
-                  prev: "跳转到开头",
-                  next: "跳转到结尾",
+                  prev: isMobile ? "开头" : "跳转到开头",
+                  next: isMobile ? "结尾" : "跳转到结尾",
                 },
               }}
               slots={{
@@ -51,15 +54,15 @@ export const StoryPreviewBox: React.FC<StoryPreviewBoxProps> = ({
                 },
                 shareArea() {
                   return (
-                    <div className="cursor-pointer inline-flex items-center justify-center p-1 hover:bg-[#E1E3EF] rounded-[4px] transition-colors">
-                      <IconDownload fontSize={18} onClick={onDownload} />
+                    <div className="cursor-pointer inline-flex items-center justify-center p-1 hover:bg-[#E1E3EF] rounded-[4px] transition-colors active:bg-[#d5d8e6]">
+                      <IconDownload fontSize={isMobile ? 20 : 18} onClick={onDownload} />
                     </div>
                   );
                 },
               }}
               onClose={onClose}
             >
-              <div className="flex items-center justify-center h-full w-full px-8">
+              <div className={`flex items-center justify-center h-full w-full ${isMobile ? 'px-2' : 'px-8'}`}>
                 <StorybookContent
                   className="w-full h-full flex items-center justify-center"
                   isLoading={false}
@@ -68,9 +71,9 @@ export const StoryPreviewBox: React.FC<StoryPreviewBoxProps> = ({
             </CanvasHeader>
           </div>
 
-          <div className="pt-[60px] px-4 flex items-center justify-center h-full overflow-hidden">
+          <div className={`${isMobile ? 'pt-[52px] px-2' : 'pt-[60px] px-4'} flex items-center justify-center h-full overflow-hidden`}>
             <StorybookContent
-              className="flex items-center justify-center h-full w-full px-4"
+              className={`flex items-center justify-center h-full w-full ${isMobile ? 'px-1' : 'px-4'}`}
               isLoading={false}
             />
           </div>

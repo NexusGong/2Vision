@@ -7,6 +7,7 @@ pydantic[email]>=2.0.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.6
+requests>=2.31.0
 # 火山引擎 SDK - 需要安装 volcengine-python-sdk[ark] 而不是 volcenginesdkarkruntime
 # 参考: https://www.cnblogs.com/Sabre/p/18894868
 # 安装命令: pip install 'volcengine-python-sdk[ark]'
