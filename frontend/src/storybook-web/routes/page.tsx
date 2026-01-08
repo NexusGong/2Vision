@@ -71,6 +71,10 @@ import {
   updateChatHistory,
   getChatHistoryById,
 } from "../utils/history";
+import { saveGenerationRecord } from "../utils/generations";
+import GenerationsView from "../components/GenerationsView";
+import PoetryLibrary from "../components/PoetryLibrary";
+import { Poetry } from "../data/poetryData";
 
 interface TempData {
   comicsImage?: string;
@@ -108,6 +112,7 @@ const Index = () => {
   const [formData, setFormData] = useState<PromptData>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [historySidebarCollapsed, setHistorySidebarCollapsed] = useState(false); // 默认展开
+  const [currentView, setCurrentView] = useState<"chat" | "generations" | "poetry">("chat");
   const [currentHistoryId, setCurrentHistoryId] = useState<string>("");
   // 使用 ref 来保存最新的 currentHistoryId，避免闭包陷阱
   const currentHistoryIdRef = useRef<string>("");
@@ -317,6 +322,9 @@ const Index = () => {
             }, originalHistoryId);
           }
           
+          // 保存生成记录
+          saveGenerationRecord(result);
+          
           console.log("任务完成:", taskId);
           return;
         }
@@ -468,6 +476,9 @@ const Index = () => {
           status: "success",
           data: { ...result, params },
         }, historyId);
+
+        // 保存生成记录
+        saveGenerationRecord(result, analysisData);
       } catch (e) {
         console.error("图像生成失败:", e);
         replaceMessage(resId, { ...assistantMsg, status: "error" }, historyId);
@@ -839,8 +850,28 @@ const Index = () => {
           <HistorySidebar
             collapsed={historySidebarCollapsed}
             onCollapse={setHistorySidebarCollapsed}
-            onSelectHistory={handleSelectHistory}
+            onSelectHistory={(history) => {
+              setCurrentView("chat");
+              // 切换时关闭预览面板
+              setStorybookDetail(undefined);
+              setComicsDetail(undefined);
+              handleSelectHistory(history);
+            }}
             currentHistoryId={currentHistoryId}
+            onViewGenerations={() => {
+              setCurrentView("generations");
+              // 切换时关闭预览面板
+              setStorybookDetail(undefined);
+              setComicsDetail(undefined);
+            }}
+            isGenerationsView={currentView === "generations"}
+            onViewPoetry={() => {
+              setCurrentView("poetry");
+              // 切换时关闭预览面板
+              setStorybookDetail(undefined);
+              setComicsDetail(undefined);
+            }}
+            isPoetryView={currentView === "poetry"}
           />
 
           <Layout.Content
@@ -855,50 +886,94 @@ const Index = () => {
             )}
             ref={chatContainerRef}
           >
-            <div
-              className={classNames(
-                "w-full flex flex-col",
-                isListEmpty ? "flex-1 min-h-0" : "pb-[140px]"
-              )}
-            >
-              <div className={classNames(
-                "flex flex-col w-full",
-                isListEmpty ? "flex-1 min-h-0" : "px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12"
-              )}>
-                <div className="w-full max-w-[800px] mx-auto">
-                  <MessageList 
-                    messages={messages}
-                    onSuggestionClick={(text) => {
-                      setFormData({ text, mode: "storybook", ratio: "9:16", resolution: "2K" });
-                    }}
-                  >
-                    {renderMessageItem}
-                  </MessageList>
+            {/* 根据当前视图显示不同内容 */}
+            {currentView === "generations" ? (
+              <GenerationsView
+                onBack={() => {
+                  setCurrentView("chat");
+                  // 返回时关闭预览面板
+                  setStorybookDetail(undefined);
+                  setComicsDetail(undefined);
+                }}
+                onViewStorybook={(data) => {
+                  setStorybookDetail(data);
+                }}
+                onViewComics={(data) => {
+                  extraDataRef.current.comicsImage = undefined;
+                  setComicsDetail({
+                    index: 0,
+                    imageList: data.Items?.map((i) => formatImageUrl(i?.Url || "")) || [],
+                    ...data,
+                  });
+                }}
+              />
+            ) : currentView === "poetry" ? (
+              <PoetryLibrary
+                onBack={() => {
+                  setCurrentView("chat");
+                  // 返回时关闭预览面板
+                  setStorybookDetail(undefined);
+                  setComicsDetail(undefined);
+                }}
+                onSelectPoetry={(poetry: Poetry) => {
+                  // 选择诗词后，填充到输入框并切换到对话视图
+                  setFormData({
+                    text: poetry.fullText,
+                    mode: "storybook",
+                    ratio: "9:16",
+                    resolution: "2K",
+                  });
+                  setCurrentView("chat");
+                }}
+              />
+            ) : (
+              <>
+                <div
+                  className={classNames(
+                    "w-full flex flex-col",
+                    isListEmpty ? "flex-1 min-h-0" : "pb-[140px]"
+                  )}
+                >
+                  <div className={classNames(
+                    "flex flex-col w-full",
+                    isListEmpty ? "flex-1 min-h-0" : "px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12"
+                  )}>
+                    <div className="w-full max-w-[800px] mx-auto">
+                      <MessageList 
+                        messages={messages}
+                        onSuggestionClick={(text) => {
+                          setFormData({ text, mode: "storybook", ratio: "9:16", resolution: "2K" });
+                        }}
+                      >
+                        {renderMessageItem}
+                      </MessageList>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* 输入框 - 固定在底部，不随页面滚动，宽度与对话框一致 */}
-            <div
-              className={classNames(
-                "fixed bottom-0 z-40 flex justify-center py-6 pointer-events-none transition-all duration-300",
-                {
-                  // 侧边栏展开时，左侧留出空间（仅桌面端）
-                  "left-0": historySidebarCollapsed || isMobile,
-                  "left-[260px]": !historySidebarCollapsed && !isMobile,
-                  // 故事书预览打开时，右侧留出空间（仅桌面端）
-                  "right-0": !Boolean(storybookDetail) || isMobile,
-                  "right-[50%]": Boolean(storybookDetail) && !isMobile,
-                }
-              )}
-            >
-              {/* 与消息列表使用相同的容器宽度和padding，确保对齐 */}
-              <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 pointer-events-auto">
-                <div className="w-full max-w-[800px] mx-auto">
-                  <Prompt data={formData} onSubmit={handleSend}></Prompt>
+                {/* 输入框 - 固定在底部，不随页面滚动，宽度与对话框一致 */}
+                <div
+                  className={classNames(
+                    "fixed bottom-0 z-40 flex justify-center py-6 pointer-events-none transition-all duration-300",
+                    {
+                      // 侧边栏展开时，左侧留出空间（仅桌面端）
+                      "left-0": historySidebarCollapsed || isMobile,
+                      "left-[260px]": !historySidebarCollapsed && !isMobile,
+                      // 故事书预览打开时，右侧留出空间（仅桌面端）
+                      "right-0": !Boolean(storybookDetail) || isMobile,
+                      "right-[50%]": Boolean(storybookDetail) && !isMobile,
+                    }
+                  )}
+                >
+                  {/* 与消息列表使用相同的容器宽度和padding，确保对齐 */}
+                  <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 pointer-events-auto">
+                    <div className="w-full max-w-[800px] mx-auto">
+                      <Prompt data={formData} onSubmit={handleSend}></Prompt>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </Layout.Content>
 
           <Layout.Sider

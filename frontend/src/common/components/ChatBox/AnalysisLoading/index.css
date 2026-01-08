@@ -1,291 +1,147 @@
 /*
  * 诗词分析等待动画样式
- * 古典书卷水墨风格
+ * 简洁优雅的水墨风格
  */
 
-.analysis-loading-container {
-  position: relative;
-  width: 100%;
-  min-height: 180px;
-  border-radius: 16px;
-  overflow: hidden;
-  background: linear-gradient(135deg, #f8f6f3 0%, #ebe7e0 50%, #f5f2ed 100%);
-  box-shadow: 
-    0 4px 24px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-/* 背景装饰 */
-.analysis-loading-bg {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-
-.ink-wash-bg {
-  position: absolute;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse at 20% 80%, rgba(87, 102, 144, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(139, 115, 85, 0.06) 0%, transparent 40%),
-    radial-gradient(ellipse at 50% 50%, rgba(87, 102, 144, 0.04) 0%, transparent 60%);
-  animation: ink-flow 8s ease-in-out infinite;
-}
-
-@keyframes ink-flow {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-}
-
-/* 漂浮粒子 */
-.floating-particles {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.particle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: rgba(87, 102, 144, 0.3);
-  border-radius: 50%;
-  animation: float-up 6s ease-in-out infinite;
-}
-
-.particle-1 { left: 15%; animation-delay: 0s; }
-.particle-2 { left: 30%; animation-delay: 1s; }
-.particle-3 { left: 50%; animation-delay: 2s; }
-.particle-4 { left: 65%; animation-delay: 0.5s; }
-.particle-5 { left: 80%; animation-delay: 1.5s; }
-.particle-6 { left: 45%; animation-delay: 2.5s; }
-
-@keyframes float-up {
-  0% {
-    bottom: -10px;
-    opacity: 0;
-    transform: translateX(0) scale(0.5);
-  }
-  20% {
-    opacity: 0.6;
-  }
-  80% {
-    opacity: 0.4;
-  }
-  100% {
-    bottom: 100%;
-    opacity: 0;
-    transform: translateX(20px) scale(1);
-  }
-}
-
-/* 主要内容 */
-.analysis-loading-content {
-  position: relative;
-  z-index: 10;
+.analysis-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 20px;
   padding: 32px 24px;
-  min-height: 180px;
+  min-height: 140px;
+  background: linear-gradient(145deg, #faf9f7 0%, #f4f1ec 100%);
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
 }
 
-/* 书卷动画 */
-.scroll-animation {
-  margin-bottom: 24px;
-}
-
-.scroll-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
-.scroll-left,
-.scroll-right {
-  width: 12px;
-  height: 48px;
-  background: linear-gradient(180deg, #8b7355 0%, #6b5344 50%, #8b7355 100%);
-  border-radius: 6px;
-  box-shadow: 
-    inset 0 2px 4px rgba(255, 255, 255, 0.3),
-    0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.scroll-center {
-  width: 120px;
-  height: 40px;
-  background: linear-gradient(180deg, #faf8f5 0%, #f0ebe3 100%);
-  border-top: 2px solid #d4c8b8;
-  border-bottom: 2px solid #d4c8b8;
+/* 墨滴涟漪动画 */
+.ink-ripple {
   position: relative;
-  overflow: hidden;
-  animation: scroll-unfold 2s ease-in-out infinite;
+  width: 56px;
+  height: 56px;
 }
 
-@keyframes scroll-unfold {
-  0%, 100% {
-    width: 80px;
-  }
-  50% {
-    width: 140px;
-  }
-}
-
-.brush-stroke {
+.ripple {
   position: absolute;
-  top: 50%;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    #2c3e50 20%, 
-    #2c3e50 80%, 
-    transparent 100%
-  );
-  transform: translateY(-50%);
-  animation: brush-write 2s ease-in-out infinite;
+  inset: 0;
+  border: 2px solid #576690;
+  border-radius: 50%;
+  opacity: 0;
+  animation: ripple-expand 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-@keyframes brush-write {
+.ripple-1 { animation-delay: 0s; }
+.ripple-2 { animation-delay: 0.8s; }
+.ripple-3 { animation-delay: 1.6s; }
+
+@keyframes ripple-expand {
   0% {
-    clip-path: inset(0 100% 0 0);
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  50% {
-    clip-path: inset(0 0 0 0);
-    opacity: 1;
-  }
-  80% {
-    opacity: 1;
+    transform: scale(0.3);
+    opacity: 0.6;
   }
   100% {
-    clip-path: inset(0 0 0 100%);
+    transform: scale(1.2);
     opacity: 0;
   }
 }
 
-/* 步骤指示器 */
-.step-indicator {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  animation: step-fade 2.5s ease-in-out infinite;
+.ink-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, #576690 0%, #3d4a6b 100%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: ink-pulse 2s ease-in-out infinite;
+  box-shadow: 0 2px 8px rgba(87, 102, 144, 0.3);
 }
 
-@keyframes step-fade {
+@keyframes ink-pulse {
   0%, 100% {
-    opacity: 0.7;
-    transform: translateY(0);
-  }
-  50% {
+    transform: translate(-50%, -50%) scale(1);
     opacity: 1;
-    transform: translateY(-2px);
-  }
-}
-
-.step-icon {
-  font-size: 20px;
-  animation: icon-bounce 1s ease-in-out infinite;
-}
-
-@keyframes icon-bounce {
-  0%, 100% {
-    transform: scale(1);
   }
   50% {
-    transform: scale(1.1);
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 0.85;
   }
 }
 
+/* 步骤文字 */
 .step-text {
   font-size: 15px;
   font-weight: 500;
-  color: #576690;
-  font-family: "STKaiti", "KaiTi", "Noto Serif SC", serif;
-  letter-spacing: 1px;
+  color: #4a5578;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0.5px;
+  animation: text-fade 2s ease-in-out;
 }
 
-.step-dots {
-  display: inline-block;
-  width: 24px;
-  text-align: left;
-  color: #576690;
+@keyframes text-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0.7;
+    transform: translateY(-4px);
+  }
 }
 
-/* 进度点 */
-.progress-dots {
+/* 进度指示点 */
+.step-progress {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
-.progress-dot {
-  width: 8px;
-  height: 8px;
+.dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: rgba(87, 102, 144, 0.2);
+  background: #d4d0c8;
   transition: all 0.3s ease;
 }
 
-.progress-dot.active {
+.dot.active {
   background: #576690;
-  transform: scale(1.2);
-  box-shadow: 0 0 8px rgba(87, 102, 144, 0.4);
+  transform: scale(1.3);
 }
 
-.progress-dot.completed {
-  background: rgba(87, 102, 144, 0.5);
+.dot.done {
+  background: #9aa3bc;
 }
 
-/* 响应式适配 */
+/* 响应式 */
 @media (max-width: 480px) {
-  .analysis-loading-container {
-    min-height: 160px;
-  }
-  
-  .analysis-loading-content {
+  .analysis-loading {
     padding: 24px 16px;
+    min-height: 120px;
+    gap: 16px;
   }
-  
-  .scroll-center {
-    width: 80px;
+
+  .ink-ripple {
+    width: 48px;
+    height: 48px;
   }
-  
-  @keyframes scroll-unfold {
-    0%, 100% {
-      width: 60px;
-    }
-    50% {
-      width: 100px;
-    }
+
+  .ink-dot {
+    width: 10px;
+    height: 10px;
   }
-  
-  .step-indicator {
-    padding: 10px 18px;
-  }
-  
+
   .step-text {
     font-size: 14px;
   }
-  
-  .step-icon {
-    font-size: 18px;
-  }
 }
-

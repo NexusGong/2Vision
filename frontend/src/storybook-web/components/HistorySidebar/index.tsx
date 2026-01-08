@@ -36,6 +36,10 @@ interface HistorySidebarProps {
   onCollapse: (collapsed: boolean) => void;
   onSelectHistory: (history: ChatHistory) => void;
   currentHistoryId?: string;
+  onViewGenerations?: () => void;
+  isGenerationsView?: boolean;
+  onViewPoetry?: () => void;
+  isPoetryView?: boolean;
 }
 
 const HistorySidebar: React.FC<HistorySidebarProps> = ({
@@ -43,6 +47,10 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
   onCollapse,
   onSelectHistory,
   currentHistoryId,
+  onViewGenerations,
+  isGenerationsView = false,
+  onViewPoetry,
+  isPoetryView = false,
 }) => {
   const isMobile = useIsMobile(768);
   const [histories, setHistories] = useState<ChatHistory[]>([]);
@@ -145,14 +153,20 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
               <IconPlus /> 新对话
             </button>
             
-            <div className={styles.navItem} onClick={() => Message.info("古诗词库功能开发中...")}>
+            <div 
+              className={classNames(styles.navItem, { [styles.active]: isPoetryView })}
+              onClick={() => onViewPoetry?.()}
+            >
               <IconBook className={styles.navIcon} />
-              <span>古诗词库</span>
+              <span>诗词雅集</span>
             </div>
             
-            <div className={styles.navItem} onClick={() => Message.info("生成记录功能开发中...")}>
+            <div 
+              className={classNames(styles.navItem, { [styles.active]: isGenerationsView })} 
+              onClick={() => onViewGenerations?.()}
+            >
               <IconImage className={styles.navIcon} />
-              <span>查看生成</span>
+              <span>墨迹留痕</span>
             </div>
           </div>
 
@@ -183,7 +197,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                           <div className={styles.itemTimeWrapper}>
                             <IconMessage style={{ fontSize: 12 }} />
                             <span className={styles.itemTime}>
-                              {formatDate(item.timestamp, "MM-DD HH:mm")}
+                              {formatDate(item.timestamp, "YYYY-MM-DD HH:mm")}
                             </span>
                           </div>
                           <div

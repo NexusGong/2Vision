@@ -25,7 +25,7 @@ export function formatDate(
   timestamp: number | string,
   format: string = "MM-DD HH:mm"
 ): string {
-  return dayjs().format(format);
+  return dayjs(timestamp).format(format);
 }
 
 export function formatPromptData2Params(
