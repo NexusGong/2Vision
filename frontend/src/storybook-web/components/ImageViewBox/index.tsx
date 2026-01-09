@@ -35,7 +35,6 @@ export const ImageViewModal: React.FC<IImageViewModalProps> = ({
   const [selectedIndex, setSelectedIndex] = useState<number | undefined>(
     initialIndex
   );
-  console.log("--selectedIndex--", selectedIndex);
 
   useEffect(() => {
     setSelectedIndex(initialIndex);

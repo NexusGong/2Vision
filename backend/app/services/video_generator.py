@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 async def generate_video_from_prompt(
     video_prompt: str,
     ark_client: Optional[Any] = None,
-    duration: int = 15,
+    duration: int = -1,  # doubao-seedance-1-5-pro 支持 [4,12] 范围内的整数，或 -1（自动选择）
     fps: int = 24,
     aspect_ratio: str = "16:9"
 ) -> Dict[str, Any]:
@@ -23,6 +23,8 @@ async def generate_video_from_prompt(
         video_prompt: 视频生成提示词（已由分析服务生成）
         ark_client: Ark客户端实例
         duration: 视频时长（秒）
+            - doubao-seedance-1-5-pro: 支持 [4,12] 范围内的整数，或 -1（自动选择）
+            - 其他模型: 根据模型文档确定支持的范围
         fps: 帧率
         aspect_ratio: 宽高比
         
@@ -64,7 +66,7 @@ async def generate_video_from_prompt(
 async def generate_video_from_poetry(
     text: str,
     ark_client: Optional[Any] = None,
-    duration: int = 15,
+    duration: int = -1,  # doubao-seedance-1-5-pro 支持 [4,12] 范围内的整数，或 -1（自动选择）
     fps: int = 24,
     aspect_ratio: str = "16:9"
 ) -> Dict[str, Any]:

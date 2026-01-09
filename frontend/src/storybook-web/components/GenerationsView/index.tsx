@@ -18,11 +18,15 @@ import {
   IconClose,
   IconCheck,
   IconArrowLeft,
+  IconPlayArrow,
 } from "@arco-design/web-react/icon";
 import {
   GenerationRecord,
+  VideoGenerationRecord,
   getGenerationRecords,
+  getVideoGenerationRecords,
   deleteGenerationRecord,
+  deleteVideoGenerationRecord,
   clearAllGenerationRecords,
   updateGenerationRecordTitle,
   migrateFromChatHistory,
@@ -36,7 +40,13 @@ interface GenerationsViewProps {
   onBack: () => void;
   onViewStorybook: (data: GenerateStoryBookResponse) => void;
   onViewComics: (data: GenerateStoryBookResponse) => void;
+  onViewVideo?: (videoUrl: string, record: VideoGenerationRecord) => void;
 }
+
+// 统一的记录类型
+type UnifiedRecord = 
+  | (GenerationRecord & { type: "image" })
+  | (VideoGenerationRecord & { type: "video" });
 
 // 箭头图标组件
 const ArrowRightIcon = () => (
@@ -49,14 +59,18 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
   onBack,
   onViewStorybook,
   onViewComics,
+  onViewVideo,
 }) => {
-  const [records, setRecords] = useState<GenerationRecord[]>([]);
+  const [records, setRecords] = useState<UnifiedRecord[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
 
   const loadRecords = useCallback(() => {
     migrateFromChatHistory();
-    const allRecords = getGenerationRecords();
+    const imageRecords = getGenerationRecords().map(r => ({ ...r, type: "image" as const }));
+    const videoRecords = getVideoGenerationRecords().map(r => ({ ...r, type: "video" as const }));
+    // 合并并按时间戳排序（新的在前）
+    const allRecords: UnifiedRecord[] = [...imageRecords, ...videoRecords].sort((a, b) => b.timestamp - a.timestamp);
     setRecords(allRecords);
   }, []);
 
@@ -70,8 +84,11 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
     return () => window.removeEventListener("generations-updated", handleUpdate);
   }, [loadRecords]);
 
-  const confirmDelete = useCallback((id: string) => {
-    if (deleteGenerationRecord(id)) {
+  const confirmDelete = useCallback((id: string, type: "image" | "video") => {
+    const success = type === "image" 
+      ? deleteGenerationRecord(id)
+      : deleteVideoGenerationRecord(id);
+    if (success) {
       Message.success("删除成功");
       loadRecords();
     } else {
@@ -80,7 +97,9 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
   }, [loadRecords]);
 
   const handleClearAll = useCallback(() => {
-    if (clearAllGenerationRecords()) {
+    const imageCleared = clearAllGenerationRecords();
+    const videoCleared = deleteVideoGenerationRecord("all");
+    if (imageCleared && videoCleared) {
       Message.success("已清空所有记录");
       loadRecords();
     } else {
@@ -88,16 +107,22 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
     }
   }, [loadRecords]);
 
-  const handleView = useCallback((record: GenerationRecord) => {
+  const handleView = useCallback((record: UnifiedRecord) => {
     if (editingId) return;
-    if (record.mode === "storybook") {
-      onViewStorybook(record.data);
+    if (record.type === "video") {
+      if (onViewVideo) {
+        onViewVideo(record.videoUrl, record);
+      }
     } else {
-      onViewComics(record.data);
+      if (record.mode === "storybook") {
+        onViewStorybook(record.data);
+      } else {
+        onViewComics(record.data);
+      }
     }
-  }, [onViewStorybook, onViewComics, editingId]);
+  }, [onViewStorybook, onViewComics, onViewVideo, editingId]);
 
-  const handleStartEdit = useCallback((e: React.MouseEvent, record: GenerationRecord) => {
+  const handleStartEdit = useCallback((e: React.MouseEvent, record: UnifiedRecord) => {
     e.stopPropagation();
     setEditingId(record.id);
     setEditingTitle(record.title);
@@ -156,7 +181,7 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
               <IconBook />
             </div>
             <p className={styles.emptyTitle}>暂无作品</p>
-            <p className={styles.emptyDesc}>生成的故事书与连环画将保存在这里</p>
+            <p className={styles.emptyDesc}>生成的故事书、连环画和视频将保存在这里</p>
             <Button type="primary" onClick={onBack}>
               开始创作
             </Button>
@@ -225,7 +250,7 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
                         <div onClick={(e) => e.stopPropagation()}>
                           <Popconfirm
                             title="确定删除此作品？"
-                            onOk={() => confirmDelete(record.id)}
+                            onOk={() => confirmDelete(record.id, record.type)}
                             position="top"
                           >
                             <button className={styles.deleteBtn}>
@@ -242,12 +267,23 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
                     </div>
                   </div>
 
-                  {/* 封面 - 使用原版组件 */}
+                  {/* 封面/预览 - 使用原版组件 */}
                   <div className="absolute bottom-0 left-0 origin-top-left w-[126px] h-[174px] rotate-[-3.19deg] cursor-pointer">
-                    <VsStoryBookPureCoverPage url={ensureImageUrl(record.coverUrl)} />
+                    {record.type === "video" ? (
+                      <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center relative overflow-hidden">
+                        <IconPlayArrow className="text-4xl text-white/80" />
+                        <video
+                          src={record.videoUrl}
+                          className="absolute inset-0 w-full h-full object-cover opacity-50"
+                          muted
+                        />
+                      </div>
+                    ) : (
+                      <VsStoryBookPureCoverPage url={ensureImageUrl(record.coverUrl)} />
+                    )}
                     {/* 模式标签 */}
-                    <div className={`${styles.modeTag} ${record.mode === "comics" ? styles.comicsTag : ""}`}>
-                      {record.mode === "storybook" ? "故事书" : "连环画"}
+                    <div className={`${styles.modeTag} ${record.type === "video" ? "bg-blue-500" : record.mode === "comics" ? styles.comicsTag : ""}`}>
+                      {record.type === "video" ? "视频" : record.mode === "storybook" ? "故事书" : "连环画"}
                     </div>
                   </div>
                 </div>

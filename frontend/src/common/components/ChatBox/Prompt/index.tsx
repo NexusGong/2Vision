@@ -45,7 +45,7 @@ export interface PromptData {
   resolution?: string;
   size?: string;
   // 视频相关参数
-  videoDuration?: number; // 视频时长（秒）
+  videoDuration?: number; // 视频时长（秒），支持 [4,12] 范围内的整数，或 -1（自动选择）
   videoFps?: number; // 帧率
   videoAspectRatio?: string; // 视频宽高比
 }
@@ -114,9 +114,10 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
       form.setFieldValue("size", sizeArray ? sizeArray.join("x") : "");
     }
     // 当切换到视频时，设置默认值
+    // doubao-seedance-1-5-pro 支持 duration: [4,12] 范围内的整数，或 -1（自动选择）
     if (generationType === "video") {
       if (!form.getFieldValue("videoDuration")) {
-        form.setFieldValue("videoDuration", 15);
+        form.setFieldValue("videoDuration", -1); // 默认自动选择
       }
       if (!form.getFieldValue("videoFps")) {
         form.setFieldValue("videoFps", 24);
@@ -296,7 +297,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                     <div className="p-3">
                       <VideoConfigGroup
                         value={{
-                          duration: videoDuration || 15,
+                          duration: videoDuration ?? -1,
                           fps: videoFps || 24,
                           aspectRatio: videoAspectRatio || "16:9",
                         }}
@@ -323,7 +324,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                   content={
                     <VideoConfigGroup
                       value={{
-                        duration: videoDuration || 15,
+                        duration: videoDuration ?? -1,
                         fps: videoFps || 24,
                         aspectRatio: videoAspectRatio || "16:9",
                       }}
@@ -336,7 +337,9 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                   }
                 >
                   <div className="flex items-center gap-2 h-8 px-2 rounded-lg bg-black/5 hover:bg-black/10 cursor-pointer text-gray-800 text-sm transition-colors font-medium">
-                    <div className="font-medium text-xs border border-gray-400 rounded px-1">{videoDuration || 15}s</div>
+                    <div className="font-medium text-xs border border-gray-400 rounded px-1">
+                      {videoDuration === -1 ? "自动" : `${videoDuration ?? -1}s`}
+                    </div>
                     <div className="flex items-center gap-1">
                       <span className="text-xs">{videoFps || 24} FPS</span>
                     </div>
@@ -526,7 +529,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
           {/* 视频参数隐藏字段 */}
           {generationType === "video" && (
             <>
-              <Form.Item field="videoDuration" initialValue={15} noStyle>
+              <Form.Item field="videoDuration" initialValue={-1} noStyle>
                 <div></div>
               </Form.Item>
               <Form.Item field="videoFps" initialValue={24} noStyle>

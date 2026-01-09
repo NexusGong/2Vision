@@ -214,6 +214,8 @@ class ArkClient:
             model: 视频生成模型名称（如：doubao-seedance-1-5-pro）
             prompt: 视频生成提示词
             duration: 视频时长（秒），可选
+                - doubao-seedance-1-5-pro: 支持 [4,12] 范围内的整数，或 -1（自动选择）
+                - 其他模型: 根据模型文档确定支持的范围
             aspect_ratio: 视频宽高比，可选（如 "16:9", "9:16", "1:1"）
             fps: 帧率，可选（如 24, 30, 60）
             
@@ -241,13 +243,14 @@ class ArkClient:
                     text_content = prompt
                     
                     # 添加参数到 prompt 中
-                    # 注意：doubao-seedance-1-5-pro 模型不支持 duration 参数
+                    # doubao-seedance-1-5-pro 支持 duration 参数：
+                    # - 指定具体时长：支持 [4,12] 范围内的任一整数
+                    # - 自动选择：设置为 -1，表示由模型在 [4,12] 范围内自主选择合适的视频长度
                     params = []
                     if aspect_ratio:
                         params.append(f"--ratio {aspect_ratio}")
-                    # 检查模型是否支持 duration 参数
-                    # doubao-seedance-1-5-pro 系列模型不支持 duration
-                    if duration and not model.startswith("doubao-seedance-1-5-pro"):
+                    # doubao-seedance-1-5-pro 支持 duration 参数（范围 [4,12] 或 -1）
+                    if duration is not None:
                         params.append(f"--duration {duration}")
                     if fps:
                         params.append(f"--fps {fps}")
@@ -316,13 +319,14 @@ class ArkClient:
             text_content = prompt
             
             # 添加参数到 prompt 中
-            # 注意：doubao-seedance-1-5-pro 模型不支持 duration 参数
+            # doubao-seedance-1-5-pro 支持 duration 参数：
+            # - 指定具体时长：支持 [4,12] 范围内的任一整数
+            # - 自动选择：设置为 -1，表示由模型在 [4,12] 范围内自主选择合适的视频长度
             params = []
             if aspect_ratio:
                 params.append(f"--ratio {aspect_ratio}")
-            # 检查模型是否支持 duration 参数
-            # doubao-seedance-1-5-pro 系列模型不支持 duration
-            if duration and not model.startswith("doubao-seedance-1-5-pro"):
+            # doubao-seedance-1-5-pro 支持 duration 参数（范围 [4,12] 或 -1）
+            if duration is not None:
                 params.append(f"--duration {duration}")
             if fps:
                 params.append(f"--fps {fps}")

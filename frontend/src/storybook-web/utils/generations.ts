@@ -314,6 +314,12 @@ export function getVideoGenerationRecordById(id: string): VideoGenerationRecord 
  */
 export function deleteVideoGenerationRecord(id: string): boolean {
   try {
+    if (id === "all") {
+      // 清空所有视频记录
+      localStorage.removeItem(VIDEO_STORAGE_KEY);
+      window.dispatchEvent(new Event("generations-updated"));
+      return true;
+    }
     const records = getVideoGenerationRecords();
     const filtered = records.filter((r) => r.id !== id);
     localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(filtered));

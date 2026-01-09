@@ -56,6 +56,7 @@ import {
 } from "../utils";
 import { Loading } from "@/common/components/ChatBox/Loading";
 import { AnalysisLoading } from "@/common/components/ChatBox/AnalysisLoading";
+import { VideoLoading } from "@/common/components/ChatBox/VideoLoading";
 import { Error as ErrorMessage } from "@/common/components/ChatBox/Error";
 import Comic, { getTemplateData } from "@/common/components/Comic";
 import {
@@ -77,8 +78,9 @@ import {
   updateChatHistory,
   getChatHistoryById,
 } from "../utils/history";
-import { saveGenerationRecord, saveVideoGenerationRecord } from "../utils/generations";
+import { saveGenerationRecord, saveVideoGenerationRecord, getVideoGenerationRecords } from "../utils/generations";
 import GenerationsView from "../components/GenerationsView";
+import { VideoViewModal } from "../components/VideoGenerationView";
 import PoetryLibrary from "../components/PoetryLibrary";
 import { Poetry } from "../data/poetryData";
 
@@ -98,6 +100,10 @@ const Index = () => {
   >();
   const [storybookDetail, setStorybookDetail] =
     useState<GenerateStoryBookResponse>();
+  const [videoDetail, setVideoDetail] = useState<{
+    videoUrl: string;
+    title?: string;
+  } | undefined>();
   const storyDataList = useMemo(
     () =>
       (storybookDetail?.Items?.map((item, index) => {
@@ -122,6 +128,8 @@ const Index = () => {
   const [currentHistoryId, setCurrentHistoryId] = useState<string>("");
   // 使用 ref 来保存最新的 currentHistoryId，避免闭包陷阱
   const currentHistoryIdRef = useRef<string>("");
+  // 用于存储需要更新的视频消息（避免在渲染过程中更新状态）
+  const pendingVideoMessageUpdates = useRef<Map<string, { message: Message; videoUrl?: string }>>(new Map());
   const isListEmpty = useMemo(() => messages.length === 0, [messages]);
   
   // 同步 currentHistoryId 到 ref
@@ -204,17 +212,41 @@ const Index = () => {
       return newMessages;
     });
   }, []);
+  
+  // 处理待更新的视频消息（使用 requestAnimationFrame 确保在渲染后执行）
+  // 必须在 replaceMessage 定义之后
+  useEffect(() => {
+    if (pendingVideoMessageUpdates.current.size > 0) {
+      const updates = Array.from(pendingVideoMessageUpdates.current.entries());
+      pendingVideoMessageUpdates.current.clear();
+      
+      // 使用 requestAnimationFrame 确保在下一帧执行
+      requestAnimationFrame(() => {
+        updates.forEach(([messageId, update]) => {
+          replaceMessage(messageId, update.message, currentHistoryIdRef.current);
+        });
+      });
+    }
+  }, [messages.length, replaceMessage]); // 只依赖 messages.length，避免无限循环
 
   // 防止重复检查任务的标志
   const checkingTasksRef = useRef(false);
   const lastCheckTimeRef = useRef<number>(0);
-  const CHECK_INTERVAL = 5000; // 5秒内最多检查一次
+  const lastTasksCountRef = useRef<number>(0);
+  const hasActiveTasksRef = useRef<boolean>(false); // 标记是否有活跃任务
+  const CHECK_INTERVAL = 5000; // 5秒内最多检查一次（防抖）
   
   // 检查并恢复活跃的后台任务
-  const checkAndResumeActiveTasks = useCallback(async () => {
+  // 注意：如果没有活跃任务，不会自动定期检查，只在用户操作时检查
+  const checkAndResumeActiveTasks = useCallback(async (force: boolean = false) => {
     const now = Date.now();
     // 如果正在检查，跳过
     if (checkingTasksRef.current) {
+      return;
+    }
+    
+    // 如果上次检查没有任务，且不是强制检查，跳过（避免无意义的请求）
+    if (!force && !hasActiveTasksRef.current && lastCheckTimeRef.current > 0) {
       return;
     }
     
@@ -227,6 +259,11 @@ const Index = () => {
     lastCheckTimeRef.current = now;
     try {
       const { tasks } = await getActiveTasks();
+      // 记录任务数量和状态
+      const tasksCount = tasks?.length || 0;
+      lastTasksCountRef.current = tasksCount;
+      hasActiveTasksRef.current = tasksCount > 0;
+      
       if (tasks && tasks.length > 0) {
         for (const task of tasks) {
           // 使用任务中保存的 history_id 和 message_id
@@ -257,6 +294,15 @@ const Index = () => {
               // 图像生成任务已完成，消息已经是success状态，不需要恢复
               continue;
             }
+            if (existingMsg.status === "success" && task.task_type === "video_generation") {
+              // 视频生成任务已完成，检查是否有 video_url
+              const videoUrl = existingMsg.data?.video_url || existingMsg.data?.videoUrl;
+              if (videoUrl && videoUrl.trim() !== "") {
+                // 视频URL存在，任务已完成，不需要恢复
+                continue;
+              }
+              // 如果没有 video_url，可能是状态不同步，继续处理以恢复轮询
+            }
           }
           
           // 确定消息类型和创建loading消息
@@ -275,6 +321,23 @@ const Index = () => {
             loadingMsg = {
               id: messageId,
               type: "analysis",
+              status: "loading",
+              data: existingMsg?.data || {},
+              timestamp: existingMsg?.timestamp || Date.now(),
+            };
+          } else if (task.task_type === "video_generation") {
+            // 视频生成任务 - 创建assistant类型的loading消息
+            // 但不要覆盖已经是 success 状态且有 video_url 的消息
+            if (existingMsg && existingMsg.status === "success") {
+              const videoUrl = existingMsg.data?.video_url || existingMsg.data?.videoUrl;
+              if (videoUrl && videoUrl.trim() !== "") {
+                // 视频URL存在，跳过恢复
+                continue;
+              }
+            }
+            loadingMsg = {
+              id: messageId,
+              type: "assistant",
               status: "loading",
               data: existingMsg?.data || {},
               timestamp: existingMsg?.timestamp || Date.now(),
@@ -311,7 +374,7 @@ const Index = () => {
           }
           
           // 确保loading消息显示在当前消息列表中
-          // 但如果消息是 editing 状态，不要覆盖它
+          // 但如果消息是 editing 或 success 状态，不要覆盖它
           setMessages((prev) => {
             // 如果当前历史记录不匹配，先加载历史记录中的消息
             if (historyId !== currentHistoryIdRef.current) {
@@ -321,9 +384,25 @@ const Index = () => {
             // 检查当前列表中是否有这个消息
             const msgIndex = prev.findIndex((m) => m.id === messageId);
             
-            // 如果消息是 editing 状态，不要覆盖它
-            if (msgIndex >= 0 && prev[msgIndex].status === "editing") {
-              return prev;
+            // 如果消息是 editing 或 success 状态，不要覆盖它
+            if (msgIndex >= 0) {
+              const currentMsg = prev[msgIndex];
+              if (currentMsg.status === "editing") {
+                return prev;
+              }
+              // 对于 success 状态的消息，如果是视频消息且有 video_url，不要覆盖
+              if (currentMsg.status === "success") {
+                const isVideoMsg = currentMsg.data?.generationType === "video";
+                const hasVideoUrl = currentMsg.data?.video_url || currentMsg.data?.videoUrl;
+                if (isVideoMsg && hasVideoUrl && hasVideoUrl.trim() !== "") {
+                  // 视频消息已完成且有 URL，不要覆盖
+                  return prev;
+                }
+                // 对于图像消息，如果 Items 存在且不为空，不要覆盖
+                if (currentMsg.data?.Items && Array.isArray(currentMsg.data.Items) && currentMsg.data.Items.length > 0) {
+                  return prev;
+                }
+              }
             }
             
             // 检查当前列表中是否有这个loading消息
@@ -332,8 +411,8 @@ const Index = () => {
               // 如果当前消息列表中没有这个loading消息，添加它
               return [...prev, loadingMsg!];
             }
-            // 如果已存在但状态不对（且不是editing），更新它
-            if (msgIndex >= 0 && prev[msgIndex].status !== "loading" && prev[msgIndex].status !== "editing") {
+            // 如果已存在但状态不对（且不是editing/success），更新它
+            if (msgIndex >= 0 && prev[msgIndex].status !== "loading" && prev[msgIndex].status !== "editing" && prev[msgIndex].status !== "success") {
               const updated = [...prev];
               updated[msgIndex] = loadingMsg!;
               return updated;
@@ -349,15 +428,85 @@ const Index = () => {
             pollTaskStatus(task.task_id, messageId, historyId);
           } else if (task.task_type === "poetry_analysis") {
             pollAnalysisTaskStatus(task.task_id, messageId, historyId);
+          } else if (task.task_type === "video_generation") {
+            // 视频生成任务：需要从消息数据中获取参数
+            const params = existingMsg?.data?.params || {};
+            const analysisData = existingMsg?.data?.analysisData;
+            // 查找父消息（analysis消息）以获取 analysisData
+            let finalAnalysisData = analysisData;
+            if (!finalAnalysisData && history.messages) {
+              const parentMsg = history.messages.find((m) => m.id === existingMsg?.parentId);
+              if (parentMsg?.type === "analysis" && parentMsg.data?.analysisData) {
+                finalAnalysisData = parentMsg.data.analysisData;
+              }
+            }
+            pollVideoTaskStatus(task.task_id, messageId, historyId, params, finalAnalysisData);
           }
         }
+        
+        // 如果有任务，设置标记，启动定期检查
+        hasActiveTasksRef.current = true;
+        // 启动定期检查（只在有任务时）
+        startPeriodicCheck();
+      } else {
+        // 没有活跃任务，更新状态（停止定期检查）
+        lastTasksCountRef.current = 0;
+        hasActiveTasksRef.current = false;
+        // 停止定期检查
+        stopPeriodicCheck();
       }
     } catch (e) {
       // 静默处理错误，避免暴露内部信息
+      // 只在开发环境输出错误
+      if (process.env.NODE_ENV === "development") {
+        console.warn("检查活跃任务失败");
+      }
     } finally {
       checkingTasksRef.current = false;
     }
   }, []);
+
+  // 定期检查的定时器引用
+  const periodicCheckTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const PERIODIC_CHECK_INTERVAL = 5000; // 有任务时，每5秒检查一次
+
+  // 启动定期检查（只在有活跃任务时）
+  const startPeriodicCheck = useCallback(() => {
+    // 如果已经有定时器在运行，不重复启动
+    if (periodicCheckTimerRef.current) {
+      return;
+    }
+    
+    // 只在有活跃任务时启动定期检查
+    if (!hasActiveTasksRef.current) {
+      return;
+    }
+    
+    periodicCheckTimerRef.current = setInterval(() => {
+      // 只在有活跃任务时继续检查
+      if (hasActiveTasksRef.current) {
+        checkAndResumeActiveTasks(false); // 非强制检查
+      } else {
+        // 如果没有任务了，停止定期检查
+        stopPeriodicCheck();
+      }
+    }, PERIODIC_CHECK_INTERVAL);
+  }, [checkAndResumeActiveTasks]);
+
+  // 停止定期检查
+  const stopPeriodicCheck = useCallback(() => {
+    if (periodicCheckTimerRef.current) {
+      clearInterval(periodicCheckTimerRef.current);
+      periodicCheckTimerRef.current = null;
+    }
+  }, []);
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      stopPeriodicCheck();
+    };
+  }, [stopPeriodicCheck]);
 
   // 刷新后恢复上一次会话（先显示已完成的消息，然后恢复loading状态）
   useEffect(() => {
@@ -443,8 +592,8 @@ const Index = () => {
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // 检查是否有正在运行的后台任务，如果有，会确保loading消息正确显示并恢复轮询
-        // 使用防抖，避免频繁调用
-        checkAndResumeActiveTasks();
+        // 强制检查（页面加载时需要检查）
+        checkAndResumeActiveTasks(true);
       } catch (e) {
         // 静默处理错误，避免暴露内部信息
       }
@@ -706,13 +855,18 @@ const Index = () => {
       }, historyId);
 
       // 添加生成中的消息
+      const startTime = Date.now();
       const assistantMsg: Message = {
         id: resId,
         parentId: analysisMessageId,
         type: "assistant",
         status: "loading",
-        data: { params, generationType },
-        timestamp: Date.now(),
+        data: { 
+          params, 
+          generationType,
+          ...(generationType === "video" ? { startTime, progress: 0, status: "pending" } : {})
+        },
+        timestamp: startTime,
       };
 
       appendMessages([assistantMsg]);
@@ -724,9 +878,10 @@ const Index = () => {
             throw new Error("视频提示词数据不完整");
           }
           
+          // doubao-seedance-1-5-pro 支持 duration: [4,12] 范围内的整数，或 -1（自动选择）
           const videoResult = await generateVideo({
             video_prompt: analysisData.video_prompt_data.video_prompt,
-            duration: params.videoDuration || 30,
+            duration: params.videoDuration ?? -1, // 默认自动选择
             fps: params.videoFps || 24,
             aspect_ratio: params.videoAspectRatio || "16:9",
             history_id: historyId,
@@ -875,91 +1030,158 @@ const Index = () => {
 
     if (message.type === "assistant") {
       // 检查是否是视频生成
-      if (message.data?.generationType === "video") {
+      // 支持多种判断方式：generationType 或 video_url 字段
+      const hasGenerationType = message.data?.generationType === "video";
+      const hasVideoUrl = message.data?.video_url || message.data?.videoUrl;
+      const hasItems = message.data?.Items && Array.isArray(message.data.Items) && message.data.Items.length > 0;
+      
+      const isVideoMessage = hasGenerationType || (hasVideoUrl && !hasItems);
+      
+      // 调试日志（仅开发环境，且不输出敏感数据）
+      if (process.env.NODE_ENV === "development" && (hasGenerationType || hasVideoUrl)) {
+        console.log("检测到视频消息:", {
+          messageId: message.id,
+          status: message.status,
+          hasGenerationType,
+          hasVideoUrl: !!hasVideoUrl,
+          hasItems,
+          isVideoMessage,
+          // 不输出完整的data对象，避免泄露敏感信息
+        });
+      }
+      
+      if (isVideoMessage) {
+        // 尝试多种方式获取视频URL
+        let videoUrl = message.data?.video_url || message.data?.videoUrl;
+        
+        // 如果还是没有，尝试从墨迹留痕中恢复
+        if (!videoUrl) {
+          // 只在开发环境输出警告，且不输出完整message对象
+          if (process.env.NODE_ENV === "development") {
+            console.warn("视频消息缺少video_url，尝试从墨迹留痕恢复", {
+              messageId: message.id,
+              status: message.status,
+            });
+          }
+          const videoRecords = getVideoGenerationRecords();
+          const msgTimestamp = message.timestamp || 0;
+          const matchedRecord = videoRecords.find((record) => {
+            const timeDiff = Math.abs(record.timestamp - msgTimestamp);
+            return timeDiff < 5 * 60 * 1000; // 5分钟内
+          });
+          if (matchedRecord?.videoUrl) {
+            videoUrl = matchedRecord.videoUrl;
+            // 将更新操作推迟到 useEffect 中处理
+            pendingVideoMessageUpdates.current.set(message.id, {
+              message: {
+                ...message,
+                status: "success",
+                data: {
+                  ...message.data,
+                  video_url: videoUrl,
+                },
+              },
+            });
+          }
+        }
+        
+        // 如果有视频URL，无论状态如何都显示视频（可能是状态设置错误）
+        if (videoUrl) {
+          // 如果状态是error但有视频URL，将更新操作推迟到 useEffect 中处理
+          // 注意：这个修复应该已经在 handleSelectHistory 中完成，这里只是作为兜底
+          if (message.status === "error") {
+            // 静默修复，不输出警告日志（因为修复逻辑已经在 handleSelectHistory 中处理）
+            pendingVideoMessageUpdates.current.set(message.id, {
+              message: {
+                ...message,
+                status: "success",
+              },
+            });
+          }
+          
+          const handleDownloadVideo = async () => {
+            if (!videoUrl) return;
+            
+            try {
+              await downloadVideo(videoUrl, "generated-video");
+            } catch (error: any) {
+              // 只在开发环境输出错误
+              if (process.env.NODE_ENV === "development") {
+                console.error("下载视频失败:", error);
+              }
+            }
+          };
+          
+          const handleFullscreen = () => {
+            // 通过事件委托找到对应的video元素
+            const event = window.event as MouseEvent;
+            const button = event.currentTarget as HTMLElement;
+            const video = button.closest('.video-container')?.querySelector('video') as HTMLVideoElement;
+            
+            if (video) {
+              if (video.requestFullscreen) {
+                video.requestFullscreen();
+              } else if ((video as any).webkitRequestFullscreen) {
+                (video as any).webkitRequestFullscreen();
+              } else if ((video as any).mozRequestFullScreen) {
+                (video as any).mozRequestFullScreen();
+              } else if ((video as any).msRequestFullscreen) {
+                (video as any).msRequestFullscreen();
+              }
+            }
+          };
+          
+          return (
+            <MessageCard
+              className="w-full max-w-[800px] mr-auto"
+              onEditClick={() => handleEditClick(message)}
+            >
+              <div className="w-full relative">
+                <div className="relative group video-container">
+                  <video
+                    controls
+                    className="w-full rounded-lg"
+                    src={videoUrl}
+                    style={{ maxHeight: "600px" }}
+                    controlsList="nodownload"
+                  >
+                    您的浏览器不支持视频播放
+                  </video>
+                  {/* 视频操作按钮 */}
+                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button
+                      onClick={handleDownloadVideo}
+                      className="bg-black/70 hover:bg-black/90 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
+                      title="下载视频"
+                    >
+                      <IconDownload fontSize={16} />
+                      下载
+                    </button>
+                    <button
+                      onClick={handleFullscreen}
+                      className="bg-black/70 hover:bg-black/90 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
+                      title="全屏播放"
+                    >
+                      <IconFullscreen fontSize={16} />
+                      全屏
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </MessageCard>
+          );
+        }
+        
+        // 如果没有视频URL，根据状态显示
         switch (message.status) {
           case "loading":
             return (
-              <Loading
+              <VideoLoading
                 className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto"
-                text="视频生成中..."
+                progress={message.data?.progress || 0}
+                status={message.data?.status || "processing"}
+                startTime={message.data?.startTime || message.timestamp}
               />
-            );
-          case "success":
-            const videoUrl = message.data?.video_url;
-            
-            const handleDownloadVideo = async () => {
-              if (!videoUrl) return;
-              
-              try {
-                await downloadVideo(videoUrl, "generated-video");
-              } catch (error: any) {
-                console.error("下载视频失败:", error);
-              }
-            };
-            
-            const handleFullscreen = () => {
-              // 通过事件委托找到对应的video元素
-              const event = window.event as MouseEvent;
-              const button = event.currentTarget as HTMLElement;
-              const video = button.closest('.video-container')?.querySelector('video') as HTMLVideoElement;
-              
-              if (video) {
-                if (video.requestFullscreen) {
-                  video.requestFullscreen();
-                } else if ((video as any).webkitRequestFullscreen) {
-                  (video as any).webkitRequestFullscreen();
-                } else if ((video as any).mozRequestFullScreen) {
-                  (video as any).mozRequestFullScreen();
-                } else if ((video as any).msRequestFullscreen) {
-                  (video as any).msRequestFullscreen();
-                }
-              }
-            };
-            
-            return (
-              <MessageCard
-                className="w-full max-w-[800px] mr-auto"
-                onEditClick={() => handleEditClick(message)}
-              >
-                <div className="w-full relative">
-                  {videoUrl ? (
-                    <div className="relative group video-container">
-                      <video
-                        controls
-                        className="w-full rounded-lg"
-                        src={videoUrl}
-                        style={{ maxHeight: "600px" }}
-                        controlsList="nodownload"
-                      >
-                        您的浏览器不支持视频播放
-                      </video>
-                      {/* 视频操作按钮 */}
-                      <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <button
-                          onClick={handleDownloadVideo}
-                          className="bg-black/70 hover:bg-black/90 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
-                          title="下载视频"
-                        >
-                          <IconDownload fontSize={16} />
-                          下载
-                        </button>
-                        <button
-                          onClick={handleFullscreen}
-                          className="bg-black/70 hover:bg-black/90 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
-                          title="全屏播放"
-                        >
-                          <IconFullscreen fontSize={16} />
-                          全屏
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                      <span>视频加载中...</span>
-                    </div>
-                  )}
-                </div>
-              </MessageCard>
             );
           case "error":
             return <ErrorMessage className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto" />;
@@ -969,7 +1191,123 @@ const Index = () => {
       }
 
       // 图像生成（原有逻辑）
+      // 确保不是视频消息（视频消息应该在上面已经处理）
+      // 再次检查，防止视频消息走到图像处理逻辑
+      const hasGenerationTypeCheck = message.data?.generationType === "video";
+      const hasVideoUrlCheck = message.data?.video_url || message.data?.videoUrl;
+      const hasItemsCheck = message.data?.Items && Array.isArray(message.data.Items) && message.data.Items.length > 0;
+      const isVideoMessageCheck = hasGenerationTypeCheck || (hasVideoUrlCheck && !hasItemsCheck);
+      
+      if (isVideoMessageCheck) {
+        // 如果走到这里，说明视频消息处理逻辑有问题，尝试直接显示视频
+        // 只在开发环境输出警告，且不输出敏感数据
+        if (process.env.NODE_ENV === "development") {
+          console.warn("视频消息走到了图像处理逻辑，尝试直接显示", {
+            messageId: message.id,
+            status: message.status,
+            hasGenerationType: hasGenerationTypeCheck,
+            hasVideoUrl: !!hasVideoUrlCheck,
+            hasItems: hasItemsCheck,
+          });
+        }
+        
+        let videoUrl = hasVideoUrlCheck;
+        
+        // 如果没有视频URL，尝试从墨迹留痕恢复
+        if (!videoUrl) {
+          // 只在开发环境输出警告，且不输出完整message对象
+          if (process.env.NODE_ENV === "development") {
+            console.warn("视频消息缺少video_url，尝试从墨迹留痕恢复", {
+              messageId: message.id,
+              status: message.status,
+            });
+          }
+          const videoRecords = getVideoGenerationRecords();
+          const msgTimestamp = message.timestamp || 0;
+          const matchedRecord = videoRecords.find((record) => {
+            const timeDiff = Math.abs(record.timestamp - msgTimestamp);
+            return timeDiff < 5 * 60 * 1000; // 5分钟内
+          });
+          if (matchedRecord?.videoUrl) {
+            videoUrl = matchedRecord.videoUrl;
+            // 将更新操作推迟到 useEffect 中处理
+            pendingVideoMessageUpdates.current.set(message.id, {
+              message: {
+                ...message,
+                status: "success",
+                data: {
+                  ...message.data,
+                  generationType: "video",
+                  video_url: videoUrl,
+                },
+              },
+            });
+          }
+        }
+        
+        if (videoUrl) {
+          return (
+            <MessageCard
+              className="w-full max-w-[800px] mr-auto"
+              onEditClick={() => handleEditClick(message)}
+            >
+              <div className="w-full relative">
+                <div className="relative group video-container">
+                  <video
+                    controls
+                    className="w-full rounded-lg"
+                    src={videoUrl}
+                    style={{ maxHeight: "600px" }}
+                    controlsList="nodownload"
+                  >
+                    您的浏览器不支持视频播放
+                  </video>
+                </div>
+              </div>
+            </MessageCard>
+          );
+        }
+        
+        // 如果还是没有视频URL，显示错误
+        // 只在开发环境输出错误
+        if (process.env.NODE_ENV === "development") {
+          console.error("无法找到视频URL，显示错误", {
+            messageId: message.id,
+            status: message.status,
+          });
+        }
+        return <ErrorMessage className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto" />;
+      }
+      
       const data: GenerateStoryBookResponse = message.data;
+      
+      // 调试：记录所有 assistant 消息的数据结构
+      console.log("处理 assistant 消息（图像类型）:", {
+        messageId: message.id,
+        status: message.status,
+        hasData: !!data,
+        hasItems: !!(data?.Items),
+        itemsLength: data?.Items?.length || 0,
+        hasGenerationType: !!message.data?.generationType,
+        hasVideoUrl: !!(message.data?.video_url || message.data?.videoUrl),
+        dataKeys: data ? Object.keys(data) : [],
+      });
+      
+      // 确保 data 存在且有 Items 字段
+      if (!data || !data.Items || (Array.isArray(data.Items) && data.Items.length === 0)) {
+        // 只在开发环境输出错误，且不输出敏感数据
+        if (process.env.NODE_ENV === "development") {
+          console.error("图像消息数据不完整", {
+            messageId: message.id,
+            status: message.status,
+            hasData: !!data,
+            hasItems: !!(data?.Items),
+            itemsLength: data?.Items?.length || 0,
+            // 不输出完整的data对象
+          });
+        }
+        return <ErrorMessage className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto" />;
+      }
       const templateData = getTemplateData("square", data.Items?.length)[0];
       switch (message.status) {
         case "loading":
@@ -1182,14 +1520,21 @@ const Index = () => {
     // 如果已经在轮询这个任务，跳过
     const videoPollingKey = `video_${taskId}`;
     if (pollingTasksRef.current.has(videoPollingKey)) {
-      console.warn(`视频任务 ${taskId} 已在轮询中，跳过重复轮询`);
+      // 只在开发环境输出警告
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`视频任务 ${taskId} 已在轮询中，跳过重复轮询`);
+      }
       return;
     }
     
     pollingTasksRef.current.add(videoPollingKey);
-    const pollInterval = 5000; // 5秒轮询一次
+    // 优化轮询策略：初始10秒，逐步增加到20秒，减少查询次数
+    const basePollInterval = 10000; // 10秒基础间隔
+    const maxPollInterval = 20000; // 最大20秒
     const maxWaitTime = 600000; // 最长等待10分钟
     const startTime = Date.now();
+    let pollCount = 0;
+    let lastProgress = 0;
 
     const poll = async () => {
       try {
@@ -1207,6 +1552,30 @@ const Index = () => {
 
         const taskStatus = await getVideoTaskStatus(taskId);
         const currentStatus = taskStatus.status;
+        const progress = taskStatus.progress || 0;
+        pollCount++;
+
+        // 只在进度变化或状态变化时更新UI，减少不必要的更新
+        const progressChanged = Math.abs(progress - lastProgress) >= 5; // 进度变化超过5%才更新
+        const shouldUpdate = progressChanged || pollCount === 1 || currentStatus !== "processing";
+
+        if (shouldUpdate) {
+          lastProgress = progress;
+          // 更新消息的进度信息
+          replaceMessage(messageId, {
+            id: messageId,
+            type: "assistant",
+            status: "loading",
+            data: {
+              params,
+              generationType: "video",
+              progress: progress,
+              status: currentStatus,
+              startTime: startTime,
+            },
+            timestamp: Date.now(),
+          }, historyId);
+        }
 
         if (currentStatus === "completed" && taskStatus.video_url) {
           // 视频生成完成
@@ -1275,8 +1644,13 @@ const Index = () => {
           return;
         }
 
-        // 继续轮询
-        setTimeout(poll, pollInterval);
+        // 继续轮询：使用动态间隔，随着时间增加逐渐延长
+        const elapsed = Date.now() - startTime;
+        const dynamicInterval = Math.min(
+          basePollInterval + Math.floor(elapsed / 60000) * 2000, // 每过1分钟增加2秒
+          maxPollInterval
+        );
+        setTimeout(poll, dynamicInterval);
       } catch (e: any) {
         // 如果是404错误，说明任务不存在，停止轮询并显示错误
         const is404 = e?.status === 404 || 
@@ -1286,7 +1660,10 @@ const Index = () => {
         
         if (is404) {
           pollingTasksRef.current.delete(videoPollingKey);
-          console.error(`视频任务 ${taskId} 不存在，停止轮询`, e);
+          // 只在开发环境输出错误日志
+          if (process.env.NODE_ENV === "development") {
+            console.error(`视频任务 ${taskId} 不存在，停止轮询`);
+          }
           replaceMessage(messageId, {
             id: messageId,
             type: "assistant",
@@ -1302,8 +1679,16 @@ const Index = () => {
         }
         
         // 其他错误：继续轮询，但增加延迟
-        console.warn(`查询视频任务状态失败，继续重试:`, e);
-        setTimeout(poll, pollInterval * 2);
+        // 只在开发环境输出警告
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`查询视频任务状态失败，继续重试`);
+        }
+        const elapsed = Date.now() - startTime;
+        const dynamicInterval = Math.min(
+          basePollInterval + Math.floor(elapsed / 60000) * 2000,
+          maxPollInterval
+        );
+        setTimeout(poll, dynamicInterval * 2);
       }
     };
 
@@ -1331,10 +1716,61 @@ const Index = () => {
             };
           }
         }
-        // 对于 success 状态的 assistant 消息，确保数据完整性
+        // 对于 assistant 消息，检查视频生成消息的数据完整性
+        if (msg.type === "assistant") {
+          // 检查是否是视频生成消息
+          if (msg.data?.generationType === "video") {
+            const videoUrl = msg.data?.video_url;
+            if (videoUrl && videoUrl.trim() !== "") {
+              // 视频URL存在，无论当前状态如何，都应该标记为 success
+              if (msg.status !== "success") {
+                return {
+                  ...msg,
+                  status: "success" as const,
+                };
+              }
+              // 视频URL存在且状态已经是 success，数据完整
+              return msg;
+            } else {
+              // 视频URL丢失，尝试从 localStorage 恢复
+              // 查找对应的视频生成记录
+              const videoRecords = getVideoGenerationRecords();
+              // 尝试通过时间戳匹配（在消息时间戳前后5分钟内）
+              const msgTimestamp = msg.timestamp || 0;
+              const matchedRecord = videoRecords.find((record) => {
+                const timeDiff = Math.abs(record.timestamp - msgTimestamp);
+                return timeDiff < 5 * 60 * 1000; // 5分钟内
+              });
+              
+              if (matchedRecord && matchedRecord.videoUrl) {
+                // 找到匹配的记录，恢复视频URL和状态
+                return {
+                  ...msg,
+                  status: "success" as const,
+                  data: {
+                    ...msg.data,
+                    video_url: matchedRecord.videoUrl,
+                  },
+                };
+              } else {
+                // 未找到匹配记录，如果状态不是 error，保持原状态；如果是 success 但没有 URL，改为 error
+                if (msg.status === "success") {
+                  return {
+                    ...msg,
+                    status: "error" as const,
+                  };
+                }
+                // 如果已经是 error 或其他状态，保持原样
+                return msg;
+              }
+            }
+          }
+        }
+        
+        // 对于 success 状态的 assistant 消息（非视频），确保数据完整性
         if (msg.type === "assistant" && msg.status === "success") {
           if (msg.data?.Items) {
-            // 确保 Items 数组不为空
+            // 图像生成消息：确保 Items 数组不为空
             const items = msg.data.Items.filter(
               (item: any) => item.Url && item.Url.trim() !== ""
             );
@@ -1369,14 +1805,26 @@ const Index = () => {
         return msg;
       });
       
+      // 检查是否有消息被修复（状态从 error 改为 success 或其他修复）
+      const hasChanges = validatedMessages.some((msg, index) => {
+        const originalMsg = rawMessages[index];
+        return msg.status !== originalMsg.status || 
+               (msg.data?.video_url && !originalMsg.data?.video_url);
+      });
+      
+      // 如果有修复，保存到历史记录
+      if (hasChanges && history.id) {
+        updateChatHistory(history.id, validatedMessages);
+      }
+      
       // 显示所有消息（包括loading状态）
       setMessages(validatedMessages);
       
       // 检查是否有正在运行的后台任务，如果有，会确保loading消息正确显示并恢复轮询
-      // 使用防抖，避免频繁调用
+      // 强制检查（切换历史记录时需要检查）
       // 注意：这里已经有一个延迟，checkAndResumeActiveTasks 内部也有防抖机制
       setTimeout(() => {
-        checkAndResumeActiveTasks();
+        checkAndResumeActiveTasks(true);
       }, 500);
     } else {
       // 新建对话
@@ -1464,6 +1912,13 @@ const Index = () => {
                     index: 0,
                     imageList: data.Items?.map((i) => formatImageUrl(i?.Url || "")) || [],
                     ...data,
+                  });
+                }}
+                onViewVideo={(videoUrl, record) => {
+                  // 视频查看：弹出视频播放模态框
+                  setVideoDetail({
+                    videoUrl: videoUrl,
+                    title: record.title,
                   });
                 }}
               />
@@ -1585,6 +2040,16 @@ const Index = () => {
           setComicsDetail(undefined);
         }}
       ></ImageViewModal>
+
+      {/* 视频查看模态框 */}
+      <VideoViewModal
+        visible={!!videoDetail}
+        videoUrl={videoDetail?.videoUrl || ""}
+        title={videoDetail?.title}
+        onClose={() => {
+          setVideoDetail(undefined);
+        }}
+      />
 
       {/* 故事书打印 */}
       {storyDataList.length ? (

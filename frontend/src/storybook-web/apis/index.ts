@@ -499,9 +499,9 @@ export const generateFromStoryboard = async (
 
 export interface VideoGenerateParams {
   video_prompt: string;  // 视频生成提示词（已由分析服务生成）
-  duration?: number;
-  fps?: number;
-  aspect_ratio?: string;
+  duration?: number;  // doubao-seedance-1-5-pro 支持 [4,12] 范围内的整数，或 -1（自动选择）
+  fps?: number;  // 支持 24, 30, 60
+  aspect_ratio?: string;  // 支持 "16:9", "9:16", "1:1"
   history_id?: string;
   message_id?: string;
 }

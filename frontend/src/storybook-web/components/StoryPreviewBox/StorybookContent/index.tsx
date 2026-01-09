@@ -68,7 +68,7 @@ export const StorybookContent = forwardRef<
       >
         <VsStoryBook
           onPageChange={(page) => {
-            console.log(page, "page");
+            // 页面切换回调
           }}
           showReadAgainButton={!isLoading}
           readAgainButtonText={"重新阅读"}

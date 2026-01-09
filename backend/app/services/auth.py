@@ -109,4 +109,3 @@ async def get_optional_user(
         return user
     except JWTError:
         return None
-

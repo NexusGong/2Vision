@@ -104,14 +104,14 @@ export const MessageList: React.FC<MessageListProps> = ({
                     <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-[#9d2933] to-[#7a2028] text-white flex items-center justify-center text-sm font-bold shadow-md group-hover:scale-110 transition-transform">
                       3
                     </div>
-                    <div className="text-sm font-medium text-[#2b2b2b] mb-0.5">生成图像</div>
-                    <div className="text-xs text-gray-400 leading-tight">预览、下载、打印</div>
+                    <div className="text-sm font-medium text-[#2b2b2b] mb-0.5">生成内容</div>
+                    <div className="text-xs text-gray-400 leading-tight">图像或视频，预览下载</div>
                   </div>
                 </div>
               </div>
               
               {/* 模式提示 */}
-              <div className="flex justify-center gap-4 mt-4 text-xs text-gray-400">
+              <div className="flex justify-center gap-4 mt-4 text-xs text-gray-400 flex-wrap">
                 <span className="inline-flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
                   故事书 · 课堂讲解
@@ -119,6 +119,10 @@ export const MessageList: React.FC<MessageListProps> = ({
                 <span className="inline-flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
                   连环画 · 课前预习
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                  视频 · 动态呈现
                 </span>
               </div>
               

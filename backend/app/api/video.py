@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/video", tags=["video"])
 class VideoGenerateRequest(BaseModel):
     """视频生成请求模型"""
     video_prompt: str  # 视频生成提示词（已由分析服务生成）
-    duration: int = 12  # 默认30秒，增加视频时长
+    duration: int = -1  # doubao-seedance-1-5-pro 支持 [4,12] 范围内的整数，或 -1（自动选择）
     fps: int = 24
     aspect_ratio: str = "16:9"
     history_id: Optional[str] = None
@@ -173,7 +173,7 @@ async def _run_video_generation(task_id: str, params: dict):
         task_manager.start_task(task_id)
         
         video_prompt = params["video_prompt"]
-        duration = params.get("duration", 30)  # 默认30秒
+        duration = params.get("duration", -1)  # doubao-seedance-1-5-pro 默认自动选择
         fps = params.get("fps", 24)
         aspect_ratio = params.get("aspect_ratio", "16:9")
         
