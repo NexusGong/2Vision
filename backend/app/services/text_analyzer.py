@@ -130,7 +130,7 @@ POETRY_ANALYSIS_WITH_STORYBOARD_PROMPT = """
       "subtitle": "朝代·作者",
       "text": "最能代表主题的名句",
       "scene_description": "封面场景：体现作品核心主题的画面，包含标题、朝代、作者信息",
-      "image_prompt": "一幅[朝代]风格的古典画卷封面，体现「[作品核心主题/意境]」。画面上方是大字标题\"[标题]\"，标题下方清晰显示\"[朝代] [作者]\"。背景是[与主题相关的代表性场景]。[选择的绘画风格]，[色调]色调，[氛围]意境，古典书卷气息。",
+      "image_prompt": "一幅[朝代]风格的古典画卷封面，体现「[作品核心主题/意境]」。画面上方是大字标题\"[标题]\"，标题下方清晰显示\"[朝代] [作者]\"。背景是[与主题相关的代表性场景]。[选择的绘画风格]，[色调]色调，[氛围]意境，古典书卷气息。\n\n**连环画模式特殊要求**：如果生成模式是连环画，封面必须包含用双引号包裹的文字：\"[标题]\"、\"[朝代] [作者]\"，这些文字会在图像中显示。",
       "style_hints": "根据内容选择的风格",
       "atmosphere": "整体氛围",
       "color_tone": "主色调",
@@ -142,7 +142,7 @@ POETRY_ANALYSIS_WITH_STORYBOARD_PROMPT = """
       "title": "第一句",
       "text": "原文",
       "scene_description": "这句描绘的具体场景",
-      "image_prompt": "[绘画风格]。画面描绘[严格按原文内容：主体+动作+环境]。[朝代]特色，[色调]色调，[氛围]意境。",
+      "image_prompt": "[绘画风格]。画面描绘[严格按原文内容：主体+动作+环境]。[朝代]特色，[色调]色调，[氛围]意境。\n\n**连环画模式特殊要求**：如果生成模式是连环画，画面中必须包含用双引号包裹的对应诗句\"[原文]\"，这句文字会在图像中显示。",
       "style_hints": "绘画风格",
       "atmosphere": "氛围",
       "color_tone": "色调",
@@ -160,12 +160,48 @@ POETRY_ANALYSIS_WITH_STORYBOARD_PROMPT = """
 - **必须逐句生成分镜：storyboards 中除了封面（type="cover"），每个 content 类型的分镜必须对应一句原文，不能合并多句或跳过任何句子**
 - **如果原文有 N 句，line_analysis 必须有 N 个元素，storyboards 必须有 1 个封面 + N 个内容分镜，共 N+1 个分镜**
 
+## 连环画模式特殊要求（重要）
+如果生成模式是连环画（comics），必须遵循以下规则：
+1. **封面（第一张画面）**：
+   - image_prompt 中必须包含用双引号包裹的文字：标题、朝代、作者
+   - 例如：画面上方显示大标题"[标题]"，下方显示"[朝代] [作者]"
+   - 所有需要显示的文字都必须用双引号包裹，例如："示儿"、"宋 陆游"
+
+2. **内容分镜（后续画面）**：
+   - 每个内容分镜的 image_prompt 中必须包含用双引号包裹的对应诗句
+   - 例如：画面中显示诗句"[原句内容]"
+   - 诗句文字必须用双引号包裹，例如："死去元知万事空"
+   - 每个分镜只显示对应的那一句，不要显示其他句子
+
+3. **文字显示规范**：
+   - 所有需要在图像中显示的文字（标题、朝代、作者、诗句）都必须用双引号包裹
+   - 双引号内的文字会在生成的图像中显示出来
+   - 封面：显示标题、朝代、作者
+   - 内容分镜：显示对应的诗句
+
 ## 逐句分析要求（非常重要）
-1. **必须严格按照原文的句数进行分析**：先对原文进行断句（按句号、问号、感叹号、换行符分割），然后为每一句生成一个 line_analysis 条目
-2. **每一句都必须包含完整的分析**：word_explanation（关键字词解释）、interpretation（句意解读）、imagery（意象列表）、emotion（情感）、rhetoric（修辞手法）
-3. **不能合并句子**：即使两句意思相近，也必须分开分析
-4. **不能跳过句子**：原文有多少句，line_analysis 就必须有多少个元素
-5. **示例**：如果原文是"床前明月光，疑是地上霜。举头望明月，低头思故乡。"，应该断句为4句，line_analysis 必须有4个元素
+1. **必须区分元信息和诗句内容**：
+   - 标题（如"示儿"）、作者信息（如"宋 陆游"）**不是诗句**，不要放入 line_analysis
+   - 只对实际的诗词内容进行逐句分析
+   - poetry_info.full_text 只包含实际的诗词内容，不包括标题和作者行
+
+2. **断句规则**：
+   - 古诗词的句子可以按**句号、问号、感叹号、逗号、分号**分割
+   - 例如："床前明月光，疑是地上霜。举头望明月，低头思故乡。"应该断句为4句（逗号和句号都是分句标记）
+   - 先对原文进行断句，然后为每一句生成一个 line_analysis 条目
+
+3. **每一句都必须包含完整的分析**：word_explanation（关键字词解释）、interpretation（句意解读）、imagery（意象列表）、emotion（情感）、rhetoric（修辞手法）
+
+4. **不能合并句子**：即使两句意思相近，也必须分开分析
+
+5. **不能跳过句子**：原文有多少句，line_analysis 就必须有多少个元素
+
+6. **示例**：
+   - 输入："示儿\n宋 陆游\n死去元知万事空，但悲不见九州同。王师北定中原日，家祭无忘告乃翁。"
+   - 标题："示儿"（不分析）
+   - 作者："宋 陆游"（不分析）
+   - 诗句：4句（"死去元知万事空"、"但悲不见九州同"、"王师北定中原日"、"家祭无忘告乃翁"）
+   - line_analysis 必须有4个元素，不包括标题和作者
 """
 
 # 诗词深度分析与分镜生成提示词（视频生成版）
@@ -257,23 +293,88 @@ POETRY_ANALYSIS_FOR_VIDEO_PROMPT = """
 """
 
 def basic_segmentation(text: str) -> List[str]:
-    """基础断句处理 - 按句号、问号、感叹号、换行符分割"""
+    """
+    基础断句处理 - 智能识别古诗词句子
+    支持句号、问号、感叹号、逗号、分号作为分句标记
+    自动过滤标题和作者行
+    """
+    if not text or not text.strip():
+        return []
+    
     # 先按换行符分割（处理多行诗词）
     lines = text.split('\n')
     segments = []
+    
+    # 识别可能的标题和作者行（通常较短，且不包含标点或只有简单标点）
+    title_pattern = re.compile(r'^[\u4e00-\u9fff]{1,10}$')  # 1-10个汉字，可能是标题
+    author_pattern = re.compile(r'^[\u4e00-\u9fff]{1,4}[\s]*[\u4e00-\u9fff]{1,6}$')  # 可能是"朝代 作者"格式
+    
     for line in lines:
         line = line.strip()
         if not line:
             continue
-        # 按句号、问号、感叹号分割
-        parts = re.split(r'[。！？]', line)
-        for part in parts:
-            part = part.strip()
-            if part:
-                segments.append(part)
-    # 如果没有任何分割结果，返回整个文本
+        
+        # 跳过明显的标题行（只有1-10个汉字，没有标点）
+        if title_pattern.match(line) and len(line) <= 10 and not re.search(r'[，。！？；：]', line):
+            continue
+        
+        # 跳过明显的作者行（格式如"宋 陆游"或"陆游"）
+        if author_pattern.match(line) and len(line) <= 15:
+            # 进一步检查：如果包含朝代关键词，很可能是作者行
+            dynasty_keywords = ['唐', '宋', '元', '明', '清', '汉', '魏', '晋', '南北朝', '隋', '五代', '金']
+            if any(keyword in line for keyword in dynasty_keywords):
+                continue
+        
+        # 按句号、问号、感叹号分割（主要分句标记）
+        main_parts = re.split(r'[。！？]', line)
+        for main_part in main_parts:
+            main_part = main_part.strip()
+            if not main_part:
+                continue
+            
+            # 如果包含逗号或分号，进一步分割（古诗词中逗号、分号也可以分句）
+            if re.search(r'[，；]', main_part):
+                # 按逗号、分号分割
+                sub_parts = re.split(r'[，；]', main_part)
+                for sub_part in sub_parts:
+                    sub_part = sub_part.strip()
+                    if sub_part and len(sub_part) >= 2:  # 至少2个字符才作为一句
+                        segments.append(sub_part)
+            else:
+                # 没有逗号、分号，直接作为一句
+                if len(main_part) >= 2:  # 至少2个字符才作为一句
+                    segments.append(main_part)
+    
+    # 如果没有任何分割结果，返回整个文本（去除标题和作者后）
     if not segments:
-        segments = [text.strip()] if text.strip() else []
+        # 尝试提取实际内容（去除可能的标题和作者）
+        content_lines = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # 跳过明显的标题和作者行
+            if title_pattern.match(line) and len(line) <= 10:
+                continue
+            if author_pattern.match(line) and len(line) <= 15:
+                dynasty_keywords = ['唐', '宋', '元', '明', '清', '汉', '魏', '晋', '南北朝', '隋', '五代', '金']
+                if any(keyword in line for keyword in dynasty_keywords):
+                    continue
+            content_lines.append(line)
+        
+        if content_lines:
+            # 合并内容行，然后按标点分割
+            content = ' '.join(content_lines)
+            # 按句号、问号、感叹号、逗号、分号分割
+            parts = re.split(r'[。！？，；]', content)
+            for part in parts:
+                part = part.strip()
+                if part and len(part) >= 2:
+                    segments.append(part)
+        else:
+            # 如果所有行都被过滤了，返回原始文本
+            segments = [text.strip()] if text.strip() else []
+    
     return segments
 
 async def analyze_ancient_text(
@@ -456,7 +557,29 @@ async def analyze_poetry_with_storyboard(
         
         # 先进行断句，明确告诉模型有多少句
         lines = basic_segmentation(text)
-        line_count = len(lines)
+        
+        # 过滤掉标题和作者行（这些不应该在 line_analysis 中）
+        title_pattern = re.compile(r'^[\u4e00-\u9fff]{1,10}$')
+        dynasty_keywords = ['唐', '宋', '元', '明', '清', '汉', '魏', '晋', '南北朝', '隋', '五代', '金']
+        filtered_lines = []
+        
+        for line_text in lines:
+            line_text = line_text.strip()
+            if not line_text or len(line_text) < 2:
+                continue
+            
+            # 跳过明显的标题行
+            if title_pattern.match(line_text) and len(line_text) <= 10 and not re.search(r'[，。！？；：]', line_text):
+                continue
+            
+            # 跳过明显的作者行
+            if len(line_text) <= 15 and any(keyword in line_text for keyword in dynasty_keywords):
+                if re.match(r'^[\u4e00-\u9fff]{1,4}[\s]*[\u4e00-\u9fff]{1,6}$', line_text):
+                    continue
+            
+            filtered_lines.append(line_text)
+        
+        line_count = len(filtered_lines)
         
         # 构建消息，明确要求逐句分析
         user_content = f"""请分析以下古诗词/古文，并按照{mode_description}生成分镜：
@@ -464,11 +587,20 @@ async def analyze_poetry_with_storyboard(
 {text}
 
 **重要提示**：
-1. 原文共有 {line_count} 句（已按句号、问号、感叹号、换行符分割）
-2. 你必须为每一句生成一个 line_analysis 条目，共 {line_count} 个
-3. 你必须为每一句生成一个 content 类型的分镜，共 {line_count} 个（不包括封面）
-4. 不能合并句子，不能跳过任何句子
-5. 每一句的分析必须完整，包含 word_explanation、interpretation、imagery、emotion、rhetoric 等字段
+1. **必须区分元信息和诗句内容**：
+   - 标题（如"示儿"）、作者信息（如"宋 陆游"）**不是诗句**，不要放入 line_analysis
+   - 只对实际的诗词内容进行逐句分析
+   - poetry_info.full_text 只包含实际的诗词内容，不包括标题和作者行
+
+2. **断句规则**：
+   - 古诗词的句子可以按**句号、问号、感叹号、逗号、分号**分割
+   - 例如："床前明月光，疑是地上霜。举头望明月，低头思故乡。"应该断句为4句
+
+3. 原文共有 {line_count} 句实际诗句（已按句号、问号、感叹号、逗号、分号分割，已过滤标题和作者）
+4. 你必须为每一句生成一个 line_analysis 条目，共 {line_count} 个（不包括标题和作者）
+5. 你必须为每一句生成一个 content 类型的分镜，共 {line_count} 个（不包括封面）
+6. 不能合并句子，不能跳过任何句子
+7. 每一句的分析必须完整，包含 word_explanation、interpretation、imagery、emotion、rhetoric 等字段
 """
         
         messages = [
@@ -524,7 +656,12 @@ def _create_basic_poetry_analysis(text: str, mode: str) -> Dict[str, Any]:
         composition = "饱满构图"
     
     # 创建基础分镜 - 封面
-    cover_prompt = f'一幅展现「{title}」意境的古典画卷封面。画面中央是用毛笔书写的标题"{title}"，字体飘逸洒脱，下方有小字署名"待查·作者"。背景是古典山水或花鸟元素，营造出诗意的氛围。整体采用{style}风格，色调{color_tone}，柔和的光影效果，画面{atmosphere}。'
+    if mode == "comics":
+        # 连环画模式：必须用双引号包裹文字以便在图像中显示
+        cover_prompt = f'一幅展现「{title}」意境的连环画封面。画面上方显示大标题"{title}"，标题下方显示"待查 作者"。背景是{style}风格的场景，体现作品主题。整体采用{style}风格，色调{color_tone}，画面{atmosphere}。所有文字（标题、朝代、作者）都用双引号包裹以便在图像中显示。'
+    else:
+        # 故事书模式：传统风格
+        cover_prompt = f'一幅展现「{title}」意境的古典画卷封面。画面中央是用毛笔书写的标题"{title}"，字体飘逸洒脱，下方有小字署名"待查·作者"。背景是古典山水或花鸟元素，营造出诗意的氛围。整体采用{style}风格，色调{color_tone}，柔和的光影效果，画面{atmosphere}。'
     
     storyboards = [
         {
@@ -544,7 +681,12 @@ def _create_basic_poetry_analysis(text: str, mode: str) -> Dict[str, Any]:
     
     # 为每个句段创建分镜
     for i, seg in enumerate(segments):
-        content_prompt = f'一幅展现「{seg}」意境的{style}画作。画面描绘这句诗词所表达的场景和意境，{atmosphere}的氛围。采用中国古典绘画风格，色调{color_tone}，{composition}，整体意境优美深远。'
+        if mode == "comics":
+            # 连环画模式：必须包含用双引号包裹的诗句文字
+            content_prompt = f'一幅展现「{seg}」意境的{style}画作。画面描绘这句诗词所表达的场景和意境，{atmosphere}的氛围。画面中必须显示对应的诗句："{seg}"，文字用双引号包裹以便在图像中显示。采用中国古典绘画风格，色调{color_tone}，{composition}，整体意境优美深远。'
+        else:
+            # 故事书模式：传统风格
+            content_prompt = f'一幅展现「{seg}」意境的{style}画作。画面描绘这句诗词所表达的场景和意境，{atmosphere}的氛围。采用中国古典绘画风格，色调{color_tone}，{composition}，整体意境优美深远。'
         
         storyboards.append({
             "index": i + 2,
@@ -601,7 +743,34 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
     """
     # 先进行基础断句，确定原文有多少句
     lines = basic_segmentation(original_text)
-    expected_line_count = len(lines)
+    
+    # 过滤掉标题和作者行（这些不应该在 line_analysis 中）
+    # 标题通常是1-10个汉字，作者行通常包含朝代关键词
+    filtered_lines = []
+    title_pattern = re.compile(r'^[\u4e00-\u9fff]{1,10}$')
+    dynasty_keywords = ['唐', '宋', '元', '明', '清', '汉', '魏', '晋', '南北朝', '隋', '五代', '金']
+    
+    for line_text in lines:
+        line_text = line_text.strip()
+        if not line_text or len(line_text) < 2:
+            continue
+        
+        # 跳过明显的标题行
+        if title_pattern.match(line_text) and len(line_text) <= 10 and not re.search(r'[，。！？；：]', line_text):
+            logger.debug(f"跳过标题行: {line_text}")
+            continue
+        
+        # 跳过明显的作者行
+        if len(line_text) <= 15 and any(keyword in line_text for keyword in dynasty_keywords):
+            # 进一步检查：如果格式像"朝代 作者"，跳过
+            if re.match(r'^[\u4e00-\u9fff]{1,4}[\s]*[\u4e00-\u9fff]{1,6}$', line_text):
+                logger.debug(f"跳过作者行: {line_text}")
+                continue
+        
+        filtered_lines.append(line_text)
+    
+    # 使用过滤后的行数作为期望值
+    expected_line_count = len(filtered_lines)
     
     # 确保 poetry_info 存在并补全字段
     if "poetry_info" not in result:
@@ -632,9 +801,9 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
     for line in result["line_analysis"]:
         line.setdefault("visual_scene", "")
     
-    # 检查并补全缺失的逐句分析
+    # 检查并补全缺失的逐句分析（使用过滤后的行）
     existing_lines = {line.get("line", "").strip() for line in result["line_analysis"]}
-    for i, line_text in enumerate(lines):
+    for i, line_text in enumerate(filtered_lines):
         if line_text.strip() not in existing_lines:
             # 添加缺失的句子分析
             result["line_analysis"].append({
@@ -647,15 +816,15 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
                 "rhetoric": "待分析",
                 "visual_scene": ""
             })
-            logger.warning(f"补全缺失的逐句分析: {line_text[:20]}...")
+            logger.debug(f"补全缺失的逐句分析: {line_text[:20]}...")
     
     # 重新编号 line_analysis
     for i, line in enumerate(result["line_analysis"]):
         line["line_number"] = i + 1
     
-    # 如果 line_analysis 数量不对，重新创建
+    # 如果 line_analysis 数量不对，重新创建（使用过滤后的行）
     if len(result["line_analysis"]) != expected_line_count:
-        logger.warning(f"逐句分析数量不匹配：期望 {expected_line_count} 句，实际 {len(result['line_analysis'])} 句，重新创建")
+        logger.warning(f"逐句分析数量不匹配：期望 {expected_line_count} 句（已过滤标题和作者），实际 {len(result['line_analysis'])} 句，重新创建")
         result["line_analysis"] = [
             {
                 "line_number": i + 1,
@@ -667,7 +836,7 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
                 "rhetoric": "待分析",
                 "visual_scene": ""
             }
-            for i, line_text in enumerate(lines)
+            for i, line_text in enumerate(filtered_lines)
         ]
     
     # 根据模式设置默认风格
@@ -693,7 +862,13 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
             author = result["poetry_info"].get("author", "未知")
             dynasty = result["poetry_info"].get("dynasty", "未知")
             
-            cover_prompt = f'一幅展现「{title}」意境的古典画卷封面。画面中央是用毛笔书写的标题"{title}"，字体飘逸洒脱，下方有小字署名"{dynasty}·{author}"。背景是古典山水或花鸟元素，营造出诗意的氛围。整体采用{default_style}风格，色调{default_color_tone}，柔和的光影效果，画面{default_atmosphere}。'
+            # 根据模式生成不同的封面提示词
+            if mode == "comics":
+                # 连环画模式：必须用双引号包裹文字以便在图像中显示
+                cover_prompt = f'一幅展现「{title}」意境的连环画封面。画面上方显示大标题"{title}"，标题下方显示"{dynasty} {author}"。背景是{default_style}风格的场景，体现作品主题。整体采用{default_style}风格，色调{default_color_tone}，画面{default_atmosphere}。所有文字（标题、朝代、作者）都用双引号包裹以便在图像中显示。'
+            else:
+                # 故事书模式：传统风格
+                cover_prompt = f'一幅展现「{title}」意境的古典画卷封面。画面中央是用毛笔书写的标题"{title}"，字体飘逸洒脱，下方有小字署名"{dynasty}·{author}"。背景是古典山水或花鸟元素，营造出诗意的氛围。整体采用{default_style}风格，色调{default_color_tone}，柔和的光影效果，画面{default_atmosphere}。'
             
             cover = {
                 "index": 1,
@@ -718,11 +893,16 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
             # 获取已有的内容分镜文本
             existing_texts = {sb.get("text", "").strip() for sb in content_storyboards}
             
-            # 为缺失的句子创建分镜
-            for i, line_text in enumerate(lines):
+            # 为缺失的句子创建分镜（使用过滤后的行）
+            for i, line_text in enumerate(filtered_lines):
                 if line_text.strip() not in existing_texts:
                     # 创建缺失的分镜
-                    content_prompt = f'一幅展现「{line_text.strip()}」意境的{default_style}画作。画面描绘这句诗词所表达的场景和意境，{default_atmosphere}的氛围。采用中国古典绘画风格，色调{default_color_tone}，{default_composition}，整体意境优美深远。'
+                    if mode == "comics":
+                        # 连环画模式：必须包含用双引号包裹的诗句文字
+                        content_prompt = f'一幅展现「{line_text.strip()}」意境的{default_style}画作。画面描绘这句诗词所表达的场景和意境，{default_atmosphere}的氛围。画面中必须显示对应的诗句："{line_text.strip()}"，文字用双引号包裹以便在图像中显示。采用中国古典绘画风格，色调{default_color_tone}，{default_composition}，整体意境优美深远。'
+                    else:
+                        # 故事书模式：传统风格
+                        content_prompt = f'一幅展现「{line_text.strip()}」意境的{default_style}画作。画面描绘这句诗词所表达的场景和意境，{default_atmosphere}的氛围。采用中国古典绘画风格，色调{default_color_tone}，{default_composition}，整体意境优美深远。'
                     
                     new_storyboard = {
                         "index": len(result["storyboards"]) + 1,
@@ -746,14 +926,14 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
             cover_sb = [sb for sb in result["storyboards"] if sb.get("type") == "cover"]
             content_sbs = [sb for sb in result["storyboards"] if sb.get("type") == "content"]
             
-            # 按原文顺序排序内容分镜
+            # 按原文顺序排序内容分镜（使用过滤后的行）
             def get_line_index(storyboard):
                 text = storyboard.get("text", "").strip()
                 try:
-                    return lines.index(text)
+                    return filtered_lines.index(text)
                 except ValueError:
                     # 如果找不到，尝试匹配部分文本
-                    for idx, line in enumerate(lines):
+                    for idx, line in enumerate(filtered_lines):
                         if text in line or line in text:
                             return idx
                     return 999
@@ -1172,193 +1352,4 @@ def _validate_and_complete_video_analysis(result: Dict[str, Any], original_text:
     
     return result
 
-
-# 视频生成提示词生成提示词模板（用于向后兼容）
-VIDEO_PROMPT_GENERATION_PROMPT = """
-你是专业的视频创作专家。请根据古诗词分析结果，生成完整的专业级视频生成提示词。
-
-## 任务
-根据提供的古诗词分析数据，生成一个完整的视频生成提示词，包含：
-1. **环境场景描述**：详细描述视频的主要场景、环境、背景
-2. **画面内容**：描述画面中的人物、动作、物品等
-3. **视觉风格**：描述画面的视觉风格、色调、氛围
-4. **背景音乐要求**：描述适合的背景音乐类型、风格、情感
-5. **古诗朗诵要求**：描述朗诵的风格、节奏、情感表达
-6. **转场效果**：描述场景之间的转场方式
-7. **镜头运动**：描述镜头的运动方式（推拉摇移等）
-
-## 输入数据
-你将收到以下格式的JSON数据：
-{
-  "poetry_info": {
-    "title": "标题",
-    "author": "作者",
-    "dynasty": "朝代",
-    "full_text": "完整文本",
-    "creation_background": "创作背景",
-    "era_background": "时代背景",
-    "poet_mood": "作者心情/情感基调"
-  },
-  "storyboards": [
-    {
-      "index": 1,
-      "type": "cover",
-      "text": "文本",
-      "scene_description": "场景描述",
-      "image_prompt": "图像提示词",
-      "emotion": "情感",
-      "atmosphere": "氛围"
-    }
-  ]
-}
-
-## 输出格式
-请生成一个完整的视频生成提示词，格式如下：
-
-{
-  "video_prompt": "完整的视频生成提示词，包含场景、画面、风格、音乐、朗诵等所有要素",
-  "scene_description": "主要场景的详细描述",
-  "visual_style": "视觉风格描述",
-  "background_music": "背景音乐要求：类型、风格、情感、节奏等",
-  "narration_style": "古诗朗诵要求：风格、节奏、情感表达、语调等",
-  "transitions": "转场效果描述",
-  "camera_movement": "镜头运动描述",
-  "duration_suggestion": "建议的视频时长（秒）"
-}
-
-## 要求
-1. 视频prompt必须忠实于原诗词的意境和内容
-2. 背景音乐要与诗词的情感基调相匹配（如：悲壮、宁静、激昂、婉约等）
-3. 朗诵风格要符合诗词的时代背景和作者风格
-4. 画面转场要自然流畅，符合诗词的节奏
-5. 整体风格要统一，体现古典文学的美感
-"""
-
-
-def generate_video_prompt_from_analysis(
-    analysis_result: Dict[str, Any],
-    ark_client: Optional[Any] = None
-) -> Dict[str, Any]:
-    """
-    根据诗词分析结果生成视频生成提示词（保留用于向后兼容）
-    
-    Args:
-        analysis_result: 诗词分析结果
-        ark_client: Ark客户端实例
-        
-    Returns:
-        包含视频生成提示词的字典
-    """
-    # 如果分析结果已经包含 video_prompt_data，直接返回
-    if "video_prompt_data" in analysis_result:
-        return analysis_result["video_prompt_data"]
-    
-    # 否则使用旧的逻辑（向后兼容）
-    try:
-        poetry_info = analysis_result.get("poetry_info", {})
-        storyboards = analysis_result.get("storyboards", [])
-        
-        # 构建输入数据
-        input_data = {
-            "poetry_info": poetry_info,
-            "storyboards": storyboards
-        }
-        
-        if ark_client:
-            # 使用大模型生成视频prompt
-            messages = [
-                {
-                    "role": "system",
-                    "content": VIDEO_PROMPT_GENERATION_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": f"请根据以下古诗词分析数据生成视频生成提示词：\n\n{json.dumps(input_data, ensure_ascii=False, indent=2)}"
-                }
-            ]
-            
-            response = ark_client.chat_completion(
-                model=config.MODEL_NAME,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=2000
-            )
-            
-            content = response.get("content", "")
-            
-            # 尝试解析JSON
-            try:
-                # 提取JSON部分
-                json_match = re.search(r'\{[\s\S]*\}', content)
-                if json_match:
-                    video_prompt_data = json.loads(json_match.group())
-                    return video_prompt_data
-            except json.JSONDecodeError:
-                logger.warning("无法解析视频prompt JSON，使用默认生成")
-        
-        # 如果大模型生成失败，使用规则生成
-        return _generate_video_prompt_fallback(poetry_info, storyboards)
-        
-    except Exception as e:
-        logger.error(f"生成视频prompt失败: {str(e)}")
-        return _generate_video_prompt_fallback(
-            analysis_result.get("poetry_info", {}),
-            analysis_result.get("storyboards", [])
-        )
-
-
-def _generate_video_prompt_fallback(
-    poetry_info: Dict[str, Any],
-    storyboards: List[Dict[str, Any]]
-) -> Dict[str, Any]:
-    """
-    使用规则生成视频prompt（备用方案）
-    """
-    title = poetry_info.get("title", "")
-    author = poetry_info.get("author", "")
-    dynasty = poetry_info.get("dynasty", "")
-    full_text = poetry_info.get("full_text", "")
-    emotion = poetry_info.get("poet_mood", "宁静")
-    
-    # 构建场景描述
-    scene_descriptions = []
-    for sb in storyboards:
-        if sb.get("type") == "content":
-            scene_descriptions.append(sb.get("scene_description", ""))
-    
-    main_scene = scene_descriptions[0] if scene_descriptions else "古典诗词意境场景"
-    
-    # 根据情感选择音乐风格
-    music_styles = {
-        "悲壮": "深沉悲壮的古筝或二胡音乐，节奏缓慢，情感深沉",
-        "宁静": "宁静悠远的古琴或笛子音乐，节奏舒缓，意境深远",
-        "激昂": "激昂有力的古筝或琵琶音乐，节奏明快，气势磅礴",
-        "婉约": "婉约柔美的古筝或箫音乐，节奏轻柔，情感细腻",
-        "豪放": "豪放不羁的古筝或鼓乐，节奏强烈，气势恢宏"
-    }
-    music_style = music_styles.get(emotion, "古典音乐，节奏适中，意境深远")
-    
-    # 构建视频prompt
-    video_prompt_parts = [
-        f"根据古诗词《{title}》（{dynasty}·{author}）创作视频",
-        f"主要场景：{main_scene}",
-        f"画面风格：中国古典绘画风格，{poetry_info.get('era_background', '')}时代特色",
-        f"情感基调：{emotion}",
-        "镜头运动：缓慢推进，展现诗词意境",
-        "转场效果：淡入淡出，自然流畅",
-        f"背景音乐：{music_style}",
-        f"古诗朗诵：用{dynasty}时期的语音风格，节奏与诗词韵律相匹配，情感表达{emotion}",
-        "整体要求：画面精美，音画同步，体现古典文学的美感"
-    ]
-    
-    return {
-        "video_prompt": "\n".join(video_prompt_parts),
-        "scene_description": main_scene,
-        "visual_style": f"中国古典绘画风格，{dynasty}时代特色",
-        "background_music": music_style,
-        "narration_style": f"用{dynasty}时期的语音风格，节奏与诗词韵律相匹配，情感表达{emotion}",
-        "transitions": "淡入淡出，自然流畅",
-        "camera_movement": "缓慢推进，展现诗词意境",
-        "duration_suggestion": 15
-    }
 

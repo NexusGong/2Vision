@@ -77,6 +77,9 @@ class TaskManager:
         self.running_tasks: Dict[str, asyncio.Task] = {}
         self._cleanup_interval = 3600  # 1小时清理一次过期任务
         self._task_ttl = 86400  # 任务保留24小时
+        self._cleanup_timer: Optional[threading.Timer] = None
+        # 启动后台清理任务
+        self._start_cleanup_timer()
     
     def create_task(self, task_type: str, params: Dict[str, Any], history_id: str = "", message_id: str = "") -> str:
         """创建新任务"""
@@ -168,9 +171,25 @@ class TaskManager:
                 if task.completed_at and (now - task.completed_at).total_seconds() > self._task_ttl:
                     expired_tasks.append(task_id)
         
-        for task_id in expired_tasks:
-            del self.tasks[task_id]
-            logger.info(f"清理过期任务: {task_id}")
+        if expired_tasks:
+            for task_id in expired_tasks:
+                del self.tasks[task_id]
+            logger.info(f"清理了 {len(expired_tasks)} 个过期任务")
+        
+        # 重新启动清理定时器
+        self._start_cleanup_timer()
+    
+    def _start_cleanup_timer(self):
+        """启动后台清理定时器"""
+        if self._cleanup_timer:
+            self._cleanup_timer.cancel()
+        
+        def cleanup():
+            self.cleanup_old_tasks()
+        
+        self._cleanup_timer = threading.Timer(self._cleanup_interval, cleanup)
+        self._cleanup_timer.daemon = True
+        self._cleanup_timer.start()
     
     def get_active_tasks(self) -> List[Dict[str, Any]]:
         """获取所有活跃任务"""

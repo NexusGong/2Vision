@@ -62,31 +62,6 @@ async def generate_video_from_prompt(
         raise Exception(f"视频生成失败: {str(e)}")
 
 
-# 保留旧函数名用于向后兼容
-async def generate_video_from_poetry(
-    text: str,
-    ark_client: Optional[Any] = None,
-    duration: int = -1,  # doubao-seedance-1-5-pro 支持 [4,12] 范围内的整数，或 -1（自动选择）
-    fps: int = 24,
-    aspect_ratio: str = "16:9"
-) -> Dict[str, Any]:
-    """
-    从古诗词生成视频（向后兼容，已废弃，建议使用 generate_video_from_prompt）
-    
-    Args:
-        text: 古诗词文本
-        ark_client: Ark客户端实例
-        duration: 视频时长（秒）
-        fps: 帧率
-        aspect_ratio: 宽高比
-        
-    Returns:
-        包含任务ID和视频信息的字典
-    """
-    logger.warning("generate_video_from_poetry 已废弃，请使用 generate_video_from_prompt")
-    raise ValueError("此函数已废弃，请先调用 analyze_poetry_for_video 进行分析，然后使用 generate_video_from_prompt 生成视频")
-
-
 async def get_video_generation_status(
     task_id: str,
     ark_client: Optional[Any] = None

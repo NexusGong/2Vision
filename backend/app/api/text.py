@@ -2,11 +2,10 @@
 文本分析API路由
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, get_optional_user
 from app.models.user import User
 from app.services.text_analyzer import analyze_ancient_text, analyze_poetry_with_storyboard
 from app.services.task_manager import task_manager, TaskStatus
@@ -18,19 +17,6 @@ import re
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/text", tags=["文本分析"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
-
-async def get_optional_user(
-    token: Optional[str] = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> Optional[User]:
-    """可选认证：如果提供了token则验证，否则返回None"""
-    if not token:
-        return None
-    try:
-        return await get_current_user(token, db)
-    except:
-        return None
 
 class TextAnalysisRequest(BaseModel):
     """文本分析请求模型"""
@@ -130,7 +116,8 @@ async def analyze_text(
         raise
     except Exception as e:
         logger.error(f"文本分析失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"文本分析失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="文本分析失败，请稍后重试")
 
 
 @router.post("/analyze_poetry", response_model=PoetryAnalysisResponse)
@@ -206,7 +193,8 @@ async def analyze_poetry(
         raise
     except Exception as e:
         logger.error(f"诗词分析失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"诗词分析失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="诗词分析失败，请稍后重试")
 
 
 # ============ 异步文本分析 API ============
@@ -321,7 +309,8 @@ async def analyze_poetry_async(
         raise
     except Exception as e:
         logger.error(f"创建分析任务失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="创建任务失败，请稍后重试")
 
 
 @router.get("/task/{task_id}")

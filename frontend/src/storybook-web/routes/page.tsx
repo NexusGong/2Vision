@@ -31,7 +31,6 @@ import {
 import Prompt, { PromptData } from "@/common/components/ChatBox/Prompt";
 import {
   GenerateStoryBookResponse,
-  generateStoryBook,
   analyzePoetry,
   generateFromStoryboard,
   PoetryAnalysisData,
@@ -137,7 +136,52 @@ const Index = () => {
     currentHistoryIdRef.current = currentHistoryId;
   }, [currentHistoryId]);
 
+  // 组件卸载时清理防抖定时器
+  useEffect(() => {
+    return () => {
+      if (saveHistoryDebounceRef.current) {
+        clearTimeout(saveHistoryDebounceRef.current);
+        saveHistoryDebounceRef.current = null;
+      }
+    };
+  }, []);
+
   // 先定义 appendMessages 和 replaceMessage，因为它们会被其他函数使用
+  // 防抖保存历史记录（减少频繁保存）
+  const saveHistoryDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const saveHistory = useCallback((messages: Message[], historyId: string | null) => {
+    // 清除之前的定时器
+    if (saveHistoryDebounceRef.current) {
+      clearTimeout(saveHistoryDebounceRef.current);
+    }
+    
+    // 设置新的防抖定时器（500ms延迟）
+    saveHistoryDebounceRef.current = setTimeout(() => {
+      if (historyId) {
+        updateChatHistory(historyId, messages);
+        // 使用 setTimeout 将事件派发推迟到下一个事件循环，避免在渲染期间触发
+        setTimeout(() => {
+          window.dispatchEvent(new Event("history-updated"));
+        }, 0);
+      } else if (messages.length > 0) {
+        // 新对话，立即创建历史记录
+        const newHistoryId = saveChatHistory(messages);
+        if (newHistoryId) {
+          // 同步更新 ref
+          currentHistoryIdRef.current = newHistoryId;
+          // 使用 requestAnimationFrame 确保在合适的时机更新 state，避免在渲染期间更新
+          requestAnimationFrame(() => {
+            setCurrentHistoryId(newHistoryId);
+            // 使用 setTimeout 将事件派发推迟到下一个事件循环，避免在渲染期间触发
+            setTimeout(() => {
+              window.dispatchEvent(new Event("history-updated"));
+            }, 0);
+          });
+        }
+      }
+    }, 500);
+  }, []);
+
   const appendMessages = useCallback((newMsgs: Message[]) => {
     setMessages((prev) => {
       const updatedMessages = [...prev, ...newMsgs];
@@ -145,29 +189,12 @@ const Index = () => {
       // 使用 ref 获取最新的 currentHistoryId，避免闭包陷阱
       const historyId = currentHistoryIdRef.current;
       
-      // 立即保存/更新历史对话
-      if (historyId) {
-        updateChatHistory(historyId, updatedMessages);
-        // 使用 setTimeout 将事件派发推迟到下一个事件循环，避免在渲染期间触发
-        setTimeout(() => {
-          window.dispatchEvent(new Event("history-updated"));
-        }, 0);
-      } else if (updatedMessages.length > 0) {
-        // 新对话，立即创建历史记录
-        const newHistoryId = saveChatHistory(updatedMessages);
-        if (newHistoryId) {
-          // 同步更新 ref 和 state
-          currentHistoryIdRef.current = newHistoryId;
-          setCurrentHistoryId(newHistoryId);
-          // 使用 setTimeout 将事件派发推迟到下一个事件循环，避免在渲染期间触发
-          setTimeout(() => {
-            window.dispatchEvent(new Event("history-updated"));
-          }, 0);
-        }
-      }
+      // 使用防抖保存历史记录
+      saveHistory(updatedMessages, historyId);
+      
       return updatedMessages;
     });
-  }, []);
+  }, [saveHistory]);
 
   const replaceMessage = useCallback((id: string, message: Message, targetHistoryId?: string) => {
     setMessages((prev) => {
@@ -196,22 +223,25 @@ const Index = () => {
         newMessages = [...allMessages, message];
       }
       
-      // 自动保存历史对话（只有当 historyId 匹配当前会话时才更新 messages state）
+      // 使用防抖保存历史对话
       if (historyId) {
-         updateChatHistory(historyId, newMessages);
-         // 使用 setTimeout 将事件派发推迟到下一个事件循环，避免在渲染期间触发
-         setTimeout(() => {
-           window.dispatchEvent(new Event("history-updated"));
-         }, 0);
+        saveHistory(newMessages, historyId);
+      }
+      
+      // 只有当 historyId 匹配当前会话时才更新 messages state
+      if (historyId === currentHistoryIdRef.current) {
+        return newMessages;
       }
       
       // 如果目标历史记录不是当前显示的，不更新 messages state
       if (targetHistoryId && targetHistoryId !== currentHistoryIdRef.current) {
         return prev;
       }
+      
+      // 默认返回新消息（兼容旧逻辑）
       return newMessages;
     });
-  }, []);
+  }, [saveHistory]);
   
   // 处理待更新的视频消息（使用 requestAnimationFrame 确保在渲染后执行）
   // 必须在 replaceMessage 定义之后
@@ -370,7 +400,7 @@ const Index = () => {
               // 如果消息不存在，添加到历史记录中
               updatedMessages.push(loadingMsg);
             }
-            updateChatHistory(historyId, updatedMessages);
+            saveHistory(updatedMessages, historyId);
           }
           
           // 确保loading消息显示在当前消息列表中
@@ -1038,16 +1068,13 @@ const Index = () => {
       const isVideoMessage = hasGenerationType || (hasVideoUrl && !hasItems);
       
       // 调试日志（仅开发环境，且不输出敏感数据）
+      // 使用 setTimeout 避免在渲染期间输出
       if (process.env.NODE_ENV === "development" && (hasGenerationType || hasVideoUrl)) {
-        console.log("检测到视频消息:", {
-          messageId: message.id,
-          status: message.status,
-          hasGenerationType,
-          hasVideoUrl: !!hasVideoUrl,
-          hasItems,
-          isVideoMessage,
-          // 不输出完整的data对象，避免泄露敏感信息
-        });
+        setTimeout(() => {
+          console.debug(
+            `检测到视频消息 - messageId: ${message.id}, status: ${message.status}, hasGenerationType: ${hasGenerationType}, hasVideoUrl: ${!!hasVideoUrl}, hasItems: ${hasItems}, isVideoMessage: ${isVideoMessage}`
+          );
+        }, 0);
       }
       
       if (isVideoMessage) {
@@ -1057,11 +1084,11 @@ const Index = () => {
         // 如果还是没有，尝试从墨迹留痕中恢复
         if (!videoUrl) {
           // 只在开发环境输出警告，且不输出完整message对象
+          // 使用 setTimeout 避免在渲染期间输出
           if (process.env.NODE_ENV === "development") {
-            console.warn("视频消息缺少video_url，尝试从墨迹留痕恢复", {
-              messageId: message.id,
-              status: message.status,
-            });
+            setTimeout(() => {
+              console.warn(`视频消息缺少video_url，尝试从墨迹留痕恢复 - messageId: ${message.id}, status: ${message.status}`);
+            }, 0);
           }
           const videoRecords = getVideoGenerationRecords();
           const msgTimestamp = message.timestamp || 0;
@@ -1106,8 +1133,11 @@ const Index = () => {
               await downloadVideo(videoUrl, "generated-video");
             } catch (error: any) {
               // 只在开发环境输出错误
+              // 使用 setTimeout 避免在事件处理期间输出错误
               if (process.env.NODE_ENV === "development") {
-                console.error("下载视频失败:", error);
+                setTimeout(() => {
+                  console.error("下载视频失败:", error instanceof Error ? error.message : String(error));
+                }, 0);
               }
             }
           };
@@ -1201,14 +1231,13 @@ const Index = () => {
       if (isVideoMessageCheck) {
         // 如果走到这里，说明视频消息处理逻辑有问题，尝试直接显示视频
         // 只在开发环境输出警告，且不输出敏感数据
+        // 使用 setTimeout 避免在渲染期间输出
         if (process.env.NODE_ENV === "development") {
-          console.warn("视频消息走到了图像处理逻辑，尝试直接显示", {
-            messageId: message.id,
-            status: message.status,
-            hasGenerationType: hasGenerationTypeCheck,
-            hasVideoUrl: !!hasVideoUrlCheck,
-            hasItems: hasItemsCheck,
-          });
+          setTimeout(() => {
+            console.warn(
+              `视频消息走到了图像处理逻辑，尝试直接显示 - messageId: ${message.id}, status: ${message.status}, hasGenerationType: ${hasGenerationTypeCheck}, hasVideoUrl: ${!!hasVideoUrlCheck}, hasItems: ${hasItemsCheck}`
+            );
+          }, 0);
         }
         
         let videoUrl = hasVideoUrlCheck;
@@ -1216,11 +1245,11 @@ const Index = () => {
         // 如果没有视频URL，尝试从墨迹留痕恢复
         if (!videoUrl) {
           // 只在开发环境输出警告，且不输出完整message对象
+          // 使用 setTimeout 避免在渲染期间输出
           if (process.env.NODE_ENV === "development") {
-            console.warn("视频消息缺少video_url，尝试从墨迹留痕恢复", {
-              messageId: message.id,
-              status: message.status,
-            });
+            setTimeout(() => {
+              console.warn(`视频消息缺少video_url，尝试从墨迹留痕恢复 - messageId: ${message.id}, status: ${message.status}`);
+            }, 0);
           }
           const videoRecords = getVideoGenerationRecords();
           const msgTimestamp = message.timestamp || 0;
@@ -1269,58 +1298,57 @@ const Index = () => {
         }
         
         // 如果还是没有视频URL，显示错误
-        // 只在开发环境输出错误
+        // 只在开发环境输出错误，使用 setTimeout 避免在渲染期间输出
         if (process.env.NODE_ENV === "development") {
-          console.error("无法找到视频URL，显示错误", {
-            messageId: message.id,
-            status: message.status,
-          });
+          setTimeout(() => {
+            console.warn(`无法找到视频URL - messageId: ${message.id}, status: ${message.status}`);
+          }, 0);
         }
         return <ErrorMessage className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto" />;
       }
       
+      // 先检查状态，如果是 loading，直接返回加载组件，不需要检查数据完整性
+      if (message.status === "loading") {
+        return (
+          <Loading
+            className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto"
+            text={
+              message.data?.params?.mode === "storybook"
+                ? "故事书生成中"
+                : "连环画生成中"
+            }
+          />
+        );
+      }
+      
+      // 对于非 loading 状态，检查数据完整性
       const data: GenerateStoryBookResponse = message.data;
       
-      // 调试：记录所有 assistant 消息的数据结构
-      console.log("处理 assistant 消息（图像类型）:", {
-        messageId: message.id,
-        status: message.status,
-        hasData: !!data,
-        hasItems: !!(data?.Items),
-        itemsLength: data?.Items?.length || 0,
-        hasGenerationType: !!message.data?.generationType,
-        hasVideoUrl: !!(message.data?.video_url || message.data?.videoUrl),
-        dataKeys: data ? Object.keys(data) : [],
-      });
+      // 调试：记录所有 assistant 消息的数据结构（使用 setTimeout 避免在渲染期间输出）
+      if (process.env.NODE_ENV === "development") {
+        setTimeout(() => {
+          console.debug(
+            `处理 assistant 消息（图像类型） - messageId: ${message.id}, status: ${message.status}, hasData: ${!!data}, hasItems: ${!!(data?.Items)}, itemsLength: ${data?.Items?.length || 0}`
+          );
+        }, 0);
+      }
       
-      // 确保 data 存在且有 Items 字段
+      // 确保 data 存在且有 Items 字段（仅在非 loading 状态下检查）
       if (!data || !data.Items || (Array.isArray(data.Items) && data.Items.length === 0)) {
         // 只在开发环境输出错误，且不输出敏感数据
+        // 使用 setTimeout 避免在渲染期间输出错误
         if (process.env.NODE_ENV === "development") {
-          console.error("图像消息数据不完整", {
-            messageId: message.id,
-            status: message.status,
-            hasData: !!data,
-            hasItems: !!(data?.Items),
-            itemsLength: data?.Items?.length || 0,
-            // 不输出完整的data对象
-          });
+          setTimeout(() => {
+            console.warn(
+              `图像消息数据不完整 - messageId: ${message.id}, status: ${message.status}, hasData: ${!!data}, hasItems: ${!!(data?.Items)}, itemsLength: ${data?.Items?.length || 0}`
+            );
+          }, 0);
         }
         return <ErrorMessage className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto" />;
       }
+      
       const templateData = getTemplateData("square", data.Items?.length)[0];
       switch (message.status) {
-        case "loading":
-          return (
-            <Loading
-              className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto"
-              text={
-                message.data?.params?.mode === "storybook"
-                  ? "故事书生成中"
-                  : "连环画生成中"
-              }
-            />
-          );
         case "success":
           if (data.Mode === "storybook") {
             return (

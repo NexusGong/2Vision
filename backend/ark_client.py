@@ -681,14 +681,13 @@ class ArkClient:
                     0
                 )
             
-            # 只在状态变化或完成时输出日志，减少重复日志
+            # 只在完成或失败时输出日志，减少重复日志
             if result.get("status") in ["completed", "failed"]:
                 if result.get("video_url"):
                     logger.info(f"查询视频任务完成，状态: {result['status']}, 已提取视频URL")
                 else:
                     logger.warning(f"查询视频任务完成，状态: {result['status']}, 但未找到视频URL")
-            else:
-                logger.debug(f"查询视频任务，状态: {result['status']}, video_url: {'已提取' if result.get('video_url') else '未找到'}")
+            # processing 状态不输出日志，减少日志量
             return result
             
         except requests.exceptions.RequestException as e:

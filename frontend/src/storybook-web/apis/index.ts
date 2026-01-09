@@ -139,82 +139,6 @@ const getAuthToken = (): string | null => {
   return localStorage.getItem('token');
 };
 
-export const generateStoryBook = async (
-  params: GenerateStoryBookParams
-): Promise<GenerateStoryBookResponse> => {
-  try {
-    const token = getAuthToken();
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-    
-    // 如果有 token，添加到请求头
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    // 第一步：分析文本（使用代理路径）
-    const analysisResponse = await fetch("/api/text/analyze", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ text: params.query }),
-    });
-
-    if (!analysisResponse.ok) {
-      throw new Error(`文本分析失败: ${analysisResponse.status}`);
-    }
-
-    const analysisResult = await analysisResponse.json();
-    if (analysisResult.status !== "success") {
-      throw new Error("文本分析失败");
-    }
-
-    // 第二步：生成图像（使用代理路径）
-    const imageResponse = await fetch("/api/image/generate", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        segments: analysisResult.data.segments || [],
-        original_text: params.query,
-        size: params.size,
-        reference_images: params.reference_images,
-      }),
-    });
-
-    if (!imageResponse.ok) {
-      throw new Error(`图像生成失败: ${imageResponse.status}`);
-    }
-
-    const imageResult = await imageResponse.json();
-    if (imageResult.status !== "success") {
-      throw new Error("图像生成失败");
-    }
-
-    // 转换为我们需要的格式，过滤掉空URL的项
-    const items = imageResult.data
-      .filter((item: any) => item.image_url && item.image_url.trim() !== "")
-      .map((item: any, index: number) => ({
-        Url: item.image_url || "",
-        Text: item.text_segment || "",
-        IsCover: item.is_cover || index === 0,
-      }));
-
-    // 生成标题（从文本第一行或前20个字符）
-    const title = params.query.split('\n')[0].trim().substring(0, 20) || "古诗词学习";
-
-    return {
-      Title: title,
-      Summary: `共生成 ${items.length} 张图像，包含 ${analysisResult.data.segments?.length || 0} 个句段`,
-      Mode: params.mode,
-      Items: items,
-      AnalysisResult: analysisResult.data,
-    };
-  } catch (error) {
-    console.error("生成失败:", error);
-    throw error;
-  }
-};
-
 export const deleteStoryBook = async (id: string | number): Promise<boolean> => {
   try {
     // 检查ID格式：只有数字ID才调用后端删除
@@ -288,14 +212,18 @@ export const startAsyncAnalysis = async (
 };
 
 /**
- * 查询文本分析任务状态
+ * 查询文本分析任务状态（带重试机制）
  */
 export const getAnalysisTaskStatus = async (taskId: string): Promise<TaskStatus> => {
-  const response = await fetch(`/api/text/task/${taskId}`);
-  if (!response.ok) {
-    throw new Error(`查询任务失败: ${response.status}`);
+  try {
+    const response = await fetchWithRetry(`/api/text/task/${taskId}`, {}, 3, 1000);
+    if (!response.ok) {
+      throw new Error(`查询任务失败: ${response.status}`);
+    }
+    return response.json();
+  } catch (error) {
+    throw new Error(`查询任务失败: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return response.json();
 };
 
 /**
@@ -314,10 +242,12 @@ export const analyzePoetry = async (
     // 启动异步任务
     const { task_id } = await startAsyncAnalysis(params);
     
-    // 轮询任务状态
-    const pollInterval = 1500; // 1.5秒轮询一次
+    // 轮询任务状态（使用指数退避策略）
+    const basePollInterval = 2000; // 2秒基础间隔
+    const maxPollInterval = 10000; // 最大10秒
     const maxWaitTime = 300000; // 最长等待5分钟
     const startTime = Date.now();
+    let pollCount = 0;
     
     while (true) {
       if (Date.now() - startTime > maxWaitTime) {
@@ -325,6 +255,7 @@ export const analyzePoetry = async (
       }
       
       const taskStatus = await getAnalysisTaskStatus(task_id);
+      pollCount++;
       
       // 报告进度
       if (onProgress) {
@@ -339,8 +270,15 @@ export const analyzePoetry = async (
         throw new Error(taskStatus.error || "分析任务失败");
       }
       
+      // 使用指数退避：初始2秒，逐步增加到10秒
+      const elapsed = Date.now() - startTime;
+      const dynamicInterval = Math.min(
+        basePollInterval + Math.floor(pollCount / 5) * 1000, // 每5次轮询增加1秒
+        maxPollInterval
+      );
+      
       // 等待下一次轮询
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise(resolve => setTimeout(resolve, dynamicInterval));
     }
   } catch (error) {
     console.error("诗词分析失败:", error);
@@ -407,14 +345,56 @@ export const startAsyncGeneration = async (
 };
 
 /**
- * 查询任务状态
+ * 带重试的 fetch 请求
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries: number = 3,
+  retryDelay: number = 1000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      // 对于网络错误或5xx错误，进行重试
+      if (!response.ok && response.status >= 500 && attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
+        continue;
+      }
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      // 网络错误，进行重试
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
+        continue;
+      }
+    }
+  }
+  
+  throw lastError || new Error("请求失败");
+}
+
+/**
+ * 查询任务状态（带重试机制）
  */
 export const getTaskStatus = async (taskId: string): Promise<TaskStatus> => {
-  const response = await fetch(`/api/image/task/${taskId}`);
-  if (!response.ok) {
-    throw new Error(`查询任务失败: ${response.status}`);
+  try {
+    const response = await fetchWithRetry(`/api/image/task/${taskId}`, {}, 3, 1000);
+    if (!response.ok) {
+      throw new Error(`查询任务失败: ${response.status}`);
+    }
+    return response.json();
+  } catch (error) {
+    // 如果是404，说明任务不存在，直接抛出
+    if (error instanceof Error && (error.message.includes("404") || error.message.includes("Not Found"))) {
+      throw error;
+    }
+    // 其他错误，包装后抛出
+    throw new Error(`查询任务失败: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return response.json();
 };
 
 /**
@@ -440,10 +420,12 @@ export const generateFromStoryboard = async (
     // 启动异步任务
     const { task_id } = await startAsyncGeneration(params);
     
-    // 轮询任务状态
-    const pollInterval = 2000; // 2秒轮询一次
+    // 轮询任务状态（使用指数退避策略）
+    const basePollInterval = 3000; // 3秒基础间隔
+    const maxPollInterval = 15000; // 最大15秒
     const maxWaitTime = 600000; // 最长等待10分钟
     const startTime = Date.now();
+    let pollCount = 0;
     
     while (true) {
       if (Date.now() - startTime > maxWaitTime) {
@@ -451,6 +433,7 @@ export const generateFromStoryboard = async (
       }
       
       const taskStatus = await getTaskStatus(task_id);
+      pollCount++;
       
       // 报告进度
       if (onProgress) {
@@ -486,8 +469,15 @@ export const generateFromStoryboard = async (
         throw new Error(taskStatus.error || "任务失败");
       }
       
+      // 使用指数退避：初始3秒，逐步增加到15秒
+      const elapsed = Date.now() - startTime;
+      const dynamicInterval = Math.min(
+        basePollInterval + Math.floor(pollCount / 3) * 2000, // 每3次轮询增加2秒
+        maxPollInterval
+      );
+      
       // 等待下一次轮询
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise(resolve => setTimeout(resolve, dynamicInterval));
     }
   } catch (error) {
     console.error("基于分镜生成图像失败:", error);
@@ -557,32 +547,48 @@ export const generateVideo = async (
 };
 
 /**
- * 查询视频生成任务状态
+ * 查询视频生成任务状态（带重试机制）
  */
 export const getVideoTaskStatus = async (
   task_id: string
 ): Promise<VideoTaskStatus> => {
-  const response = await fetch(`/api/video/task/${task_id}`);
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMessage = `查询视频任务状态失败: ${response.status}`;
-    try {
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.detail || errorMessage;
-    } catch {
-      // 如果无法解析JSON，使用原始错误文本
-      if (errorText) {
-        errorMessage = errorText;
+  try {
+    const response = await fetchWithRetry(`/api/video/task/${task_id}`, {}, 3, 1000);
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `查询视频任务状态失败: ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.detail || errorMessage;
+      } catch {
+        // 如果无法解析JSON，使用原始错误文本
+        if (errorText) {
+          errorMessage = errorText;
+        }
       }
+      // 确保错误消息包含状态码信息
+      if (!errorMessage.includes(String(response.status))) {
+        errorMessage = `查询视频任务状态失败 (${response.status}): ${errorMessage}`;
+      }
+      const error = new Error(errorMessage);
+      (error as any).status = response.status;
+      (error as any).statusCode = response.status; // 也添加 statusCode 属性
+      throw error;
     }
-    // 确保错误消息包含状态码信息
-    if (!errorMessage.includes(String(response.status))) {
-      errorMessage = `查询视频任务状态失败 (${response.status}): ${errorMessage}`;
+    return response.json();
+  } catch (error) {
+    // 如果是404，说明任务不存在，直接抛出
+    if (error instanceof Error && (error.message.includes("404") || error.message.includes("Not Found"))) {
+      (error as any).status = 404;
+      (error as any).statusCode = 404;
+      throw error;
     }
-    const error = new Error(errorMessage);
-    (error as any).status = response.status;
-    (error as any).statusCode = response.status; // 也添加 statusCode 属性
-    throw error;
+    // 其他错误，包装后抛出
+    const wrappedError = new Error(`查询视频任务状态失败: ${error instanceof Error ? error.message : String(error)}`);
+    if ((error as any)?.status) {
+      (wrappedError as any).status = (error as any).status;
+      (wrappedError as any).statusCode = (error as any).status;
+    }
+    throw wrappedError;
   }
-  return response.json();
 };

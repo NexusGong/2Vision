@@ -64,9 +64,34 @@ export function saveChatHistory(messages: Message[]): string {
   }
 
   try {
+    const data = JSON.stringify(histories);
+    // 检查数据大小（localStorage 通常限制为 5-10MB）
+    if (data.length > 4 * 1024 * 1024) { // 4MB 警告阈值
+      console.warn("历史记录数据较大，可能影响性能");
+      // 如果超过限制，删除最旧的记录
+      while (histories.length > 10 && data.length > 4 * 1024 * 1024) {
+        histories.pop();
+        const newData = JSON.stringify(histories);
+        if (newData.length <= 4 * 1024 * 1024) {
+          break;
+        }
+      }
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(histories));
     return history.id;
   } catch (error) {
+    // 如果是存储空间不足，尝试清理旧记录
+    if (error instanceof DOMException && error.name === "QuotaExceededError") {
+      console.warn("存储空间不足，清理旧记录");
+      // 只保留最新的10条记录
+      const limitedHistories = histories.slice(0, 10);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(limitedHistories));
+        return history.id;
+      } catch (retryError) {
+        console.error("清理后仍无法保存:", retryError);
+      }
+    }
     console.error("保存历史对话失败:", error);
     return "";
   }

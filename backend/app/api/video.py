@@ -61,7 +61,8 @@ async def generate_video(
         try:
             ark_client = ArkClient()
         except Exception as e:
-            raise HTTPException(status_code=503, detail=f"视频生成服务不可用: {str(e)}")
+            logger.error(f"视频生成服务不可用: {str(e)}")
+            raise HTTPException(status_code=503, detail="视频生成服务暂时不可用，请稍后重试")
         
         # 生成视频
         result = await generate_video_from_prompt(
@@ -80,7 +81,8 @@ async def generate_video(
         raise
     except Exception as e:
         logger.error(f"视频生成失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"视频生成失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="视频生成失败，请稍后重试")
 
 
 @router.get("/task/{task_id}")
@@ -162,7 +164,8 @@ async def get_video_task_status(
         raise
     except Exception as e:
         logger.error(f"查询视频生成任务状态失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"查询任务状态失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="查询任务状态失败，请稍后重试")
 
 
 # ============ 异步视频生成 API ============
@@ -236,15 +239,18 @@ async def _run_video_generation(task_id: str, params: dict):
                     current_status = status.get("status", "pending")
                     progress = status.get("progress", 0)
                     
-                    # 只在状态变化、进度变化超过10%、或每10次轮询时输出日志
+                    # 只在状态变化、进度变化超过20%、或每20次轮询时输出日志（减少日志频率）
                     should_log = (
                         current_status != last_logged_status or
-                        abs(progress - last_logged_progress) >= 10 or
-                        poll_count % 10 == 0
+                        abs(progress - last_logged_progress) >= 20 or
+                        poll_count % 20 == 0
                     )
                     
                     if should_log:
-                        logger.info(f"视频任务状态 - 火山引擎任务ID: {video_task_id}, 状态: {current_status}, 进度: {progress}% (第 {poll_count} 次查询)")
+                        if current_status in ["completed", "failed"]:
+                            logger.info(f"视频任务状态 - 火山引擎任务ID: {video_task_id}, 状态: {current_status}, 进度: {progress}%")
+                        else:
+                            logger.debug(f"视频任务状态 - 火山引擎任务ID: {video_task_id}, 状态: {current_status}, 进度: {progress}% (第 {poll_count} 次查询)")
                         last_logged_status = current_status
                         last_logged_progress = progress
                     
@@ -337,4 +343,5 @@ async def generate_video_async(
         raise
     except Exception as e:
         logger.error(f"创建视频生成任务失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="创建任务失败，请稍后重试")

@@ -3,14 +3,13 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from typing import List, Optional, Literal
 from sqlalchemy.orm import Session
 import json
 import asyncio
 from app.database import get_db
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, get_optional_user
 from app.models.user import User
 from app.services.image_generator import (
     generate_images_for_segments,
@@ -25,19 +24,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/image", tags=["图像生成"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
-
-async def get_optional_user(
-    token: Optional[str] = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> Optional[User]:
-    """可选认证：如果提供了token则验证，否则返回None"""
-    if not token:
-        return None
-    try:
-        return await get_current_user(token, db)
-    except:
-        return None
 
 class ImageGenerateRequest(BaseModel):
     """图像生成请求模型"""
@@ -91,7 +77,8 @@ async def generate_images(
         try:
             ark_client = ArkClient()
         except Exception as e:
-            raise HTTPException(status_code=503, detail=f"图像生成服务不可用: {str(e)}")
+            logger.error(f"图像生成服务不可用: {str(e)}")
+            raise HTTPException(status_code=503, detail="图像生成服务暂时不可用，请稍后重试")
         
         # 生成图像
         image_results = await generate_images_for_segments(
@@ -106,9 +93,12 @@ async def generate_images(
             "status": "success",
             "data": image_results
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"图像生成失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"图像生成失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="图像生成失败，请稍后重试")
 
 @router.post("/generate_stream")
 async def generate_images_stream(
@@ -122,7 +112,8 @@ async def generate_images_stream(
         try:
             ark_client = ArkClient()
         except Exception as e:
-            raise HTTPException(status_code=503, detail=f"图像生成服务不可用: {str(e)}")
+            logger.error(f"图像生成服务不可用: {str(e)}")
+            raise HTTPException(status_code=503, detail="图像生成服务暂时不可用，请稍后重试")
         
         async def event_generator():
             yield f"event: image-generation\ndata: {json.dumps({'status': 'start'}, ensure_ascii=False)}\n\n"
@@ -147,7 +138,8 @@ async def generate_images_stream(
         )
     except Exception as e:
         logger.error(f"流式图像生成失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"流式图像生成失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="流式图像生成失败，请稍后重试")
 
 
 @router.post("/generate_from_storyboard")
@@ -174,7 +166,8 @@ async def generate_from_storyboard(
         try:
             ark_client = ArkClient()
         except Exception as e:
-            raise HTTPException(status_code=503, detail=f"图像生成服务不可用: {str(e)}")
+            logger.error(f"图像生成服务不可用: {str(e)}")
+            raise HTTPException(status_code=503, detail="图像生成服务暂时不可用，请稍后重试")
         
         # 转换分镜数据为字典格式
         storyboards_dict = [sb.model_dump() for sb in request.storyboards]
@@ -331,7 +324,8 @@ async def generate_from_storyboard_async(
         raise
     except Exception as e:
         logger.error(f"创建后台任务失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
+        # 不泄露内部错误详情
+        raise HTTPException(status_code=500, detail="创建任务失败，请稍后重试")
 
 
 @router.get("/task/{task_id}")

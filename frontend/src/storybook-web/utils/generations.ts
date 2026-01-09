@@ -145,11 +145,36 @@ export function saveGenerationRecord(
   }
 
   try {
+    const data = JSON.stringify(records);
+    // 检查数据大小
+    if (data.length > 2 * 1024 * 1024) { // 2MB 警告阈值
+      console.warn("生成记录数据较大，可能影响性能");
+      // 如果超过限制，删除最旧的记录
+      while (records.length > 10 && data.length > 2 * 1024 * 1024) {
+        records.pop();
+        const newData = JSON.stringify(records);
+        if (newData.length <= 2 * 1024 * 1024) {
+          break;
+        }
+      }
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     // 触发更新事件
     window.dispatchEvent(new Event("generations-updated"));
     return record.id;
   } catch (error) {
+    // 如果是存储空间不足，尝试清理旧记录
+    if (error instanceof DOMException && error.name === "QuotaExceededError") {
+      console.warn("存储空间不足，清理旧记录");
+      const limitedRecords = records.slice(0, 10);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(limitedRecords));
+        window.dispatchEvent(new Event("generations-updated"));
+        return record.id;
+      } catch (retryError) {
+        console.error("清理后仍无法保存:", retryError);
+      }
+    }
     console.error("保存生成记录失败:", error);
     return "";
   }
@@ -275,11 +300,36 @@ export function saveVideoGenerationRecord(
   }
 
   try {
+    const data = JSON.stringify(records);
+    // 检查数据大小
+    if (data.length > 2 * 1024 * 1024) { // 2MB 警告阈值
+      console.warn("视频生成记录数据较大，可能影响性能");
+      // 如果超过限制，删除最旧的记录
+      while (records.length > 10 && data.length > 2 * 1024 * 1024) {
+        records.pop();
+        const newData = JSON.stringify(records);
+        if (newData.length <= 2 * 1024 * 1024) {
+          break;
+        }
+      }
+    }
     localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(records));
     // 触发更新事件
     window.dispatchEvent(new Event("generations-updated"));
     return record.id;
   } catch (error) {
+    // 如果是存储空间不足，尝试清理旧记录
+    if (error instanceof DOMException && error.name === "QuotaExceededError") {
+      console.warn("存储空间不足，清理旧记录");
+      const limitedRecords = records.slice(0, 10);
+      try {
+        localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(limitedRecords));
+        window.dispatchEvent(new Event("generations-updated"));
+        return record.id;
+      } catch (retryError) {
+        console.error("清理后仍无法保存:", retryError);
+      }
+    }
     console.error("保存视频生成记录失败:", error);
     return "";
   }
