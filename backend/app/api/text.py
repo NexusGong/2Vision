@@ -9,6 +9,7 @@ from app.services.auth import get_current_user, get_optional_user
 from app.models.user import User
 from app.services.text_analyzer import analyze_ancient_text, analyze_poetry_with_storyboard
 from app.services.task_manager import task_manager, TaskStatus
+from app.services.content_validator import validate_text_input, ContentValidator
 from ark_client import ArkClient
 from typing import Optional, Literal, List
 import logging
@@ -98,6 +99,13 @@ async def analyze_text(
         # 清理输入：移除潜在的危险字符（保留中文、标点等）
         cleaned_text = re.sub(r'[^\u4e00-\u9fff\w\s\.,;:!?。，、；：！？\n\r\t]', '', request.text)
         
+        # 内容验证：确保是古诗古文（如果启用）
+        from config import config
+        if hasattr(config, 'ENABLE_CONTENT_VALIDATION') and config.ENABLE_CONTENT_VALIDATION:
+            is_valid, error_message = validate_text_input(cleaned_text)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=error_message)
+        
         # 初始化Ark客户端
         try:
             ark_client = ArkClient()
@@ -153,6 +161,13 @@ async def analyze_poetry(
             '',
             request.text
         )
+        
+        # 内容验证：确保是古诗古文（如果启用）
+        from config import config
+        if hasattr(config, 'ENABLE_CONTENT_VALIDATION') and config.ENABLE_CONTENT_VALIDATION:
+            is_valid, error_message = validate_text_input(cleaned_text)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=error_message)
         
         logger.info(f"开始诗词分析，模式: {request.mode}，生成类型: {request.generation_type or 'image'}，文本: {cleaned_text[:50]}...")
         
@@ -283,6 +298,13 @@ async def analyze_poetry_async(
             '',
             request.text
         )
+        
+        # 内容验证：确保是古诗古文（如果启用）
+        from config import config
+        if hasattr(config, 'ENABLE_CONTENT_VALIDATION') and config.ENABLE_CONTENT_VALIDATION:
+            is_valid, error_message = validate_text_input(cleaned_text)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=error_message)
         
         # 创建任务
         params = {

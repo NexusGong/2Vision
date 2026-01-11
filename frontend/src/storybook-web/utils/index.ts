@@ -198,24 +198,114 @@ export async function downloadVideo(videoUrl: string, filename?: string) {
     throw new Error("视频URL不能为空");
   }
 
+  // 生成文件名
+  // 如果 filename 已经包含时间戳格式（YYYY-MM-DD_HHmmss），则不再添加
+  // 否则使用 formatFileName 添加时间戳
+  let videoFilename: string;
+  if (filename) {
+    const hasTimestamp = /\d{4}-\d{2}-\d{2}_\d{6}$/.test(filename);
+    if (hasTimestamp) {
+      // 已经包含时间戳，直接使用
+      videoFilename = `${filename}.mp4`;
+    } else {
+      // 没有时间戳，添加时间戳
+      videoFilename = `${formatFileName(filename)}.mp4`;
+    }
+  } else {
+    videoFilename = `video-${dayjs().format("YYYY-MM-DD_HHmmss")}.mp4`;
+  }
+
   try {
-    // 获取视频文件
-    const response = await fetch(videoUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP 错误: ${response.status}`);
+    // 优先使用后端代理下载，这样可以控制文件名，避免跨域问题
+    const proxyUrl = `/api/video/download?video_url=${encodeURIComponent(videoUrl)}&filename=${encodeURIComponent(videoFilename)}`;
+    
+    const response = await fetch(proxyUrl, {
+      method: 'GET',
+    });
+    
+    if (response.ok) {
+      // 尝试从响应头中提取文件名
+      let finalFilename = videoFilename;
+      const contentDisposition = response.headers.get('Content-Disposition');
+      
+      if (contentDisposition) {
+        // 优先提取 filename*=UTF-8''... 格式的文件名（RFC 5987）
+        const utf8FilenameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8FilenameMatch && utf8FilenameMatch[1]) {
+          try {
+            finalFilename = decodeURIComponent(utf8FilenameMatch[1]);
+          } catch (e) {
+            // 解码失败，使用原始文件名
+          }
+        } else {
+          // 如果没有找到 UTF-8 格式的文件名，尝试提取普通格式
+          const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+          if (filenameMatch && filenameMatch[1]) {
+            const extractedFilename = filenameMatch[1].trim();
+            // 只有当提取的文件名不是默认的 "video.mp4" 时才使用
+            if (extractedFilename && extractedFilename !== 'video.mp4') {
+              finalFilename = extractedFilename;
+            }
+          }
+        }
+      }
+      
+      const blob = await response.blob();
+      // 创建 Blob URL 并使用 <a> 标签下载，确保文件名正确
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = finalFilename; // 明确设置文件名
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      // 清理 Blob URL
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 100);
+      return;
+    } else {
+      throw new Error(`下载失败: HTTP ${response.status}`);
+    }
+  } catch (proxyError: any) {
+    // 如果后端代理失败，尝试直接下载
+    console.warn("使用后端代理下载失败，尝试直接下载:", proxyError);
+    
+    try {
+      // 尝试使用 fetch 直接下载（如果服务器允许 CORS）
+      const response = await fetch(videoUrl, {
+        method: 'GET',
+        mode: 'cors',
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        saveAs(blob, videoFilename);
+        return;
+      }
+    } catch (fetchError) {
+      // fetch 也失败，使用 <a> 标签方式（文件名可能不正确）
+      console.warn("使用 fetch 下载失败，改用 <a> 标签方式:", fetchError);
     }
     
-    const blob = await response.blob();
+    // 最后尝试使用 <a> 标签直接下载
+    // 注意：对于跨域资源，download 属性可能不生效，文件名可能不正确
+    const link = document.createElement("a");
+    link.href = videoUrl;
+    link.download = videoFilename;
+    link.style.display = "none";
     
-    // 生成文件名
-    const videoFilename = filename 
-      ? `${formatFileName(filename)}.mp4`
-      : `video-${dayjs().format("YYYY-MM-DD_HHmmss")}.mp4`;
+    document.body.appendChild(link);
+    link.click();
     
-    // 下载文件
-    saveAs(blob, videoFilename);
-  } catch (error: any) {
-    console.error("下载视频失败:", error);
-    throw new Error(`下载视频失败: ${error.message}`);
+    setTimeout(() => {
+      if (link.parentNode) {
+        document.body.removeChild(link);
+      }
+    }, 200);
+    
+    // 如果使用 <a> 标签，文件名可能不正确，但至少可以下载
+    return;
   }
 }

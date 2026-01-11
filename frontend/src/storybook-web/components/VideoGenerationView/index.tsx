@@ -2,7 +2,7 @@
  * 视频查看模态框
  */
 import React from "react";
-import { Modal } from "@arco-design/web-react";
+import { Modal, Message } from "@arco-design/web-react";
 import { useIsMobile } from "@/common/components/StoryBook/hooks/useMobile";
 import { IconDownload, IconFullscreen } from "@arco-design/web-react/icon";
 import { downloadVideo } from "../../utils";
@@ -27,12 +27,18 @@ export const VideoViewModal: React.FC<VideoViewModalProps> = ({
   };
 
   const handleDownloadVideo = async () => {
-    if (!videoUrl) return;
+    if (!videoUrl) {
+      Message.warning("视频URL不存在，无法下载");
+      return;
+    }
     
     try {
       await downloadVideo(videoUrl, title || "generated-video");
+      Message.success("视频下载已开始");
     } catch (error: any) {
       console.error("下载视频失败:", error);
+      const errorMessage = error instanceof Error ? error.message : "下载失败，请稍后重试";
+      Message.error(`下载视频失败: ${errorMessage}`);
     }
   };
 

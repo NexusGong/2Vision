@@ -185,32 +185,6 @@ export const VideoLoading: React.FC<VideoLoadingProps> = ({
         {getStatusText()}
       </div>
 
-      {/* 进度条 */}
-      <div className="video-progress-container">
-        <div className="video-progress-bar">
-          <div
-            className="video-progress-fill"
-            style={{ width: `${Math.max(progress, 5)}%` }}
-          />
-        </div>
-        <div className="video-progress-text">
-          {progress > 0 ? `已完成 ${Math.round(progress)}%` : "准备中"}
-        </div>
-      </div>
-
-      {/* 步骤指示点 */}
-      <div className="video-step-progress">
-        {videoSteps.map((_, index) => (
-          <span
-            key={index}
-            className={classNames("video-dot", {
-              active: index === currentStep,
-              done: index < currentStep,
-            })}
-          />
-        ))}
-      </div>
-
       {/* 古风诗句 */}
       {currentPoetry && (
         <div className="video-poetry-line">

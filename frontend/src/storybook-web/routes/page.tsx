@@ -20,7 +20,7 @@ import React, {
 } from "react";
 import { useIsMobile } from "@/common/components/StoryBook/hooks/useMobile";
 import classNames from "classnames";
-import { Layout } from "@arco-design/web-react";
+import { Layout, Message as ArcoMessage } from "@arco-design/web-react";
 import styles from "./page.module.less";
 import Header from "@/common/components/ChatBox/Header";
 import {
@@ -53,6 +53,7 @@ import {
   downloadImages,
   downloadVideo,
 } from "../utils";
+import dayjs from "dayjs";
 import { Loading } from "@/common/components/ChatBox/Loading";
 import { AnalysisLoading } from "@/common/components/ChatBox/AnalysisLoading";
 import { VideoLoading } from "@/common/components/ChatBox/VideoLoading";
@@ -77,7 +78,7 @@ import {
   updateChatHistory,
   getChatHistoryById,
 } from "../utils/history";
-import { saveGenerationRecord, saveVideoGenerationRecord, getVideoGenerationRecords } from "../utils/generations";
+import { saveGenerationRecord, saveVideoGenerationRecord, getVideoGenerationRecords, getGenerationRecords } from "../utils/generations";
 import GenerationsView from "../components/GenerationsView";
 import { VideoViewModal } from "../components/VideoGenerationView";
 import PoetryLibrary from "../components/PoetryLibrary";
@@ -1127,18 +1128,60 @@ const Index = () => {
           }
           
           const handleDownloadVideo = async () => {
-            if (!videoUrl) return;
+            if (!videoUrl) {
+              ArcoMessage.warning("视频URL不存在，无法下载");
+              return;
+            }
+            
+            // 获取诗名用于生成文件名
+            let poetryTitle = "视频";
+            try {
+              // 尝试从消息的 analysisData 中获取
+              const analysisData = message.data?.analysisData;
+              if (analysisData?.poetry_info?.title) {
+                poetryTitle = analysisData.poetry_info.title;
+              } else {
+                // 尝试从父消息（analysis消息）中获取
+                if (message.parentId && currentHistoryIdRef.current) {
+                  const history = getChatHistoryById(currentHistoryIdRef.current);
+                  if (history?.messages) {
+                    const parentMsg = history.messages.find((msg) => msg.id === message.parentId);
+                    if (parentMsg?.type === "analysis" && parentMsg.data?.analysisData?.poetry_info?.title) {
+                      poetryTitle = parentMsg.data.analysisData.poetry_info.title;
+                    }
+                  }
+                }
+                // 如果还没找到，尝试从墨迹留痕中获取
+                if (poetryTitle === "视频") {
+                  const videoRecords = getVideoGenerationRecords();
+                  const msgTimestamp = message.timestamp || 0;
+                  const matchedRecord = videoRecords.find((record) => {
+                    const timeDiff = Math.abs(record.timestamp - msgTimestamp);
+                    return timeDiff < 5 * 60 * 1000; // 5分钟内
+                  });
+                  if (matchedRecord?.analysisData?.poetry_info?.title) {
+                    poetryTitle = matchedRecord.analysisData.poetry_info.title;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn("获取诗名失败，使用默认文件名:", e);
+            }
             
             try {
-              await downloadVideo(videoUrl, "generated-video");
+              // 生成文件名：诗名-日期时间
+              // 清理诗名中的特殊字符，确保文件名合法
+              const cleanTitle = poetryTitle.replace(/[<>:"/\\|?*]/g, "").trim() || "视频";
+              const filename = `${cleanTitle}-${dayjs().format("YYYY-MM-DD_HHmmss")}`;
+              await downloadVideo(videoUrl, filename);
+              // 对于跨域资源，浏览器可能在新标签页打开而不是直接下载
+              // 或者使用URL的一部分作为文件名（这是浏览器的安全限制）
+              // 如果文件名不正确，请在新标签页中右键保存，建议使用文件名：" + filename + ".mp4"
+              ArcoMessage.success(`正在下载视频，建议文件名：${filename}.mp4（如在新标签页打开请右键保存）`);
             } catch (error: any) {
-              // 只在开发环境输出错误
-              // 使用 setTimeout 避免在事件处理期间输出错误
-              if (process.env.NODE_ENV === "development") {
-                setTimeout(() => {
-                  console.error("下载视频失败:", error instanceof Error ? error.message : String(error));
-                }, 0);
-              }
+              console.error("下载视频失败:", error);
+              const errorMessage = error instanceof Error ? error.message : "下载失败，请稍后重试";
+              ArcoMessage.error(`下载视频失败: ${errorMessage}`);
             }
           };
           
@@ -1811,18 +1854,62 @@ const Index = () => {
                 },
               };
             } else {
-              // Items 为空，说明数据不完整，将状态改为 error
+              // Items 为空，尝试从生成记录中恢复
+              const generationRecords = getGenerationRecords();
+              const msgTimestamp = msg.timestamp || 0;
+              // 尝试通过时间戳匹配（在消息时间戳前后5分钟内）
+              const matchedRecord = generationRecords.find((record) => {
+                const timeDiff = Math.abs(record.timestamp - msgTimestamp);
+                return timeDiff < 5 * 60 * 1000; // 5分钟内
+              });
+              
+              if (matchedRecord && matchedRecord.data?.Items && matchedRecord.data.Items.length > 0) {
+                // 找到匹配的记录，恢复图片数据
+                return {
+                  ...msg,
+                  status: "success" as const,
+                  data: {
+                    ...msg.data,
+                    ...matchedRecord.data,
+                    Items: matchedRecord.data.Items,
+                  },
+                };
+              } else {
+                // 未找到匹配记录，将状态改为 error
+                return {
+                  ...msg,
+                  status: "error" as const,
+                };
+              }
+            }
+          } else {
+            // 没有 Items 数据，尝试从生成记录中恢复
+            const generationRecords = getGenerationRecords();
+            const msgTimestamp = msg.timestamp || 0;
+            // 尝试通过时间戳匹配（在消息时间戳前后5分钟内）
+            const matchedRecord = generationRecords.find((record) => {
+              const timeDiff = Math.abs(record.timestamp - msgTimestamp);
+              return timeDiff < 5 * 60 * 1000; // 5分钟内
+            });
+            
+            if (matchedRecord && matchedRecord.data?.Items && matchedRecord.data.Items.length > 0) {
+              // 找到匹配的记录，恢复图片数据
+              return {
+                ...msg,
+                status: "success" as const,
+                data: {
+                  ...msg.data,
+                  ...matchedRecord.data,
+                  Items: matchedRecord.data.Items,
+                },
+              };
+            } else {
+              // 没有 Items 数据，说明数据不完整，将状态改为 error
               return {
                 ...msg,
                 status: "error" as const,
               };
             }
-          } else {
-            // 没有 Items 数据，说明数据不完整，将状态改为 error
-            return {
-              ...msg,
-              status: "error" as const,
-            };
           }
         }
         // 对于 loading 状态的 assistant 消息，如果数据为空，保持 loading 状态（等待任务恢复）
@@ -1836,8 +1923,11 @@ const Index = () => {
       // 检查是否有消息被修复（状态从 error 改为 success 或其他修复）
       const hasChanges = validatedMessages.some((msg, index) => {
         const originalMsg = rawMessages[index];
-        return msg.status !== originalMsg.status || 
-               (msg.data?.video_url && !originalMsg.data?.video_url);
+        const statusChanged = msg.status !== originalMsg.status;
+        const videoUrlRestored = msg.data?.video_url && !originalMsg.data?.video_url;
+        const itemsRestored = msg.data?.Items && msg.data.Items.length > 0 && 
+                            (!originalMsg.data?.Items || originalMsg.data.Items.length === 0);
+        return statusChanged || videoUrlRestored || itemsRestored;
       });
       
       // 如果有修复，保存到历史记录

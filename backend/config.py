@@ -33,6 +33,11 @@ class Config:
     # 文件上传配置
     MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "10485760"))  # 10MB
     ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif"}
+    
+    # 内容验证配置
+    ENABLE_CONTENT_VALIDATION = os.getenv("ENABLE_CONTENT_VALIDATION", "true").lower() == "true"
+    CONTENT_VALIDATION_STRICT = os.getenv("CONTENT_VALIDATION_STRICT", "true").lower() == "true"  # 严格模式
+    MIN_CHINESE_RATIO = float(os.getenv("MIN_CHINESE_RATIO", "0.6"))  # 最小中文比例
 
 config = Config()
 

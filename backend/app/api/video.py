@@ -4,8 +4,10 @@
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import httpx
 
 from app.database import get_db
 from app.models.user import User
@@ -345,3 +347,111 @@ async def generate_video_async(
         logger.error(f"创建视频生成任务失败: {str(e)}")
         # 不泄露内部错误详情
         raise HTTPException(status_code=500, detail="创建任务失败，请稍后重试")
+
+
+@router.get("/download")
+async def download_video(
+    video_url: str,
+    filename: Optional[str] = None,
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    """
+    代理下载视频文件
+    通过后端代理下载，可以控制文件名，避免跨域问题
+    """
+    try:
+        if not video_url:
+            raise HTTPException(status_code=400, detail="视频URL不能为空")
+        
+        # 验证URL格式
+        if not video_url.startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail="无效的视频URL")
+        
+        logger.info(f"开始代理下载视频: {video_url[:100]}...")
+        
+        # 设置响应头
+        # 对文件名进行 URL 编码，确保中文和特殊字符正确显示
+        import urllib.parse
+        import re
+        default_filename = "video.mp4"
+        
+        # FastAPI 应该会自动解码 URL 编码的查询参数，但为了保险起见，我们手动处理
+        # 如果文件名看起来是 URL 编码的（包含 %），尝试解码
+        if filename:
+            # 检查是否包含 URL 编码字符
+            if '%' in filename:
+                try:
+                    # 尝试解码（可能已经被 FastAPI 解码过了，但双重解码不会出错）
+                    decoded = urllib.parse.unquote(filename)
+                    # 如果解码后的字符串包含中文字符，说明解码成功
+                    if any(ord(c) > 127 for c in decoded):
+                        filename = decoded
+                except Exception as e:
+                    logger.warning(f"解码文件名失败: {e}，使用原始文件名")
+        
+        final_filename = filename or default_filename
+        # 确保文件名包含扩展名
+        if not final_filename.endswith('.mp4'):
+            final_filename = f"{final_filename}.mp4"
+        
+        logger.info(f"接收到的文件名参数（原始）: {filename}, 最终文件名: {final_filename}")
+        
+        # 检查文件名是否包含非 ASCII 字符
+        has_non_ascii = bool(re.search(r'[^\x00-\x7F]', final_filename))
+        
+        if has_non_ascii:
+            # 如果包含非 ASCII 字符，只使用 filename* 格式（RFC 5987）
+            # 对文件名进行 UTF-8 URL 编码（urllib.parse.quote 会自动处理 UTF-8）
+            encoded_filename = urllib.parse.quote(final_filename, safe='')
+            # 提供一个 ASCII 备用文件名（用于旧版浏览器）
+            # 注意：现代浏览器会优先使用 filename*，旧版浏览器才会使用 filename
+            ascii_filename = "video.mp4"
+            content_disposition = f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+            logger.info(f"文件名包含非ASCII字符，使用UTF-8编码: {encoded_filename}")
+        else:
+            # 如果只包含 ASCII 字符，可以同时设置 filename 和 filename*
+            encoded_filename = urllib.parse.quote(final_filename, safe='')
+            content_disposition = f'attachment; filename="{final_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+            logger.info(f"文件名只包含ASCII字符: {final_filename}")
+        
+        # 流式返回视频数据
+        async def generate():
+            # 在生成器内部创建客户端和流，确保流在整个传输过程中保持打开
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                try:
+                    async with client.stream("GET", video_url) as response:
+                        if response.status_code != 200:
+                            logger.error(f"下载视频失败: HTTP {response.status_code}")
+                            return
+                        
+                        async for chunk in response.aiter_bytes():
+                            yield chunk
+                except httpx.StreamClosed:
+                    logger.warning("视频流被客户端关闭")
+                    return
+                except Exception as e:
+                    logger.error(f"流式传输视频时出错: {str(e)}")
+                    return
+        
+        headers = {
+            "Content-Type": "video/mp4",
+            "Content-Disposition": content_disposition,
+        }
+        
+        return StreamingResponse(
+            generate(),
+            headers=headers,
+            media_type="video/mp4"
+        )
+                
+    except httpx.TimeoutException:
+        logger.error("下载视频超时")
+        raise HTTPException(status_code=504, detail="下载视频超时，请稍后重试")
+    except httpx.RequestError as e:
+        logger.error(f"下载视频请求失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="下载视频失败，请稍后重试")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"下载视频失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="下载视频失败，请稍后重试")
