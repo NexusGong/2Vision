@@ -4,7 +4,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -16,19 +16,31 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config import config
 
-# 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # OAuth2 方案
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        # bcrypt 限制密码长度最多 72 字节，需要截断（与哈希时保持一致）
+        password_bytes = plain_password.encode('utf-8')
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+        # 直接使用 bcrypt 库验证
+        return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 def get_password_hash(password: str) -> str:
     """生成密码哈希"""
-    return pwd_context.hash(password)
+    # bcrypt 限制密码长度最多 72 字节，需要截断
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    # 直接使用 bcrypt 库生成哈希
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """创建访问令牌"""
@@ -55,16 +67,31 @@ def create_user(db: Session, username: str, email: str, password: str) -> User:
     db_user = User(
         username=username,
         email=email,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
+        free_usage_count=20  # 登录用户默认20次免费体验
     )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
-def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-    """验证用户"""
-    user = get_user_by_username(db, username)
+def authenticate_user(db: Session, identifier: str, password: str) -> Optional[User]:
+    """
+    验证用户登录
+
+    为了简化体验，这里优先使用邮箱进行登录，
+    同时兼容旧逻辑，必要时回退到用户名登录。
+    """
+    user: Optional[User] = None
+
+    # 优先按邮箱查找（推荐方式）
+    if "@" in identifier:
+        user = get_user_by_email(db, identifier)
+
+    # 如果不是邮箱格式，或者按邮箱未找到，则按用户名再查一次（兼容旧账号）
+    if user is None:
+        user = get_user_by_username(db, identifier)
+
     if not user:
         return None
     if not verify_password(password, user.hashed_password):

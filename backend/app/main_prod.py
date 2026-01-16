@@ -80,6 +80,17 @@ if FRONTEND_DIST_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
         logger.info("已挂载静态资源目录")
 
+# 挂载媒体文件目录（图片和视频）
+storage_dir = Path(__file__).parent.parent / config.STORAGE_DIR
+if storage_dir.exists():
+    app.mount(config.STATIC_URL_PREFIX, StaticFiles(directory=str(storage_dir)), name="media")
+    logger.info(f"已挂载媒体文件目录: {storage_dir}")
+else:
+    # 如果目录不存在，创建它
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    app.mount(config.STATIC_URL_PREFIX, StaticFiles(directory=str(storage_dir)), name="media")
+    logger.info(f"已创建并挂载媒体文件目录: {storage_dir}")
+
 # 处理前端路由 - 返回 index.html（SPA 支持）
 @app.get("/{full_path:path}")
 async def serve_frontend(request: Request, full_path: str):

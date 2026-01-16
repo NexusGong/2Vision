@@ -1,7 +1,7 @@
 """
 项目模型
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -14,7 +14,9 @@ class Project(Base):
     title = Column(String(200), nullable=False)
     original_text = Column(Text, nullable=False)  # 原始文本
     structured_content = Column(JSON)  # 结构化内容（断句、语义分层等）
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # 可为空，非登录用户
+    session_id = Column(String(100), nullable=True, index=True)  # 非登录用户的会话ID
+    is_anonymous = Column(Boolean, default=False)  # 是否为匿名项目
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

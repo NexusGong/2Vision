@@ -139,6 +139,16 @@ const getAuthToken = (): string | null => {
   return localStorage.getItem('token');
 };
 
+// 获取或创建 session_id（非登录用户）
+const getSessionId = (): string => {
+  let sessionId = localStorage.getItem('session_id');
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('session_id', sessionId);
+  }
+  return sessionId;
+};
+
 export const deleteStoryBook = async (id: string | number): Promise<boolean> => {
   try {
     // 检查ID格式：只有数字ID才调用后端删除
@@ -183,12 +193,15 @@ export const startAsyncAnalysis = async (
   params: PoetryAnalysisParams
 ): Promise<{ task_id: string }> => {
   const token = getAuthToken();
+  const sessionId = getSessionId();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    headers["X-Session-Id"] = sessionId;
   }
 
   const response = await fetch("/api/text/analyze_poetry_async", {
@@ -314,12 +327,15 @@ export const startAsyncGeneration = async (
   params: GenerateFromStoryboardParams
 ): Promise<{ task_id: string }> => {
   const token = getAuthToken();
+  const sessionId = getSessionId();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    headers["X-Session-Id"] = sessionId;
   }
 
   const response = await fetch("/api/image/generate_from_storyboard_async", {
@@ -516,6 +532,7 @@ export const generateVideo = async (
   params: VideoGenerateParams
 ): Promise<VideoGenerateResponse> => {
   const token = getAuthToken();
+  const sessionId = getSessionId();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
@@ -523,6 +540,8 @@ export const generateVideo = async (
   // 如果有 token，添加到请求头
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    headers["X-Session-Id"] = sessionId;
   }
 
   const response = await fetch("/api/video/generate_async", {

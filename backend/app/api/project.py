@@ -1,13 +1,13 @@
 """
 项目管理API路由
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.database import get_db
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, get_optional_user
 from app.models.user import User
 from app.models.project import Project, ImageItem, Annotation
 from app.services.editor import (
@@ -117,11 +117,24 @@ async def create_project(
 
 @router.get("/list")
 async def list_projects(
-    current_user: User = Depends(get_current_user),
+    http_request: Request,
+    current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
-    """获取用户的项目列表"""
-    projects = db.query(Project).filter(Project.user_id == current_user.id).all()
+    """获取用户的项目列表（登录用户）或会话项目（非登录用户）"""
+    # 获取session_id（非登录用户）
+    session_id = http_request.headers.get("X-Session-Id")
+    
+    if current_user:
+        # 登录用户：只返回自己的项目
+        projects = db.query(Project).filter(Project.user_id == current_user.id).all()
+    elif session_id:
+        # 非登录用户：返回该session的项目
+        projects = db.query(Project).filter(Project.session_id == session_id).all()
+    else:
+        # 既没有用户也没有session_id，返回空列表
+        projects = []
+    
     return {
         "status": "success",
         "data": [

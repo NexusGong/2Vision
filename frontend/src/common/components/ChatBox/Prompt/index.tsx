@@ -21,9 +21,13 @@ import {
   Button,
   Select,
   Popover,
+  Badge,
+  Tooltip,
 } from "@arco-design/web-react";
 import { IconSettings, IconImage, IconPlayArrow } from "@arco-design/web-react/icon";
 import { useIsMobile } from "@/common/components/StoryBook/hooks/useMobile";
+import { useUser } from "@/storybook-web/contexts/UserContext";
+import { getOrCreateSessionId } from "@/storybook-web/apis/auth";
 import { fileToBase64 } from "./utils";
 import {
   SupportImageFileTypes,
@@ -72,6 +76,9 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
   const [form] = Form.useForm<PromptData>();
   const isMobile = useIsMobile(768);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const { user, usageStats, isAuthenticated, refreshUser } = useUser();
+  const [remainingCount, setRemainingCount] = useState<number>(0);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const generationType = Form.useWatch("generationType", form as any) as "image" | "video" | undefined;
   const ratioValue = Form.useWatch("ratio", form as any) as Ratio;
   const resolutionValue = Form.useWatch(
@@ -87,11 +94,26 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
   const videoFps = Form.useWatch("videoFps", form as any) as number | undefined;
   const videoAspectRatio = Form.useWatch("videoAspectRatio", form as any) as string | undefined;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const result = form.getFieldsValue();
     form.setFieldValue("text", "");
     form.setFieldValue("images", []);
     onSubmit?.(result);
+    
+    // 提交后更新剩余次数
+    if (isAuthenticated && user) {
+      // 登录用户：刷新用户信息（后端会更新 free_usage_count）
+      await refreshUser();
+    } else {
+      // 匿名用户：前端递减计数器
+      const sessionId = localStorage.getItem("session_id");
+      if (sessionId) {
+        const usedCount = parseInt(localStorage.getItem(`usage_count_${sessionId}`) || "0", 10);
+        localStorage.setItem(`usage_count_${sessionId}`, String(usedCount + 1));
+        const anonymousTotal = 5;
+        setRemainingCount(Math.max(0, anonymousTotal - usedCount - 1));
+      }
+    }
   };
 
   useEffect(() => {
@@ -131,6 +153,27 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
   useEffect(() => {
     data && form.setFieldsValue(data || {});
   }, [data]);
+
+  // 更新剩余次数显示（直接从 UserContext 获取，无需额外请求）
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // 登录用户：直接从 user 对象获取
+      setRemainingCount(user.free_usage_count || 0);
+      setTotalCount((user.free_usage_count || 0) + (user.total_usage_count || 0));
+    } else {
+      // 匿名用户：从 localStorage 获取（前端维护）
+      const sessionId = localStorage.getItem("session_id");
+      if (sessionId) {
+        const usedCount = parseInt(localStorage.getItem(`usage_count_${sessionId}`) || "0", 10);
+        const anonymousTotal = 5; // 匿名用户总共5次
+        setRemainingCount(Math.max(0, anonymousTotal - usedCount));
+        setTotalCount(anonymousTotal);
+      } else {
+        setRemainingCount(5);
+        setTotalCount(5);
+      }
+    }
+  }, [isAuthenticated, user, usageStats]);
 
   return (
     <Form
@@ -542,7 +585,28 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
           )}
         </div>
 
-        <div className="flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* 剩余次数显示 */}
+          <Tooltip
+            content={
+              isAuthenticated
+                ? `登录用户：剩余 ${remainingCount} 次免费体验（已使用 ${totalCount - remainingCount} 次，共 ${totalCount} 次）`
+                : `非登录用户：剩余 ${remainingCount} 次免费体验（共 ${totalCount} 次），登录后可获得 20 次免费体验`
+            }
+          >
+            <Badge
+              status={
+                remainingCount <= 0
+                  ? "error"
+                  : remainingCount <= 2
+                  ? "warning"
+                  : "success"
+              }
+              text={`${remainingCount}/${totalCount}`}
+              style={{ cursor: "pointer" }}
+            />
+          </Tooltip>
+          
           <Form.Item className="!mb-0">
             <Button
               type="primary"
@@ -551,7 +615,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                   textValue ? "bg-black text-white hover:bg-gray-800 active:bg-gray-900" : "bg-gray-200 text-gray-400 cursor-not-allowed"
               )}
               htmlType="submit"
-              disabled={!textValue}
+              disabled={!textValue || remainingCount <= 0}
             >
               <svg width={isMobile ? "16" : "18"} height={isMobile ? "16" : "18"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 4L12 20M12 4L6 10M12 4L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

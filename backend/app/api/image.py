@@ -1,7 +1,7 @@
 """
 图像生成API路由
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Literal
@@ -11,6 +11,7 @@ import asyncio
 from app.database import get_db
 from app.services.auth import get_current_user, get_optional_user
 from app.models.user import User
+from app.services.usage_manager import check_usage_limit, record_usage
 from app.services.image_generator import (
     generate_images_for_segments,
     generate_storybook_images_stream,
@@ -199,7 +200,7 @@ async def generate_from_storyboard(
 
 # ============ 后台任务相关 API ============
 
-async def _run_storyboard_generation(task_id: str, params: dict):
+async def _run_storyboard_generation(task_id: str, params: dict, db: Session, user: Optional[User], session_id: Optional[str]):
     """后台运行分镜图像生成任务"""
     try:
         task_manager.start_task(task_id)
@@ -213,6 +214,9 @@ async def _run_storyboard_generation(task_id: str, params: dict):
         
         total_steps = len(storyboards)
         image_results = []
+        
+        # 记录使用（在生成完成后）
+        token_used = 0  # 可以根据实际消耗计算
         
         for i, storyboard in enumerate(storyboards):
             try:
@@ -244,10 +248,22 @@ async def _run_storyboard_generation(task_id: str, params: dict):
                 
                 image_urls = [item.get("url", "") for item in image_result.get("data", [])]
                 
+                original_url = image_urls[0] if image_urls else ""
+                local_url = original_url
+                
+                # 下载并保存图片到本地
+                if original_url:
+                    from app.services.file_storage import download_and_save_image, get_local_url
+                    local_path = await download_and_save_image(original_url)
+                    if local_path:
+                        local_url = get_local_url(local_path)
+                        logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
+                
                 result_item = {
                     "storyboard_index": storyboard.get("index", i + 1),
                     "storyboard_type": storyboard.get("type", "content"),
-                    "image_url": image_urls[0] if image_urls else "",
+                    "image_url": local_url,
+                    "original_url": original_url,  # 保留原始URL作为备份
                     "text": storyboard.get("text", ""),
                     "title": storyboard.get("title", ""),
                     "is_cover": storyboard.get("type") == "cover"
@@ -270,7 +286,12 @@ async def _run_storyboard_generation(task_id: str, params: dict):
                 })
                 task_manager.update_task_progress(task_id, i + 1, total_steps)
         
-        # 任务完成
+        # 任务完成，记录使用
+        try:
+            record_usage(db, "image", token_used, user, session_id)
+        except Exception as e:
+            logger.error(f"记录使用失败: {str(e)}")
+        
         task_manager.complete_task(task_id, {
             "status": "success",
             "data": image_results,
@@ -286,6 +307,7 @@ async def _run_storyboard_generation(task_id: str, params: dict):
 async def generate_from_storyboard_async(
     request: StoryboardGenerateRequest,
     background_tasks: BackgroundTasks,
+    http_request: Request,
     current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
@@ -297,13 +319,23 @@ async def generate_from_storyboard_async(
         if not request.storyboards:
             raise HTTPException(status_code=400, detail="分镜数据不能为空")
         
+        # 获取session_id（非登录用户）
+        session_id = http_request.headers.get("X-Session-Id")
+        
+        # 检查使用次数限制
+        allowed, error_msg = check_usage_limit(db, current_user, session_id)
+        if not allowed:
+            raise HTTPException(status_code=403, detail=error_msg)
+        
         # 创建任务
         params = {
             "storyboards": [sb.model_dump() for sb in request.storyboards],
             "poetry_info": request.poetry_info.model_dump(),
             "mode": request.mode,
             "size": request.size,
-            "reference_images": request.reference_images
+            "reference_images": request.reference_images,
+            "user_id": current_user.id if current_user else None,
+            "session_id": session_id
         }
         task_id = task_manager.create_task(
             "storyboard_generation", 
@@ -313,7 +345,7 @@ async def generate_from_storyboard_async(
         )
         
         # 启动后台任务
-        background_tasks.add_task(_run_storyboard_generation, task_id, params)
+        background_tasks.add_task(_run_storyboard_generation, task_id, params, db, current_user, session_id)
         
         return {
             "status": "accepted",

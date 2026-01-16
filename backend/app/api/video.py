@@ -3,7 +3,7 @@
 """
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -12,6 +12,7 @@ import httpx
 from app.database import get_db
 from app.models.user import User
 from app.services.auth import get_optional_user
+from app.services.usage_manager import check_usage_limit, record_usage
 from app.services.video_generator import (
     generate_video_from_prompt,
     get_video_generation_status
@@ -172,7 +173,7 @@ async def get_video_task_status(
 
 # ============ 异步视频生成 API ============
 
-async def _run_video_generation(task_id: str, params: dict):
+async def _run_video_generation(task_id: str, params: dict, db: Session, user: Optional[User], session_id: Optional[str]):
     """后台运行视频生成任务"""
     try:
         task_manager.start_task(task_id)
@@ -181,6 +182,8 @@ async def _run_video_generation(task_id: str, params: dict):
         duration = params.get("duration", -1)  # doubao-seedance-1-5-pro 默认自动选择
         fps = params.get("fps", 24)
         aspect_ratio = params.get("aspect_ratio", "16:9")
+        
+        token_used = 0  # 可以根据实际消耗计算
         
         # 初始化 Ark 客户端
         try:
@@ -267,13 +270,33 @@ async def _run_video_generation(task_id: str, params: dict):
                     continue
                 
                 if current_status == "completed":
-                    # 任务完成
+                    # 任务完成，下载并保存视频到本地
+                    original_video_url = status.get("video_url")
+                    local_video_url = original_video_url
+                    
+                    if original_video_url:
+                        try:
+                            from app.services.file_storage import download_and_save_video, get_local_url
+                            local_path = await download_and_save_video(original_video_url)
+                            if local_path:
+                                local_video_url = get_local_url(local_path)
+                                logger.info(f"视频已保存到本地: {local_path}, URL: {local_video_url}")
+                        except Exception as e:
+                            logger.warning(f"视频下载失败，使用原始URL: {str(e)}")
+                    
+                    # 记录使用
+                    try:
+                        record_usage(db, "video", token_used, user, session_id)
+                    except Exception as e:
+                        logger.error(f"记录使用失败: {str(e)}")
+                    
                     task_manager.complete_task(task_id, {
                         "status": "success",
-                        "video_url": status.get("video_url"),
+                        "video_url": local_video_url,
+                        "original_video_url": original_video_url,  # 保留原始URL作为备份
                         "video_prompt": video_prompt
                     })
-                    logger.info(f"视频生成任务完成: {task_id}, 视频URL: {status.get('video_url', '未找到')}")
+                    logger.info(f"视频生成任务完成: {task_id}, 视频URL: {local_video_url}")
                     return
                 elif current_status == "failed":
                     # 任务失败
@@ -300,6 +323,7 @@ async def _run_video_generation(task_id: str, params: dict):
 async def generate_video_async(
     request: VideoGenerateRequest,
     background_tasks: BackgroundTasks,
+    http_request: Request,
     current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
@@ -319,12 +343,22 @@ async def generate_video_async(
                 detail=f"视频prompt长度不能超过 {MAX_PROMPT_LENGTH} 个字符"
             )
         
+        # 获取session_id（非登录用户）
+        session_id = http_request.headers.get("X-Session-Id")
+        
+        # 检查使用次数限制
+        allowed, error_msg = check_usage_limit(db, current_user, session_id)
+        if not allowed:
+            raise HTTPException(status_code=403, detail=error_msg)
+        
         # 创建任务
         params = {
             "video_prompt": request.video_prompt,
             "duration": request.duration,
             "fps": request.fps,
-            "aspect_ratio": request.aspect_ratio
+            "aspect_ratio": request.aspect_ratio,
+            "user_id": current_user.id if current_user else None,
+            "session_id": session_id
         }
         task_id = task_manager.create_task(
             "video_generation",
@@ -334,7 +368,7 @@ async def generate_video_async(
         )
         
         # 启动后台任务
-        background_tasks.add_task(_run_video_generation, task_id, params)
+        background_tasks.add_task(_run_video_generation, task_id, params, db, current_user, session_id)
         
         return {
             "status": "accepted",

@@ -47,5 +47,8 @@ def init_db():
     """初始化数据库表"""
     from app.models.user import User
     from app.models.project import Project, ImageItem, Annotation
+    from app.models.usage import UsageRecord
+    from app.models.payment import Payment
+    from app.models.activity import UserActivityLog
     Base.metadata.create_all(bind=engine)
 

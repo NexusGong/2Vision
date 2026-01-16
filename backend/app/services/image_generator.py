@@ -10,6 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config import config
 from app.services.text_analyzer import generate_image_prompt_for_segment, generate_image_prompt_for_storyboard
+from app.services.file_storage import download_and_save_image, get_local_url
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +67,29 @@ async def generate_images_for_segments(
             image_urls = [item.get("url", "") for item in image_result.get("data", [])]
             
             if image_urls:
-                image_results.append({
-                    "segment_index": segment.get("index", i + 1),
-                    "image_url": image_urls[0],
-                    "text_segment": segment.get("text", ""),
-                    "is_cover": i == 0
-                })
+                original_url = image_urls[0]
+                # 下载并保存图片到本地
+                local_path = await download_and_save_image(original_url)
+                if local_path:
+                    # 使用本地URL
+                    local_url = get_local_url(local_path)
+                    logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
+                    image_results.append({
+                        "segment_index": segment.get("index", i + 1),
+                        "image_url": local_url,
+                        "original_url": original_url,  # 保留原始URL作为备份
+                        "text_segment": segment.get("text", ""),
+                        "is_cover": i == 0
+                    })
+                else:
+                    # 下载失败，使用原始URL
+                    logger.warning(f"图片下载失败，使用原始URL: {original_url[:100]}...")
+                    image_results.append({
+                        "segment_index": segment.get("index", i + 1),
+                        "image_url": original_url,
+                        "text_segment": segment.get("text", ""),
+                        "is_cover": i == 0
+                    })
             else:
                 logger.warning(f"句段 {i+1} 未返回图像")
                 image_results.append({
@@ -212,14 +230,33 @@ async def generate_images_from_storyboards(
             image_urls = [item.get("url", "") for item in image_result.get("data", [])]
             
             if image_urls:
-                image_results.append({
-                    "storyboard_index": storyboard_index,
-                    "storyboard_type": storyboard_type,
-                    "image_url": image_urls[0],
-                    "text": storyboard.get("text", ""),
-                    "title": storyboard.get("title", ""),
-                    "is_cover": is_cover
-                })
+                original_url = image_urls[0]
+                # 下载并保存图片到本地
+                local_path = await download_and_save_image(original_url)
+                if local_path:
+                    # 使用本地URL
+                    local_url = get_local_url(local_path)
+                    logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
+                    image_results.append({
+                        "storyboard_index": storyboard_index,
+                        "storyboard_type": storyboard_type,
+                        "image_url": local_url,
+                        "original_url": original_url,  # 保留原始URL作为备份
+                        "text": storyboard.get("text", ""),
+                        "title": storyboard.get("title", ""),
+                        "is_cover": is_cover
+                    })
+                else:
+                    # 下载失败，使用原始URL
+                    logger.warning(f"图片下载失败，使用原始URL: {original_url[:100]}...")
+                    image_results.append({
+                        "storyboard_index": storyboard_index,
+                        "storyboard_type": storyboard_type,
+                        "image_url": original_url,
+                        "text": storyboard.get("text", ""),
+                        "title": storyboard.get("title", ""),
+                        "is_cover": is_cover
+                    })
             else:
                 logger.warning(f"分镜 {storyboard_index} 未返回图像")
                 image_results.append({

@@ -1,0 +1,260 @@
+/*
+ * 支付模态框样式
+ */
+
+.payment-modal {
+  :global(.arco-modal-body) {
+    padding: 24px;
+  }
+}
+
+.payment-content {
+  .payment-type-selector {
+    margin-bottom: 24px;
+
+    .selector-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gf-text-main, #1d2129);
+      margin-bottom: 12px;
+    }
+
+    .type-card {
+      flex: 1;
+      padding: 20px;
+      border: 2px solid rgba(0, 0, 0, 0.06);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(8px);
+
+      &:hover {
+        border-color: var(--gf-primary, #576690);
+        background: rgba(87, 102, 144, 0.05);
+      }
+
+      &.active {
+        border-color: var(--gf-primary, #576690);
+        background: rgba(87, 102, 144, 0.1);
+      }
+
+      .type-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--gf-text-main, #1d2129);
+        margin-bottom: 4px;
+      }
+
+      .type-desc {
+        font-size: 13px;
+        color: var(--gf-text-secondary, #86909c);
+      }
+    }
+  }
+
+  .quantity-selector {
+    margin-bottom: 24px;
+
+    .selector-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gf-text-main, #1d2129);
+      margin-bottom: 12px;
+    }
+
+    .package-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+
+      .package-item {
+        padding: 16px;
+        border: 2px solid rgba(0, 0, 0, 0.06);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(8px);
+
+        &:hover {
+          border-color: var(--gf-primary, #576690);
+          background: rgba(87, 102, 144, 0.05);
+          transform: translateY(-2px);
+        }
+
+        &.active {
+          border-color: var(--gf-primary, #576690);
+          background: rgba(87, 102, 144, 0.1);
+          box-shadow: 0 4px 12px rgba(87, 102, 144, 0.15);
+        }
+
+        .package-quantity {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--gf-text-main, #1d2129);
+          margin-bottom: 4px;
+        }
+
+        .package-price {
+          font-size: 18px;
+          font-weight: 600;
+          color: var(--gf-accent, #9d2933);
+        }
+      }
+    }
+  }
+
+  .payment-summary {
+    background: rgba(250, 251, 252, 0.8);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 14px;
+      color: var(--gf-text-main, #1d2129);
+
+      &.total {
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        padding-top: 12px;
+        margin-top: 8px;
+        font-size: 16px;
+        font-weight: 600;
+
+        .price {
+          font-size: 20px;
+          color: var(--gf-accent, #9d2933);
+        }
+      }
+    }
+  }
+
+  .payment-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+  }
+}
+
+// 支付方式选择弹窗样式
+.payment-method-modal {
+  :global(.arco-modal-body) {
+    padding: 24px;
+  }
+}
+
+.payment-method-content {
+  .order-info {
+    background: rgba(250, 251, 252, 0.8);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+
+    .order-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 14px;
+      color: var(--gf-text-main, #1d2129);
+
+      .order-amount {
+        font-size: 20px;
+        color: var(--gf-accent, #9d2933);
+        font-weight: 600;
+      }
+
+      .order-id {
+        font-family: monospace;
+        font-size: 12px;
+        color: var(--gf-text-secondary, #86909c);
+      }
+    }
+  }
+
+  .payment-methods-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .payment-method-item {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      border: 2px solid rgba(0, 0, 0, 0.06);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(8px);
+      position: relative;
+
+      &:hover:not(.disabled) {
+        border-color: var(--gf-primary, #576690);
+        background: rgba(87, 102, 144, 0.05);
+        transform: translateX(4px);
+      }
+
+      &.selected {
+        border-color: var(--gf-primary, #576690);
+        background: rgba(87, 102, 144, 0.1);
+        box-shadow: 0 4px 12px rgba(87, 102, 144, 0.15);
+      }
+
+      &.disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .method-icon {
+        font-size: 32px;
+        margin-right: 16px;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(87, 102, 144, 0.05);
+        border-radius: 8px;
+      }
+
+      .method-info {
+        flex: 1;
+
+        .method-name {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--gf-text-main, #1d2129);
+          margin-bottom: 4px;
+        }
+
+        .method-desc {
+          font-size: 13px;
+          color: var(--gf-text-secondary, #86909c);
+        }
+      }
+
+      .method-loading {
+        font-size: 13px;
+        color: var(--gf-primary, #576690);
+        font-weight: 500;
+      }
+
+      .method-check {
+        color: var(--gf-primary, #576690);
+        font-size: 20px;
+      }
+    }
+  }
+}

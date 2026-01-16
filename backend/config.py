@@ -38,6 +38,12 @@ class Config:
     ENABLE_CONTENT_VALIDATION = os.getenv("ENABLE_CONTENT_VALIDATION", "true").lower() == "true"
     CONTENT_VALIDATION_STRICT = os.getenv("CONTENT_VALIDATION_STRICT", "true").lower() == "true"  # 严格模式
     MIN_CHINESE_RATIO = float(os.getenv("MIN_CHINESE_RATIO", "0.6"))  # 最小中文比例
+    
+    # 文件存储配置
+    STORAGE_DIR = os.getenv("STORAGE_DIR", "./storage")  # 文件存储目录
+    IMAGES_DIR = os.path.join(STORAGE_DIR, "images")  # 图片存储目录
+    VIDEOS_DIR = os.path.join(STORAGE_DIR, "videos")  # 视频存储目录
+    STATIC_URL_PREFIX = os.getenv("STATIC_URL_PREFIX", "/static/media")  # 静态文件URL前缀
 
 config = Config()
 
