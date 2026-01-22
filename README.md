@@ -27,6 +27,7 @@
 - **快速搜索**：支持按诗词标题、作者、内容关键词搜索
 - **一键选用**：点击诗词卡片即可将内容填入输入框进行图像生成
 - **自定义收藏**：支持添加、管理用户自定义的诗词/古文内容
+- **状态记忆**：选择诗词后返回页面，再次进入时会自动恢复到上次选择的位置
 
 ### 墨迹留痕（作品管理）
 
@@ -36,6 +37,7 @@
 - **一键查看**：点击卡片即可重新查看完整的故事书/连环画/视频
 - **批量管理**：支持单个删除或一键清空所有作品
 - **视频支持**：支持视频作品的预览、下载和全屏播放
+- **智能删除**：只有在同时删除对话和卡片时，才在后端存储中删除对应的图片/视频文件，避免误删
 
 ## 技术栈
 
@@ -75,8 +77,9 @@
 │   │       │   └── poetryData.ts      # 古诗词数据
 │   │       ├── utils/         # 工具函数
 │   │       │   ├── index.ts           # 通用工具
-│   │       │   ├── chatHistory.ts     # 聊天历史管理
-│   │       │   └── generations.ts     # 作品记录管理
+│   │       │   ├── history.ts         # 聊天历史管理
+│   │       │   ├── generations.ts     # 作品记录管理
+│   │       │   └── imageReference.ts  # 图片/视频引用检查工具
 │   │       ├── apis/          # API 接口
 │   │       └── routes/        # 路由页面
 │   └── package.json           # 前端依赖
@@ -200,11 +203,13 @@ pnpm dev
 - `POST /api/image/generate` - 生成图像
 - `POST /api/image/generate_stream` - 流式生成图像
 - `GET /api/image/tasks/active` - 获取活跃的图像生成任务
+- `POST /api/image/delete` - 批量删除图片文件
 
 ### 视频生成
 - `POST /api/video/generate` - 生成视频（同步）
 - `POST /api/video/generate_async` - 生成视频（异步）
 - `GET /api/video/task/{task_id}` - 查询视频生成任务状态
+- `POST /api/video/delete` - 批量删除视频文件
 
 ### 项目管理
 - `POST /api/project/create` - 创建项目
@@ -240,6 +245,8 @@ pnpm dev
 - ✅ 连环画模式支持文字显示（封面显示标题、朝代、作者，画面显示对应诗句）
 - ✅ 智能断句：自动识别并过滤标题和作者行
 - ✅ API 调用添加重试机制，提高稳定性
+- ✅ **智能删除机制**：只有在同时删除对话和卡片时，才在后端存储中删除对应的图片/视频文件，避免误删
+- ✅ **诗词雅集状态记忆**：选择诗词后返回页面，再次进入时会自动恢复到上次选择的位置
 
 ## 性能优化
 
@@ -319,22 +326,23 @@ python -c "from app.database import init_db; init_db()"
 - `backend/app/api/` - API 路由层，处理 HTTP 请求
   - `auth.py` - 用户认证相关接口
   - `text.py` - 文本分析接口
-  - `image.py` - 图像生成接口
-  - `video.py` - 视频生成接口
+  - `image.py` - 图像生成接口（包含图片删除接口）
+  - `video.py` - 视频生成接口（包含视频删除接口）
   - `project.py` - 项目管理接口
 - `backend/app/services/` - 业务逻辑层，包含核心功能实现
   - `auth.py` - 认证服务（统一认证逻辑）
   - `text_analyzer.py` - 文本分析服务（智能断句、分镜生成）
   - `image_generator.py` - 图像生成服务
   - `video_generator.py` - 视频生成服务
+  - `file_storage.py` - 文件存储服务（图片/视频下载、删除）
   - `task_manager.py` - 任务管理服务（自动清理过期任务）
   - `editor.py` - 编辑器服务
 - `backend/app/models/` - 数据模型层，定义数据库表结构
 - `frontend/src/storybook-web/` - 主应用模块
   - `routes/page.tsx` - 主页面组件
   - `components/` - 页面组件（历史记录、诗词库、作品管理等）
-  - `utils/` - 工具函数（历史记录、作品管理等）
-  - `apis/` - API 接口封装
+  - `utils/` - 工具函数（历史记录、作品管理、图片/视频引用检查等）
+  - `apis/` - API 接口封装（包含图片/视频删除接口）
 
 ## 部署
 
