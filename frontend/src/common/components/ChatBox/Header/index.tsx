@@ -26,17 +26,39 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, onMenuClick }) => (
       {onMenuClick && (
         <button
           onClick={onMenuClick}
-          className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-1.5 sm:p-2 hover:bg-white/5 rounded-lg transition-colors group"
           aria-label="打开历史对话"
         >
-          <IconMenu className="text-gray-600 w-5 h-5 sm:w-6 sm:h-6" />
+          <IconMenu className="text-white/60 group-hover:text-cyan-400 w-5 h-5 sm:w-6 sm:h-6 transition-colors" />
         </button>
       )}
       <div className="flex items-baseline gap-1.5 sm:gap-2">
-        <div className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 truncate">{title}</div>
-        <div className="text-xs sm:text-sm text-gray-400 hidden sm:inline">{subtitle}</div>
+        {/* Logo 带霓虹光晕效果 */}
+        <div className="relative">
+          <div className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent truncate">
+            {title}
+          </div>
+          {/* 发光效果层 */}
+          <div 
+            className="absolute inset-0 text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent truncate blur-sm opacity-50 pointer-events-none"
+            aria-hidden="true"
+          >
+            {title}
+          </div>
+        </div>
+        <div className="text-xs sm:text-sm text-white/40 hidden sm:inline font-mono">
+          {subtitle}
+        </div>
       </div>
     </div>
+    
+    {/* 底部渐变分割线 */}
+    <div 
+      className="absolute bottom-0 left-0 right-0 h-[1px]"
+      style={{
+        background: 'linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), rgba(177, 74, 237, 0.3), transparent)',
+      }}
+    />
   </div>
 );
 

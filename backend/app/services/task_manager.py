@@ -78,6 +78,7 @@ class TaskManager:
         self._cleanup_interval = 3600  # 1小时清理一次过期任务
         self._task_ttl = 86400  # 任务保留24小时
         self._cleanup_timer: Optional[threading.Timer] = None
+        self._max_concurrent_tasks = 5  # 最大并发任务数
         # 启动后台清理任务
         self._start_cleanup_timer()
     
@@ -167,8 +168,14 @@ class TaskManager:
         now = datetime.now()
         expired_tasks = []
         for task_id, task in self.tasks.items():
+            # 只清理已完成或失败的任务，运行中的任务不清理
             if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
                 if task.completed_at and (now - task.completed_at).total_seconds() > self._task_ttl:
+                    expired_tasks.append(task_id)
+            # 对于运行中的任务，如果超过24小时未更新，也清理（可能是异常情况）
+            elif task.status == TaskStatus.RUNNING:
+                if task.updated_at and (now - task.updated_at).total_seconds() > self._task_ttl:
+                    logger.warning(f"清理长时间未更新的运行中任务: {task_id}, 最后更新: {task.updated_at}")
                     expired_tasks.append(task_id)
         
         if expired_tasks:
@@ -198,6 +205,11 @@ class TaskManager:
             for task in self.tasks.values() 
             if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]
         ]
+    
+    def can_start_new_task(self) -> bool:
+        """检查是否可以启动新任务（基于并发限制）"""
+        running_count = sum(1 for task in self.tasks.values() if task.status == TaskStatus.RUNNING)
+        return running_count < self._max_concurrent_tasks
 
 
 # 全局任务管理器实例

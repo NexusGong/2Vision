@@ -26,6 +26,7 @@ import { logout, getOrCreateSessionId } from "../apis/auth";
 import "@arco-design/web-react/dist/css/arco.min.css";
 import "../styles/arco.css";
 import "../styles/global.css";
+import "../styles/cyber-theme.css";
 import "./index.css";
 
 function LayoutContent() {
@@ -82,7 +83,7 @@ function LayoutContent() {
       {/* 动态背景组件 */}
       <DynamicBackground />
       
-      {/* 用户菜单栏 */}
+      {/* 用户菜单栏 - 科技风样式 */}
       <div
         style={{
           position: "fixed",
@@ -98,23 +99,33 @@ function LayoutContent() {
           <>
             <Dropdown
               droplist={
-                <div>
+                <div className="py-1" style={{ 
+                  background: 'rgba(15, 15, 25, 0.95)', 
+                  border: '1px solid rgba(0, 212, 255, 0.2)',
+                  borderRadius: '12px',
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 212, 255, 0.1)'
+                }}>
                   {userMenuItems.map((item) => (
                     <div
                       key={item.key}
                       onClick={item.onClick}
                       style={{
-                        padding: "8px 12px",
+                        padding: "10px 16px",
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
-                        gap: "8px",
+                        gap: "10px",
+                        color: "rgba(255, 255, 255, 0.8)",
+                        transition: "all 0.2s",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "var(--color-bg-4)";
+                        e.currentTarget.style.backgroundColor = "rgba(0, 212, 255, 0.1)";
+                        e.currentTarget.style.color = "#00d4ff";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)";
                       }}
                     >
                       {item.icon}
@@ -124,19 +135,55 @@ function LayoutContent() {
                 </div>
               }
             >
-              <Avatar size={32} style={{ cursor: "pointer" }}>
-                {user?.avatar ? (
-                  <img src={user.avatar} alt="avatar" />
-                ) : (
-                  user?.nickname?.[0] || user?.username[0]
-                )}
-              </Avatar>
+              <div 
+                className="relative cursor-pointer group"
+                style={{
+                  padding: '2px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(177, 74, 237, 0.3))',
+                }}
+              >
+                <Avatar 
+                  size={32} 
+                  style={{ 
+                    cursor: "pointer",
+                    background: 'rgba(15, 15, 25, 0.9)',
+                    border: 'none',
+                    color: '#00d4ff',
+                  }}
+                >
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="avatar" />
+                  ) : (
+                    user?.nickname?.[0] || user?.username[0]
+                  )}
+                </Avatar>
+              </div>
             </Dropdown>
           </>
         ) : (
-          <Button type="primary" onClick={() => setAuthModalVisible(true)}>
-            登录/注册
-          </Button>
+          <button 
+            onClick={() => setAuthModalVisible(true)}
+            className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300"
+            style={{
+              background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(177, 74, 237, 0.2))',
+              border: '1px solid rgba(0, 212, 255, 0.3)',
+              color: '#00d4ff',
+              boxShadow: '0 0 20px rgba(0, 212, 255, 0.1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(177, 74, 237, 0.3))';
+              e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.5)';
+              e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 212, 255, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(177, 74, 237, 0.2))';
+              e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.3)';
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 212, 255, 0.1)';
+            }}
+          >
+            登录
+          </button>
         )}
       </div>
 

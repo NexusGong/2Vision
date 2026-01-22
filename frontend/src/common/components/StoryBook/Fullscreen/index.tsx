@@ -163,7 +163,7 @@ const FullScreen: FC<FullScreenProps> = (props) => {
           onOpen?.();
         }}
         className={cls(
-          "cursor-pointer inline-flex items-center justify-center p-[2px] hover:bg-[#E1E3EF] rounded-[4px] transition-colors",
+          "cursor-pointer inline-flex items-center justify-center p-[2px] hover:bg-white/10 rounded-[4px] transition-colors text-white/70 hover:text-cyan-400",
           containerClassName
         )}
         // whileHover={{ scale: 1.2 }}
@@ -178,7 +178,7 @@ const FullScreen: FC<FullScreenProps> = (props) => {
           <>
             {/* 背景遮罩 */}
             <motion.div
-              className="fixed inset-0 bg-black/50 z-40"
+              className="fixed inset-0 bg-black/70 z-40"
               variants={overlayVariants}
               initial="hidden"
               animate="visible"
@@ -189,10 +189,13 @@ const FullScreen: FC<FullScreenProps> = (props) => {
             {/* 主容器 */}
             <motion.div
               className={cls(
-                "w-full h-full flex flex-col fixed top-0 left-0 z-[999] bg-white !ml-0",
+                "w-full h-full flex flex-col fixed top-0 left-0 z-[999] !ml-0",
                 className
               )}
-              style={style}
+              style={{
+                ...style,
+                background: 'linear-gradient(135deg, rgba(15, 15, 25, 0.98), rgba(25, 25, 40, 0.98))',
+              }}
               variants={containerVariants}
               initial="hidden"
               animate="visible"
@@ -200,7 +203,11 @@ const FullScreen: FC<FullScreenProps> = (props) => {
             >
               {/* 头部导航栏 */}
               <motion.div
-                className="w-full flex items-center justify-between py-4 px-5 border-b border-gray-200"
+                className="w-full flex items-center justify-between py-4 px-5"
+                style={{
+                  borderBottom: '1px solid rgba(0, 212, 255, 0.2)',
+                  background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(177, 74, 237, 0.05))',
+                }}
                 variants={headerVariants}
               >
                 <div className="flex items-center gap-4 flex-1 justify-start w-0">
@@ -210,7 +217,7 @@ const FullScreen: FC<FullScreenProps> = (props) => {
                     <>
                       <motion.div
                         onClick={handleClose}
-                        className="cursor-pointer rounded-lg transition-colors flex items-center justify-center hover:bg-[#E1E3EF] rounded-[4px] flex-none"
+                        className="cursor-pointer rounded-lg transition-colors flex items-center justify-center hover:bg-white/10 rounded-[4px] flex-none text-white/70 hover:text-cyan-400"
                         // whileHover={{ scale: 1.1, rotate: 90 }}
                         // whileTap={{ scale: 0.95 }}
                         // transition={{ duration: 0.2, ease: 'easeInOut',hover:bg-gray-100 }}
@@ -223,9 +230,9 @@ const FullScreen: FC<FullScreenProps> = (props) => {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2, duration: 0.3 }}
                       >
-                        <div className="w-[1px] h-5 bg-gray-200"></div>
-                        <IconBook className="w-5 h-5 flex-none" />
-                        <div className="font-medium text-gray-900 line-clamp-1 truncate">
+                        <div className="w-[1px] h-5 bg-cyan-500/30"></div>
+                        <IconBook className="w-5 h-5 flex-none text-cyan-400" />
+                        <div className="font-medium text-white/90 line-clamp-1 truncate">
                           {title}
                         </div>
                       </motion.div>
@@ -259,7 +266,7 @@ const FullScreen: FC<FullScreenProps> = (props) => {
                     // transition={{ duration: 0.2, ease: 'easeInOut'hover:bg-gray-100 }}
                     onClick={handleFullScreenClose}
                   >
-                    <div className="w-fit hover:bg-[#E1E3EF] rounded-[4px]">
+                    <div className="w-fit hover:bg-white/10 rounded-[4px] text-white/70 hover:text-cyan-400 transition-colors">
                       <IconZoomIn className="w-6 h-6 cursor-pointer" />
                     </div>
                   </motion.div>
@@ -280,7 +287,7 @@ const FullScreen: FC<FullScreenProps> = (props) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4, duration: 0.3 }}
-                  className="border-t border-gray-200"
+                  style={{ borderTop: '1px solid rgba(0, 212, 255, 0.2)' }}
                 >
                   {footer}
                 </motion.div>

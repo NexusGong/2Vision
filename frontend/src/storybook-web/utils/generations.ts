@@ -207,13 +207,42 @@ export function getGenerationRecordById(id: string): GenerationRecord | null {
 /**
  * 删除生成记录
  */
-export function deleteGenerationRecord(id: string): boolean {
+export async function deleteGenerationRecord(id: string): Promise<boolean> {
   try {
     const records = getGenerationRecords();
+    const record = records.find((r) => r.id === id);
+    
+    // 先删除卡片记录
     const filtered = records.filter((r) => r.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     // 触发更新事件
     window.dispatchEvent(new Event("generations-updated"));
+    
+    // 然后检查并删除未被引用的图片
+    if (record) {
+      // 提取图片URL
+      const imageUrls: string[] = [];
+      if (record.data?.Items) {
+        for (const item of record.data.Items) {
+          if (item?.Url) {
+            imageUrls.push(item.Url);
+          }
+        }
+      }
+      // 也提取封面URL
+      if (record.coverUrl) {
+        imageUrls.push(record.coverUrl);
+      }
+      
+      if (imageUrls.length > 0) {
+        // 使用图片引用检查工具，只删除未被引用的图片
+        const { deleteUnreferencedImages } = await import("./imageReference");
+        deleteUnreferencedImages(imageUrls, undefined, id).catch(() => {
+          // 静默处理错误，不影响删除操作
+        });
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error("删除生成记录失败:", error);
@@ -224,11 +253,40 @@ export function deleteGenerationRecord(id: string): boolean {
 /**
  * 清空所有生成记录
  */
-export function clearAllGenerationRecords(): boolean {
+export async function clearAllGenerationRecords(): Promise<boolean> {
   try {
+    // 在清空前提取所有图片URL
+    const records = getGenerationRecords();
+    const allImageUrls: string[] = [];
+    
+    for (const record of records) {
+      // 提取封面URL
+      if (record.coverUrl) {
+        allImageUrls.push(record.coverUrl);
+      }
+      // 提取所有图片URL
+      if (record.data?.Items) {
+        for (const item of record.data.Items) {
+          if (item?.Url) {
+            allImageUrls.push(item.Url);
+          }
+        }
+      }
+    }
+    
+    // 先清空卡片记录
     localStorage.removeItem(STORAGE_KEY);
     // 触发更新事件
     window.dispatchEvent(new Event("generations-updated"));
+    
+    // 然后检查并删除未被引用的图片（所有卡片都已删除，所以不需要excludeRecordId）
+    if (allImageUrls.length > 0) {
+      const { deleteUnreferencedImages } = await import("./imageReference");
+      deleteUnreferencedImages(allImageUrls).catch(() => {
+        // 静默处理错误，不影响删除操作
+      });
+    }
+    
     return true;
   } catch (error) {
     console.error("清空生成记录失败:", error);
@@ -362,19 +420,51 @@ export function getVideoGenerationRecordById(id: string): VideoGenerationRecord 
 /**
  * 删除视频生成记录
  */
-export function deleteVideoGenerationRecord(id: string): boolean {
+export async function deleteVideoGenerationRecord(id: string): Promise<boolean> {
   try {
     if (id === "all") {
-      // 清空所有视频记录
+      // 在清空前提取所有视频URL
+      const records = getVideoGenerationRecords();
+      const allVideoUrls: string[] = [];
+      
+      for (const record of records) {
+        if (record.videoUrl) {
+          allVideoUrls.push(record.videoUrl);
+        }
+      }
+      
+      // 先清空视频记录
       localStorage.removeItem(VIDEO_STORAGE_KEY);
       window.dispatchEvent(new Event("generations-updated"));
+      
+      // 然后检查并删除未被引用的视频（所有视频记录都已删除，所以不需要excludeRecordId）
+      if (allVideoUrls.length > 0) {
+        const { deleteUnreferencedVideos } = await import("./imageReference");
+        deleteUnreferencedVideos(allVideoUrls).catch(() => {
+          // 静默处理错误，不影响删除操作
+        });
+      }
+      
       return true;
     }
+    
     const records = getVideoGenerationRecords();
+    const record = records.find((r) => r.id === id);
+    
+    // 先删除视频记录
     const filtered = records.filter((r) => r.id !== id);
     localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(filtered));
     // 触发更新事件
     window.dispatchEvent(new Event("generations-updated"));
+    
+    // 然后检查并删除未被引用的视频
+    if (record && record.videoUrl) {
+      const { deleteUnreferencedVideos } = await import("./imageReference");
+      deleteUnreferencedVideos([record.videoUrl], undefined, id).catch(() => {
+        // 静默处理错误，不影响删除操作
+      });
+    }
+    
     return true;
   } catch (error) {
     console.error("删除视频生成记录失败:", error);

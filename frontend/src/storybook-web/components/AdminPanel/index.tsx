@@ -279,8 +279,8 @@ const AdminPanel: React.FC = () => {
             {record.username.charAt(0).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontWeight: 500 }}>{record.username}</div>
-            <div style={{ fontSize: 12, color: "#8c8c8c" }}>{record.email}</div>
+            <div style={{ fontWeight: 500, color: "rgba(255, 255, 255, 0.9)" }}>{record.username}</div>
+            <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.4)" }}>{record.email}</div>
           </div>
         </Space>
       ),
@@ -303,8 +303,8 @@ const AdminPanel: React.FC = () => {
       title: "使用情况",
       render: (_: any, record: UserListItem) => (
         <div>
-          <div>剩余: {record.free_usage_count} 次</div>
-          <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+          <div style={{ color: "rgba(255, 255, 255, 0.9)" }}>剩余: {record.free_usage_count} 次</div>
+          <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.4)" }}>
             总计: {record.total_usage_count} 次
           </div>
         </div>
@@ -341,8 +341,8 @@ const AdminPanel: React.FC = () => {
       title: "用户",
       render: (_: any, record: any) => (
         <div>
-          <div>{record.username}</div>
-          <div style={{ fontSize: 12, color: "#8c8c8c" }}>{record.email}</div>
+          <div style={{ color: "rgba(255, 255, 255, 0.9)" }}>{record.username}</div>
+          <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.4)" }}>{record.email}</div>
         </div>
       ),
     },
@@ -528,26 +528,26 @@ const AdminPanel: React.FC = () => {
                       <div
                         key={type}
                         style={{
-                          background: "#fafbfc",
-                          borderRadius: "6px",
-                          padding: "16px",
+                          background: "rgba(20, 20, 35, 0.8)",
+                          borderRadius: "12px",
+                          padding: "20px",
                           textAlign: "center",
-                          border: "1px solid #e5e6eb",
-                          transition: "all 0.2s ease"
+                          border: "1px solid rgba(0, 212, 255, 0.15)",
+                          transition: "all 0.3s ease"
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = "#c9cdd4";
-                          e.currentTarget.style.background = "#f7f8fa";
+                          e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.4)";
+                          e.currentTarget.style.background = "rgba(0, 212, 255, 0.1)";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = "#e5e6eb";
-                          e.currentTarget.style.background = "#fafbfc";
+                          e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.15)";
+                          e.currentTarget.style.background = "rgba(20, 20, 35, 0.8)";
                         }}
                       >
-                        <div style={{ fontSize: 24, fontWeight: 600, marginBottom: 4, color: "#1d2129" }}>
+                        <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8, background: "linear-gradient(135deg, #00d4ff, #b14aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                           {count}
                         </div>
-                        <div style={{ fontSize: 13, color: "#86909c" }}>
+                        <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.5)" }}>
                           {typeLabels[type] || type}
                         </div>
                       </div>
@@ -571,25 +571,25 @@ const AdminPanel: React.FC = () => {
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
-                        padding: "12px 16px",
-                        background: "#fafbfc",
-                        borderRadius: "6px",
-                        border: "1px solid #e5e6eb",
-                        transition: "all 0.2s ease"
+                        padding: "14px 20px",
+                        background: "rgba(20, 20, 35, 0.8)",
+                        borderRadius: "10px",
+                        border: "1px solid rgba(0, 212, 255, 0.15)",
+                        transition: "all 0.3s ease"
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "#c9cdd4";
-                        e.currentTarget.style.background = "#f7f8fa";
+                        e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.4)";
+                        e.currentTarget.style.background = "rgba(0, 212, 255, 0.1)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "#e5e6eb";
-                        e.currentTarget.style.background = "#fafbfc";
+                        e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.15)";
+                        e.currentTarget.style.background = "rgba(20, 20, 35, 0.8)";
                       }}
                     >
-                      <span style={{ fontSize: "13px", color: "#1d2129" }}>
+                      <span style={{ fontSize: "14px", color: "rgba(255, 255, 255, 0.9)" }}>
                         {country || "未知"}
                       </span>
-                      <span style={{ fontSize: "13px", fontWeight: 500, color: "#4e5969" }}>
+                      <span style={{ fontSize: "14px", fontWeight: 600, color: "#00d4ff" }}>
                         {count}
                       </span>
                     </div>
@@ -615,6 +615,7 @@ const AdminPanel: React.FC = () => {
               </Button>
             </div>
             <Table
+              rowKey="id"
               columns={userColumns}
               data={users}
               loading={loading}
@@ -707,6 +708,7 @@ const AdminPanel: React.FC = () => {
           </div>
           <div className="table-container">
             <Table
+              rowKey="id"
               columns={usageRecordColumns}
               data={usageRecords}
               loading={loading}
@@ -761,16 +763,18 @@ const AdminPanel: React.FC = () => {
                   <div className="stat-value">{Math.round(health.avg_response_time_ms)}ms</div>
                 </div>
               </div>
-              <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #e5e6eb" }}>
+              <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid rgba(0, 212, 255, 0.1)" }}>
                 <div style={{ 
                   display: "inline-flex", 
                   alignItems: "center", 
                   gap: 8,
-                  padding: "6px 12px",
-                  borderRadius: "4px",
-                  background: health.status === "healthy" ? "#e8f5e9" : "#fff3e0",
-                  color: health.status === "healthy" ? "#2e7d32" : "#e65100",
-                  fontSize: "13px"
+                  padding: "10px 20px",
+                  borderRadius: "10px",
+                  background: health.status === "healthy" ? "rgba(0, 255, 204, 0.1)" : "rgba(255, 107, 53, 0.1)",
+                  border: health.status === "healthy" ? "1px solid rgba(0, 255, 204, 0.3)" : "1px solid rgba(255, 107, 53, 0.3)",
+                  color: health.status === "healthy" ? "#00ffcc" : "#ff6b35",
+                  fontSize: "14px",
+                  fontWeight: 500
                 }}>
                   <span>{health.status === "healthy" ? "✓" : "⚠"}</span>
                   <span>{health.status === "healthy" ? "系统健康" : "系统警告"}</span>
@@ -784,6 +788,7 @@ const AdminPanel: React.FC = () => {
                 最近使用记录
               </div>
               <Table
+                rowKey="id"
                 columns={[
                   { title: "ID", dataIndex: "id", width: 80 },
                   {
@@ -824,8 +829,8 @@ const AdminPanel: React.FC = () => {
           <div className="table-container">
             <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>支付订单列表</h3>
-                <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#86909c" }}>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>支付订单列表</h3>
+                <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "rgba(255, 255, 255, 0.4)" }}>
                   查看所有用户的支付记录和订单状态
                 </p>
               </div>
@@ -834,6 +839,7 @@ const AdminPanel: React.FC = () => {
               </Button>
             </div>
             <Table
+              rowKey="id"
               columns={paymentColumns}
               data={payments}
               loading={loading}
@@ -846,24 +852,24 @@ const AdminPanel: React.FC = () => {
         <Tabs.TabPane title="支付测试" key="payment-test">
           <div className="table-container">
             <div style={{ marginBottom: 24 }}>
-              <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 600 }}>支付测试工具</h3>
-              <p style={{ margin: 0, fontSize: 13, color: "#86909c" }}>
+              <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>支付测试工具</h3>
+              <p style={{ margin: 0, fontSize: 13, color: "rgba(255, 255, 255, 0.4)" }}>
                 用于测试支付流程，创建模拟支付订单并完成支付
               </p>
             </div>
             
             <div style={{ 
-              background: "rgba(255, 255, 255, 0.8)",
-              backdropFilter: "blur(8px)",
-              borderRadius: 12,
+              background: "rgba(20, 20, 35, 0.8)",
+              backdropFilter: "blur(12px)",
+              borderRadius: 16,
               padding: 24,
-              border: "1px solid rgba(0, 0, 0, 0.06)",
+              border: "1px solid rgba(0, 212, 255, 0.2)",
               marginBottom: 24
             }}>
-              <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600 }}>创建测试订单</h4>
+              <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>创建测试订单</h4>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500 }}>支付类型</label>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>支付类型</label>
                   <Select
                     placeholder="选择支付类型"
                     style={{ width: "100%" }}
@@ -875,7 +881,7 @@ const AdminPanel: React.FC = () => {
                   </Select>
                 </div>
                 <div>
-                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500 }}>购买数量</label>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>购买数量</label>
                   <InputNumber
                     value={paymentTestForm.quantity}
                     onChange={(val) => setPaymentTestForm({ ...paymentTestForm, quantity: val || 0 })}
@@ -899,8 +905,9 @@ const AdminPanel: React.FC = () => {
 
             {paymentTestOrders.length > 0 && (
               <div>
-                <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600 }}>测试订单列表</h4>
+                <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>测试订单列表</h4>
                 <Table
+                  rowKey="transaction_id"
                   columns={[
                     { title: "订单ID", dataIndex: "order_id", width: 100 },
                     { title: "交易ID", dataIndex: "transaction_id", width: 200, ellipsis: true },
@@ -961,14 +968,15 @@ const AdminPanel: React.FC = () => {
       <Drawer
         width={720}
         title={
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>用户详情</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", paddingRight: 50 }}>
+            <span style={{ fontSize: 18, fontWeight: 600 }}>用户详情</span>
             {!isEditing && (
               <Button
                 type="primary"
                 icon={<IconEdit />}
                 onClick={() => setIsEditing(true)}
                 size="small"
+                style={{ marginLeft: 24 }}
               >
                 编辑
               </Button>
@@ -1131,6 +1139,7 @@ const AdminPanel: React.FC = () => {
                 )}
                 <div className="chart-title">最近使用记录</div>
                 <Table
+                  rowKey="id"
                   columns={usageRecordColumns}
                   data={selectedUser.usage_records?.slice(0, 10) || []}
                   pagination={false}

@@ -49,6 +49,7 @@ import {
   formatPromptData2Params,
   formatImageUrl,
   ensureImageUrl,
+  getImageUrlWithFallback,
   formatFileName,
   downloadImages,
   downloadVideo,
@@ -105,19 +106,48 @@ const Index = () => {
     title?: string;
   } | undefined>();
   const storyDataList = useMemo(
-    () =>
-      (storybookDetail?.Items?.map((item, index) => {
+    () => {
+      if (!storybookDetail?.Items) {
+        return [];
+      }
+      
+      const result = storybookDetail.Items.map((item, index) => {
+        // 调试：检查文本字段
+        if (process.env.NODE_ENV === 'development' && !item.Text) {
+          console.warn(`storyDataList: 项目 ${index} 的 Text 字段为空`, { 
+            item, 
+            IsCover: item.IsCover, 
+            Url: item.Url,
+            Text: item.Text 
+          });
+        }
+        
         return {
           id: index,
           isCover: item.IsCover || index === 0,
           title: storybookDetail.Title || "",
           url: item?.Url || "",
-          text: item?.Text || "",
-          showTitle: item.IsCover,
+          originalUrl: item?.OriginalUrl || "", // 传递原始URL用于回退
+          text: item?.Text || "", // 内容页需要文本，封面不需要
+          showTitle: false, // 封面不需要显示额外文本，图片本身已包含
           pageNumber: index + 1,
           pageTotal: storybookDetail?.Items?.length || 0,
         };
-      }) as unknown as IDataItem[]) || [],
+      }) as unknown as IDataItem[];
+      
+      // 调试：检查最终数据
+      if (process.env.NODE_ENV === 'development') {
+        console.log('storyDataList 最终数据:', result.map((item, idx) => ({
+          index: idx,
+          isCover: item.isCover,
+          hasText: !!item.text,
+          textLength: item.text?.length || 0,
+          textPreview: item.text?.substring(0, 20) || ''
+        })));
+      }
+      
+      return result;
+    },
     [storybookDetail]
   );
 
@@ -454,24 +484,51 @@ const Index = () => {
           // 等待状态更新后再开始轮询
           await new Promise(resolve => setTimeout(resolve, 100));
           
-          // 开始轮询
-          if (task.task_type === "storyboard_generation") {
-            pollTaskStatus(task.task_id, messageId, historyId);
-          } else if (task.task_type === "poetry_analysis") {
-            pollAnalysisTaskStatus(task.task_id, messageId, historyId);
-          } else if (task.task_type === "video_generation") {
-            // 视频生成任务：需要从消息数据中获取参数
-            const params = existingMsg?.data?.params || {};
-            const analysisData = existingMsg?.data?.analysisData;
-            // 查找父消息（analysis消息）以获取 analysisData
-            let finalAnalysisData = analysisData;
-            if (!finalAnalysisData && history.messages) {
-              const parentMsg = history.messages.find((m) => m.id === existingMsg?.parentId);
-              if (parentMsg?.type === "analysis" && parentMsg.data?.analysisData) {
-                finalAnalysisData = parentMsg.data.analysisData;
+          // 关键修复：即使消息已经是 loading 状态，也要确保轮询启动
+          // 检查轮询是否已经在运行
+          const taskPollingKey = task.task_type === "video_generation" ? `video_${task.task_id}` : task.task_id;
+          const isPolling = pollingTasksRef.current.has(taskPollingKey);
+          
+          // 开始轮询（如果还没有启动）
+          // 重要：即使消息已经是 loading 状态，如果轮询没有运行，也要启动轮询
+          // 这确保了在页面刷新或切换后，任务能够继续运行
+          if (!isPolling) {
+            if (task.task_type === "storyboard_generation") {
+              pollTaskStatus(task.task_id, messageId, historyId);
+            } else if (task.task_type === "poetry_analysis") {
+              pollAnalysisTaskStatus(task.task_id, messageId, historyId);
+            } else if (task.task_type === "video_generation") {
+              // 视频生成任务：需要从消息数据中获取参数
+              const params = existingMsg?.data?.params || {};
+              const analysisData = existingMsg?.data?.analysisData;
+              // 查找父消息（analysis消息）以获取 analysisData
+              let finalAnalysisData = analysisData;
+              if (!finalAnalysisData && history.messages) {
+                const parentMsg = history.messages.find((m) => m.id === existingMsg?.parentId);
+                if (parentMsg?.type === "analysis" && parentMsg.data?.analysisData) {
+                  finalAnalysisData = parentMsg.data.analysisData;
+                }
               }
+              pollVideoTaskStatus(task.task_id, messageId, historyId, params, finalAnalysisData);
             }
-            pollVideoTaskStatus(task.task_id, messageId, historyId, params, finalAnalysisData);
+          } else {
+            // 如果轮询已经在运行，确保消息状态是 loading
+            // 这处理了消息状态可能被意外改变的情况
+            if (existingMsg && existingMsg.status !== "loading") {
+              // 如果消息状态不是 loading，但任务还在运行，更新消息状态
+              setMessages((prev) => {
+                const msgIndex = prev.findIndex((m) => m.id === messageId);
+                if (msgIndex >= 0 && prev[msgIndex].status !== "loading") {
+                  const updated = [...prev];
+                  updated[msgIndex] = {
+                    ...prev[msgIndex],
+                    status: "loading",
+                  };
+                  return updated;
+                }
+                return prev;
+              });
+            }
           }
         }
         
@@ -619,12 +676,15 @@ const Index = () => {
           }
         }
         
-        // 等待一个tick，确保状态更新完成后再恢复任务
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // 等待状态更新完成后再恢复任务
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // 检查是否有正在运行的后台任务，如果有，会确保loading消息正确显示并恢复轮询
         // 强制检查（页面加载时需要检查）
-        checkAndResumeActiveTasks(true);
+        // 使用 setTimeout 确保在下一个事件循环中执行，避免阻塞渲染
+        setTimeout(() => {
+          checkAndResumeActiveTasks(true);
+        }, 100);
       } catch (e) {
         // 静默处理错误，避免暴露内部信息
       }
@@ -780,11 +840,26 @@ const Index = () => {
           // 过滤掉空URL的项，只保留有效图片
           const items = resultData
             .filter((item: any) => item.image_url && item.image_url.trim() !== "")
-            .map((item: any) => ({
-              Url: item.image_url || "",
-              Text: item.text || "",
-              IsCover: item.is_cover || false,
-            }));
+            .map((item: any) => {
+              // 调试：检查后端返回的数据
+              if (process.env.NODE_ENV === 'development') {
+                if (!item.text && item.is_cover === false) {
+                  console.warn(`轮询任务: 非封面项的 text 字段为空`, { 
+                    item, 
+                    storyboard_index: item.storyboard_index,
+                    is_cover: item.is_cover,
+                    text: item.text 
+                  });
+                }
+              }
+              
+              return {
+                Url: item.image_url || "",
+                OriginalUrl: item.original_url || "", // 保留原始URL用于回退
+                Text: item.text || "", // 确保文本字段正确传递
+                IsCover: item.is_cover || false,
+              };
+            });
           
           const poetryInfo = taskStatus.result.poetry_info;
           const result: GenerateStoryBookResponse = {
@@ -1373,6 +1448,14 @@ const Index = () => {
           console.debug(
             `处理 assistant 消息（图像类型） - messageId: ${message.id}, status: ${message.status}, hasData: ${!!data}, hasItems: ${!!(data?.Items)}, itemsLength: ${data?.Items?.length || 0}`
           );
+          // 检查每个Item的Text字段
+          if (data?.Items) {
+            data.Items.forEach((item, idx) => {
+              if (!item.Text && !item.IsCover) {
+                console.warn(`Item ${idx} (非封面) 的 Text 字段为空`, { item, IsCover: item.IsCover });
+              }
+            });
+          }
         }, 0);
       }
       
@@ -1400,7 +1483,7 @@ const Index = () => {
                 onEditClick={() => handleEditClick(message)}
               >
                 <VsStoryBookMessageCard
-                  cover={ensureImageUrl(data.Items?.[0]?.Url)}
+                  cover={getImageUrlWithFallback(data.Items?.[0]?.Url, data.Items?.[0]?.OriginalUrl)}
                   title={data.Title}
                   content={data.Summary}
                   description={`创建时间：${formatDate(
@@ -1443,7 +1526,7 @@ const Index = () => {
                               imageList: [
                                 extraDataRef.current.comicsImage,
                                 ...data?.Items?.map((i) =>
-                                  formatImageUrl(i?.Url || "")
+                                  getImageUrlWithFallback(i?.Url, i?.OriginalUrl)
                                 ),
                               ],
                               ...data,
@@ -1465,7 +1548,7 @@ const Index = () => {
                                 ...data?.Items?.map(
                                   (i) =>
                                     location.origin +
-                                    formatImageUrl(i?.Url || "")
+                                    getImageUrlWithFallback(i?.Url, i?.OriginalUrl)
                                 ),
                               ],
                               (index) => `${formatFileName(MODEL)}-${index}`,
@@ -1494,7 +1577,7 @@ const Index = () => {
                           imageList: [
                             extraDataRef.current.comicsImage,
                             ...data?.Items?.map((i) =>
-                              formatImageUrl(i?.Url || "")
+                              getImageUrlWithFallback(i?.Url, i?.OriginalUrl)
                             ),
                           ],
                           ...data,
@@ -1505,7 +1588,7 @@ const Index = () => {
                       extraDataRef.current.comicsImage = dataURL;
                     }}
                     images={
-                      data.Items?.map((i) => formatImageUrl(i?.Url || "")) || []
+                      data.Items?.map((i) => getImageUrlWithFallback(i?.Url, i?.OriginalUrl)) || []
                     }
                     getContainer={() => comicContainerRef.current}
                   />
@@ -1767,7 +1850,7 @@ const Index = () => {
   };
 
   // 处理选择历史对话（显示所有消息，包括loading，然后恢复任务）
-  const handleSelectHistory = useCallback((history: ChatHistory) => {
+  const handleSelectHistory = useCallback(async (history: ChatHistory) => {
     if (history.id) {
       // 同步更新 ref 和 state
       currentHistoryIdRef.current = history.id;
@@ -1938,12 +2021,15 @@ const Index = () => {
       // 显示所有消息（包括loading状态）
       setMessages(validatedMessages);
       
+      // 等待状态更新完成后再恢复任务
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // 检查是否有正在运行的后台任务，如果有，会确保loading消息正确显示并恢复轮询
       // 强制检查（切换历史记录时需要检查）
-      // 注意：这里已经有一个延迟，checkAndResumeActiveTasks 内部也有防抖机制
+      // 使用 setTimeout 确保在下一个事件循环中执行
       setTimeout(() => {
         checkAndResumeActiveTasks(true);
-      }, 500);
+      }, 100);
     } else {
       // 新建对话
       currentHistoryIdRef.current = "";
@@ -1963,7 +2049,7 @@ const Index = () => {
   return (
     <>
       <Layout className="h-full bg-transparent">
-        <Layout.Header className="fixed top-0 left-0 right-0 z-[60] bg-white/70 backdrop-blur-md border-b border-white/40 shadow-sm pt-safe">
+        <Layout.Header className="fixed top-0 left-0 right-0 z-[60] bg-[rgba(10,10,15,0.85)] backdrop-blur-xl border-b border-cyan-500/10 shadow-[0_4px_20px_rgba(0,0,0,0.3)] pt-safe">
           <Header
             title={MODEL}
             subtitle={isMobile ? "" : MODEL_VERSION}
@@ -2028,7 +2114,7 @@ const Index = () => {
                   extraDataRef.current.comicsImage = undefined;
                   setComicsDetail({
                     index: 0,
-                    imageList: data.Items?.map((i) => formatImageUrl(i?.Url || "")) || [],
+                    imageList: data.Items?.map((i) => getImageUrlWithFallback(i?.Url, i?.OriginalUrl)) || [],
                     ...data,
                   });
                 }}

@@ -367,7 +367,7 @@ def basic_segmentation(text: str) -> List[str]:
     """
     基础断句处理 - 智能识别古诗词句子
     支持句号、问号、感叹号、逗号、分号作为分句标记
-    自动过滤标题和作者行
+    不进行任何过滤，保留所有内容，由AI在prompt中区分标题、作者和诗句
     """
     if not text or not text.strip():
         return []
@@ -376,25 +376,10 @@ def basic_segmentation(text: str) -> List[str]:
     lines = text.split('\n')
     segments = []
     
-    # 识别可能的标题和作者行（通常较短，且不包含标点或只有简单标点）
-    title_pattern = re.compile(r'^[\u4e00-\u9fff]{1,10}$')  # 1-10个汉字，可能是标题
-    author_pattern = re.compile(r'^[\u4e00-\u9fff]{1,4}[\s]*[\u4e00-\u9fff]{1,6}$')  # 可能是"朝代 作者"格式
-    
     for line in lines:
         line = line.strip()
         if not line:
             continue
-        
-        # 跳过明显的标题行（只有1-10个汉字，没有标点）
-        if title_pattern.match(line) and len(line) <= 10 and not re.search(r'[，。！？；：]', line):
-            continue
-        
-        # 跳过明显的作者行（格式如"宋 陆游"或"陆游"）
-        if author_pattern.match(line) and len(line) <= 15:
-            # 进一步检查：如果包含朝代关键词，很可能是作者行
-            dynasty_keywords = ['唐', '宋', '元', '明', '清', '汉', '魏', '晋', '南北朝', '隋', '五代', '金']
-            if any(keyword in line for keyword in dynasty_keywords):
-                continue
         
         # 按句号、问号、感叹号分割（主要分句标记）
         main_parts = re.split(r'[。！？]', line)
@@ -416,35 +401,12 @@ def basic_segmentation(text: str) -> List[str]:
                 if len(main_part) >= 2:  # 至少2个字符才作为一句
                     segments.append(main_part)
     
-    # 如果没有任何分割结果，返回整个文本（去除标题和作者后）
+    # 如果没有任何分割结果，返回所有非空行
     if not segments:
-        # 尝试提取实际内容（去除可能的标题和作者）
-        content_lines = []
         for line in lines:
             line = line.strip()
-            if not line:
-                continue
-            # 跳过明显的标题和作者行
-            if title_pattern.match(line) and len(line) <= 10:
-                continue
-            if author_pattern.match(line) and len(line) <= 15:
-                dynasty_keywords = ['唐', '宋', '元', '明', '清', '汉', '魏', '晋', '南北朝', '隋', '五代', '金']
-                if any(keyword in line for keyword in dynasty_keywords):
-                    continue
-            content_lines.append(line)
-        
-        if content_lines:
-            # 合并内容行，然后按标点分割
-            content = ' '.join(content_lines)
-            # 按句号、问号、感叹号、逗号、分号分割
-            parts = re.split(r'[。！？，；]', content)
-            for part in parts:
-                part = part.strip()
-                if part and len(part) >= 2:
-                    segments.append(part)
-        else:
-            # 如果所有行都被过滤了，返回原始文本
-            segments = [text.strip()] if text.strip() else []
+            if line and len(line) >= 2:
+                segments.append(line)
     
     return segments
 
@@ -634,29 +596,7 @@ async def analyze_poetry_with_storyboard(
         
         # 先进行断句，明确告诉模型有多少句
         lines = basic_segmentation(text)
-        
-        # 过滤掉标题和作者行（这些不应该在 line_analysis 中）
-        title_pattern = re.compile(r'^[\u4e00-\u9fff]{1,10}$')
-        dynasty_keywords = ['唐', '宋', '元', '明', '清', '汉', '魏', '晋', '南北朝', '隋', '五代', '金']
-        filtered_lines = []
-        
-        for line_text in lines:
-            line_text = line_text.strip()
-            if not line_text or len(line_text) < 2:
-                continue
-            
-            # 跳过明显的标题行
-            if title_pattern.match(line_text) and len(line_text) <= 10 and not re.search(r'[，。！？；：]', line_text):
-                continue
-            
-            # 跳过明显的作者行
-            if len(line_text) <= 15 and any(keyword in line_text for keyword in dynasty_keywords):
-                if re.match(r'^[\u4e00-\u9fff]{1,4}[\s]*[\u4e00-\u9fff]{1,6}$', line_text):
-                    continue
-            
-            filtered_lines.append(line_text)
-        
-        line_count = len(filtered_lines)
+        line_count = len(lines)
         
         # 构建消息，明确要求逐句分析
         user_content = f"""请分析以下古诗词/古文，并按照{mode_description}生成分镜：
@@ -664,20 +604,27 @@ async def analyze_poetry_with_storyboard(
 {text}
 
 **重要提示**：
-1. **必须区分元信息和诗句内容**：
+1. **必须严格区分元信息和诗句内容**：
    - 标题（如"示儿"）、作者信息（如"宋 陆游"）**不是诗句**，不要放入 line_analysis
    - 只对实际的诗词内容进行逐句分析
    - poetry_info.full_text 只包含实际的诗词内容，不包括标题和作者行
+   - 你必须自己识别并区分标题、作者和诗句内容
 
 2. **断句规则**：
    - 古诗词的句子可以按**句号、问号、感叹号、逗号、分号**分割
    - 例如："床前明月光，疑是地上霜。举头望明月，低头思故乡。"应该断句为4句
+   - 标题和作者行不参与断句
 
-3. 原文共有 {line_count} 句实际诗句（已按句号、问号、感叹号、逗号、分号分割，已过滤标题和作者）
-4. 你必须为每一句生成一个 line_analysis 条目，共 {line_count} 个（不包括标题和作者）
-5. 你必须为每一句生成一个 content 类型的分镜，共 {line_count} 个（不包括封面）
-6. 不能合并句子，不能跳过任何句子
-7. 每一句的分析必须完整，包含 word_explanation、interpretation、imagery、emotion、rhetoric 等字段
+3. **原文断句结果**：
+   - 按句号、问号、感叹号、逗号、分号分割后，共有 {line_count} 个句子片段
+   - 你需要自己识别哪些是标题、哪些是作者、哪些是实际诗句
+   - 只对实际诗句进行 line_analysis，标题和作者行要排除
+
+4. **输出要求**：
+   - 你必须为每一句实际诗句生成一个 line_analysis 条目（不包括标题和作者）
+   - 你必须为每一句实际诗句生成一个 content 类型的分镜（不包括封面）
+   - 不能合并句子，不能跳过任何实际诗句
+   - 每一句的分析必须完整，包含 word_explanation、interpretation、imagery、emotion、rhetoric 等字段
 """
         
         messages = [
@@ -819,35 +766,14 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
     验证并补全分析结果的结构，确保逐句分析和逐句生成
     """
     # 先进行基础断句，确定原文有多少句
+    # 不进行任何过滤，保留所有内容，由AI在prompt中自己识别标题、作者和诗句
     lines = basic_segmentation(original_text)
     
-    # 过滤掉标题和作者行（这些不应该在 line_analysis 中）
-    # 标题通常是1-10个汉字，作者行通常包含朝代关键词
-    filtered_lines = []
-    title_pattern = re.compile(r'^[\u4e00-\u9fff]{1,10}$')
-    dynasty_keywords = ['唐', '宋', '元', '明', '清', '汉', '魏', '晋', '南北朝', '隋', '五代', '金']
+    # 清理空行和过短的行
+    cleaned_lines = [line.strip() for line in lines if line.strip() and len(line.strip()) >= 2]
     
-    for line_text in lines:
-        line_text = line_text.strip()
-        if not line_text or len(line_text) < 2:
-            continue
-        
-        # 跳过明显的标题行
-        if title_pattern.match(line_text) and len(line_text) <= 10 and not re.search(r'[，。！？；：]', line_text):
-            logger.debug(f"跳过标题行: {line_text}")
-            continue
-        
-        # 跳过明显的作者行
-        if len(line_text) <= 15 and any(keyword in line_text for keyword in dynasty_keywords):
-            # 进一步检查：如果格式像"朝代 作者"，跳过
-            if re.match(r'^[\u4e00-\u9fff]{1,4}[\s]*[\u4e00-\u9fff]{1,6}$', line_text):
-                logger.debug(f"跳过作者行: {line_text}")
-                continue
-        
-        filtered_lines.append(line_text)
-    
-    # 使用过滤后的行数作为期望值
-    expected_line_count = len(filtered_lines)
+    # 期望的句子数量：由AI自己识别并返回实际诗句数量
+    # 我们不再预设期望值，而是根据AI返回的line_analysis数量来验证
     
     # 确保 poetry_info 存在并补全字段
     if "poetry_info" not in result:
@@ -878,30 +804,14 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
     for line in result["line_analysis"]:
         line.setdefault("visual_scene", "")
     
-    # 检查并补全缺失的逐句分析（使用过滤后的行）
-    existing_lines = {line.get("line", "").strip() for line in result["line_analysis"]}
-    for i, line_text in enumerate(filtered_lines):
-        if line_text.strip() not in existing_lines:
-            # 添加缺失的句子分析
-            result["line_analysis"].append({
-                "line_number": len(result["line_analysis"]) + 1,
-                "line": line_text.strip(),
-                "word_explanation": "待分析",
-                "interpretation": "待分析",
-                "imagery": [],
-                "emotion": "待分析",
-                "rhetoric": "待分析",
-                "visual_scene": ""
-            })
-            logger.debug(f"补全缺失的逐句分析: {line_text[:20]}...")
-    
     # 重新编号 line_analysis
     for i, line in enumerate(result["line_analysis"]):
         line["line_number"] = i + 1
     
-    # 如果 line_analysis 数量不对，重新创建（使用过滤后的行）
-    if len(result["line_analysis"]) != expected_line_count:
-        logger.warning(f"逐句分析数量不匹配：期望 {expected_line_count} 句（已过滤标题和作者），实际 {len(result['line_analysis'])} 句，重新创建")
+    # 验证 line_analysis 是否合理（至少应该有内容）
+    if len(result["line_analysis"]) == 0:
+        logger.warning(f"逐句分析为空，AI可能没有正确识别诗句内容。原文断句后有 {len(cleaned_lines)} 个句子片段")
+        # 如果AI完全没有返回分析，使用清理后的行作为基础
         result["line_analysis"] = [
             {
                 "line_number": i + 1,
@@ -913,7 +823,7 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
                 "rhetoric": "待分析",
                 "visual_scene": ""
             }
-            for i, line_text in enumerate(filtered_lines)
+            for i, line_text in enumerate(cleaned_lines)
         ]
     
     # 根据模式设置默认风格
@@ -962,17 +872,19 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
             }
             result["storyboards"].insert(0, cover)
         
-        # 检查内容分镜数量：应该有 expected_line_count 个内容分镜（不包括封面）
+        # 检查内容分镜数量：应该与 line_analysis 数量一致
         content_storyboards = [sb for sb in result["storyboards"] if sb.get("type") == "content"]
-        if len(content_storyboards) != expected_line_count:
-            logger.warning(f"内容分镜数量不匹配：期望 {expected_line_count} 个，实际 {len(content_storyboards)} 个，补全缺失的分镜")
+        expected_content_count = len(result.get("line_analysis", []))
+        if len(content_storyboards) != expected_content_count:
+            logger.warning(f"内容分镜数量不匹配：期望 {expected_content_count} 个（基于line_analysis），实际 {len(content_storyboards)} 个，补全缺失的分镜")
             
             # 获取已有的内容分镜文本
             existing_texts = {sb.get("text", "").strip() for sb in content_storyboards}
             
-            # 为缺失的句子创建分镜（使用过滤后的行）
-            for i, line_text in enumerate(filtered_lines):
-                if line_text.strip() not in existing_texts:
+            # 为缺失的句子创建分镜（使用line_analysis中的句子）
+            line_analysis_lines = [line.get("line", "").strip() for line in result.get("line_analysis", [])]
+            for i, line_text in enumerate(line_analysis_lines):
+                if line_text and line_text.strip() not in existing_texts:
                     # 创建缺失的分镜
                     if mode == "comics":
                         # 连环画模式：必须包含用双引号包裹的诗句文字
@@ -1003,14 +915,15 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
             cover_sb = [sb for sb in result["storyboards"] if sb.get("type") == "cover"]
             content_sbs = [sb for sb in result["storyboards"] if sb.get("type") == "content"]
             
-            # 按原文顺序排序内容分镜（使用过滤后的行）
+            # 按原文顺序排序内容分镜（使用line_analysis中的顺序）
+            line_analysis_lines = [line.get("line", "").strip() for line in result.get("line_analysis", [])]
             def get_line_index(storyboard):
                 text = storyboard.get("text", "").strip()
                 try:
-                    return filtered_lines.index(text)
+                    return line_analysis_lines.index(text)
                 except ValueError:
                     # 如果找不到，尝试匹配部分文本
-                    for idx, line in enumerate(filtered_lines):
+                    for idx, line in enumerate(line_analysis_lines):
                         if text in line or line in text:
                             return idx
                     return 999

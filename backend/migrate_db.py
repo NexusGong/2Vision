@@ -39,6 +39,8 @@ def migrate_database():
             "oauth_provider": "ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(20)",
             "oauth_id": "ALTER TABLE users ADD COLUMN oauth_id VARCHAR(100)",
             "updated_at": "ALTER TABLE users ADD COLUMN updated_at DATETIME",
+            "phone": "ALTER TABLE users ADD COLUMN phone VARCHAR(20)",  # 手机号字段
+            "password_set": "ALTER TABLE users ADD COLUMN password_set BOOLEAN DEFAULT 0",  # 是否设置密码
         }
         
         added_count = 0

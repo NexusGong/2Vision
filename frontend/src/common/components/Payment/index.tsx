@@ -151,6 +151,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         visible={visible && !showPaymentMethods}
         onCancel={handleClose}
         footer={null}
+        wrapClassName="cyber-modal-wrapper"
         className={styles.paymentModal}
         style={{ width: 600 }}
       >
@@ -247,6 +248,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           setSelectedPaymentMethod("");
         }}
         footer={null}
+        wrapClassName="cyber-modal-wrapper"
         className={styles.paymentMethodModal}
         style={{ width: 480 }}
       >

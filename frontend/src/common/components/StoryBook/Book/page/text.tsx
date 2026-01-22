@@ -34,10 +34,39 @@ export const VsStoryBookPageText = (data: IDataPageTextItem) => {
     () => showReadAgainButton && !!isLastPage,
     [showReadAgainButton, isLastPage]
   );
+  
+  // 调试：检查文本内容
+  if (process.env.NODE_ENV === 'development') {
+    if (!text || text.trim() === "") {
+      console.warn("VsStoryBookPageText: 文本为空", { data, text, pageNumber });
+    } else {
+      console.log("VsStoryBookPageText: 渲染文本", { 
+        pageNumber, 
+        text: text.substring(0, 20), 
+        textLength: text.length,
+        hasText: !!text 
+      });
+    }
+  }
+  
   return (
-    <div className="vs-storybook__page-text w-full h-full py-[32px] flex flex-col justify-center items-center mix-blend-multiply md:text-[19px] max-md:text-xs leading-[30px] tracking-[0.94px] text-[var(--color-text-2,#3f3f51)] vs-storybook__page-text px-[15%] gap-[30px]">
-      <span className="vs-storybook__page-text__content w-full overflow-y-auto word leading-[1.4]">
-        {text ?? ""}
+    <div 
+      className="vs-storybook__page-text w-full h-full py-[32px] flex flex-col justify-center items-center md:text-[19px] max-md:text-xs leading-[30px] tracking-[0.94px] px-[15%] gap-[30px]" 
+      style={{ 
+        color: '#3f3f51',
+        position: 'relative',
+        zIndex: 1
+      } as React.CSSProperties}
+    >
+      <span 
+        className="vs-storybook__page-text__content w-full overflow-y-auto word leading-[1.4]" 
+        style={{ 
+          color: '#3f3f51',
+          position: 'relative',
+          zIndex: 2
+        } as React.CSSProperties}
+      >
+        {text || ""}
       </span>
       {/* 按钮 */}
       {_showReadAgainButton && (

@@ -184,65 +184,106 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
       )}
       onSubmit={handleSubmit}
     >
-      <div
-        className={classNames(
-          "flex flex-col flex-1 min-h-[50px] relative px-4 pt-3 pb-1"
-        )}
-      >
-        <Form.Item className="w-full !mb-0" field="text">
-          <Input.TextArea
-            className="text-base !border-[0px] focus:shadow-none text-[black] resize-none !bg-transparent !p-0 leading-relaxed"
-            autoSize={{ minRows: 1, maxRows: 8 }}
-            placeholder="输入您的内容..."
-            onPressEnter={(e) => {
-              if (!e.shiftKey) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-          />
-        </Form.Item>
+      {/* 输入框区域 - 与发送按钮同行 */}
+      <div className="flex items-end gap-3 px-4 pt-3 pb-2">
+        <div className="flex-1 min-w-0">
+          <Form.Item className="w-full !mb-0" field="text">
+            <Input.TextArea
+              className="text-base !border-none !outline-none focus:!shadow-none !text-white/90 resize-none !bg-transparent !p-0 leading-relaxed placeholder:!text-white/40"
+              style={{ border: 'none', boxShadow: 'none', outline: 'none' }}
+              autoSize={{ minRows: 1, maxRows: 8 }}
+              placeholder="输入您的内容..."
+              onPressEnter={(e) => {
+                if (!e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+            />
+          </Form.Item>
+          
+          {imagesValue?.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Form.Item
+                className="!mb-0"
+                field="images"
+                triggerPropName="fileList"
+              >
+                <Upload
+                  listType="picture-card"
+                  imagePreview
+                  multiple
+                  limit={10}
+                  accept={{
+                    type: SupportImageFileTypes.map((t) => `.${t}`).join(","),
+                    strict: false,
+                  }}
+                  onChange={() => {}}
+                  customRequest={async ({ file, onSuccess, onError }) => {
+                    try {
+                      onSuccess({
+                        url: URL.createObjectURL(file),
+                        base64: await fileToBase64(file),
+                        name: file.name,
+                      });
+                    } catch (e: any) {
+                      onError(e);
+                    }
+                  }}
+                />
+              </Form.Item>
+            </div>
+          )}
+        </div>
         
-        {imagesValue?.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Form.Item
-              className="!mb-0"
-              field="images"
-              triggerPropName="fileList"
+        {/* 右侧：剩余次数 + 发送按钮 */}
+        <div className="flex items-center gap-2 flex-shrink-0 pb-0.5">
+          <Tooltip
+            content={
+              isAuthenticated
+                ? `登录用户：剩余 ${remainingCount} 次免费体验（已使用 ${totalCount - remainingCount} 次，共 ${totalCount} 次）`
+                : `非登录用户：剩余 ${remainingCount} 次免费体验（共 ${totalCount} 次），登录后可获得 20 次免费体验`
+            }
+          >
+            <Badge
+              status={
+                remainingCount <= 0
+                  ? "error"
+                  : remainingCount <= 2
+                  ? "warning"
+                  : "success"
+              }
+              text={`${remainingCount}/${totalCount}`}
+              style={{ cursor: "pointer" }}
+            />
+          </Tooltip>
+          
+          <Form.Item className="!mb-0">
+            <Button
+              type="primary"
+              className={classNames(
+                  `rounded-full ${isMobile ? 'w-8 h-8' : 'w-9 h-9'} !p-0 flex items-center justify-center transition-all duration-300 !border-none`,
+                  textValue 
+                    ? "!bg-gradient-to-r !from-cyan-500 !to-purple-500 text-white hover:shadow-[0_0_20px_rgba(0,212,255,0.5)] active:scale-95" 
+                    : "!bg-white/10 !text-white/30 cursor-not-allowed"
+              )}
+              htmlType="submit"
+              disabled={!textValue || remainingCount <= 0}
             >
-              <Upload
-                listType="picture-card"
-                imagePreview
-                multiple
-                limit={10}
-                accept={{
-                  type: SupportImageFileTypes.map((t) => `.${t}`).join(","),
-                  strict: false,
-                }}
-                onChange={() => {}}
-                customRequest={async ({ file, onSuccess, onError }) => {
-                  try {
-                    onSuccess({
-                      url: URL.createObjectURL(file),
-                      base64: await fileToBase64(file),
-                      name: file.name,
-                    });
-                  } catch (e: any) {
-                    onError(e);
-                  }
-                }}
-              />
-            </Form.Item>
-          </div>
-        )}
+              <svg width={isMobile ? "16" : "18"} height={isMobile ? "16" : "18"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 4L12 20M12 4L6 10M12 4L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Button>
+          </Form.Item>
+        </div>
       </div>
 
-      <div className={`flex justify-between items-end px-3 pb-2 pt-1 border-t border-gray-100/50 ${isMobile ? 'gap-2' : ''}`}>
-        <div className={`flex items-center ${isMobile ? 'gap-1 flex-1 min-w-0' : 'gap-2'}`}>
+      {/* 工具栏区域 */}
+      <div className={`flex items-center px-3 pb-2 pt-1 border-t border-white/5 ${isMobile ? 'gap-1' : 'gap-2'}`}>
           {/* 上传按钮 */}
           <div className="relative flex-shrink-0">
              {/* 隐藏实际的 Upload 组件，只保留逻辑，或者将 Upload 按钮移到这里 */}
-            <div className={`${isMobile ? 'p-1.5' : 'p-2'} rounded-full bg-black/5 hover:bg-black/10 active:bg-black/15 cursor-pointer text-gray-700 transition-colors`} onClick={() => {
+            <div className={`${isMobile ? 'p-1.5' : 'p-2'} rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 cursor-pointer text-white/70 hover:text-cyan-400 transition-colors`} onClick={() => {
                 // 触发上传逻辑，这里简化处理，实际需要与 Form.Item 联动或使用 ref
                 const uploadInput = document.querySelector('input[type="file"]') as HTMLInputElement;
                 uploadInput?.click();
@@ -279,7 +320,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
             </div>
           </div>
 
-          <div className="h-4 w-[1px] bg-gray-300 mx-1 flex-shrink-0"></div>
+          <div className="h-4 w-[1px] bg-white/10 mx-1 flex-shrink-0"></div>
 
           {/* 生成类型选择器 */}
           <Form.Item
@@ -295,14 +336,14 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                 autoAlignPopupWidth: false,
                 position: "bl",
               }}
-              className={`!bg-black/5 !border-none !px-2 hover:bg-black/10 rounded-lg text-gray-800 text-sm font-medium transition-colors ${isMobile ? 'h-7 min-w-[100px]' : 'h-8 min-w-[120px]'}`}
+              className={`!bg-white/5 !border-none !px-2 hover:bg-white/10 rounded-lg !text-white/80 text-sm font-medium transition-colors ${isMobile ? 'h-7 min-w-[100px]' : 'h-8 min-w-[120px]'}`}
               renderFormat={(_, value) => {
                 return (
-                  <span className="flex items-center gap-1.5 font-medium whitespace-nowrap">
+                  <span className="flex items-center gap-1.5 font-medium whitespace-nowrap text-white/80">
                     {value === "video" ? (
-                      <IconPlayArrow className="w-3.5 h-3.5 flex-shrink-0" />
+                      <IconPlayArrow className="w-3.5 h-3.5 flex-shrink-0 text-cyan-400" />
                     ) : (
-                      <IconImage className="w-3.5 h-3.5 flex-shrink-0" />
+                      <IconImage className="w-3.5 h-3.5 flex-shrink-0 text-cyan-400" />
                     )}
                     {value === "video" ? "视频" : "图像"}
                   </span>
@@ -324,7 +365,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
             </Select>
           </Form.Item>
 
-          <div className="h-4 w-[1px] bg-gray-300 mx-1 flex-shrink-0"></div>
+          <div className="h-4 w-[1px] bg-white/10 mx-1 flex-shrink-0"></div>
 
           {/* 根据生成类型显示不同的配置 */}
           {generationType === "video" ? (
@@ -353,10 +394,10 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                     </div>
                   }
                 >
-                  <div className="flex items-center gap-1.5 h-7 px-2 rounded-lg bg-black/5 hover:bg-black/10 active:bg-black/15 cursor-pointer text-gray-700 text-xs transition-colors font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-blue-400"></span>
+                  <div className="flex items-center gap-1.5 h-7 px-2 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 cursor-pointer text-white/70 text-xs transition-colors font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-cyan-400"></span>
                     <span className="truncate">视频配置</span>
-                    <IconSettings className="w-3.5 h-3.5 flex-shrink-0 text-gray-500" />
+                    <IconSettings className="w-3.5 h-3.5 flex-shrink-0 text-white/50" />
                   </div>
                 </Popover>
               ) : (
@@ -379,15 +420,15 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                     />
                   }
                 >
-                  <div className="flex items-center gap-2 h-8 px-2 rounded-lg bg-black/5 hover:bg-black/10 cursor-pointer text-gray-800 text-sm transition-colors font-medium">
-                    <div className="font-medium text-xs border border-gray-400 rounded px-1">
+                  <div className="flex items-center gap-2 h-8 px-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer text-white/80 text-sm transition-colors font-medium">
+                    <div className="font-medium text-xs border border-cyan-400/50 text-cyan-400 rounded px-1">
                       {videoDuration === -1 ? "自动" : `${videoDuration ?? -1}s`}
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-xs">{videoFps || 24} FPS</span>
+                      <span className="text-xs text-white/60">{videoFps || 24} FPS</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-xs">{videoAspectRatio || "16:9"}</span>
+                      <span className="text-xs text-white/60">{videoAspectRatio || "16:9"}</span>
                     </div>
                   </div>
                 </Popover>
@@ -406,7 +447,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                     <div className="p-3 space-y-4">
                       {/* 模式选择 */}
                       <div>
-                        <div className="text-xs text-gray-500 mb-2">生成模式</div>
+                        <div className="text-xs text-white/50 mb-2">生成模式</div>
                         <div className="flex gap-2">
                           {modes.map((option) => (
                             <button
@@ -415,12 +456,12 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                               className={classNames(
                                 "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
                                 modeValue === option.key 
-                                  ? "bg-black text-white" 
-                                  : "bg-gray-100 text-gray-700 active:bg-gray-200"
+                                  ? "bg-gradient-to-r from-cyan-500 to-purple-500 text-white" 
+                                  : "bg-white/10 text-white/70 active:bg-white/20"
                               )}
                               onClick={() => form.setFieldValue("mode", option.key)}
                             >
-                              <span className={classNames("w-2 h-2 rounded-full inline-block mr-1.5", option.key === 'storybook' ? 'bg-indigo-400' : 'bg-orange-400')}></span>
+                              <span className={classNames("w-2 h-2 rounded-full inline-block mr-1.5", option.key === 'storybook' ? 'bg-cyan-400' : 'bg-purple-400')}></span>
                               {option.label}
                             </button>
                           ))}
@@ -444,10 +485,10 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                     </div>
                   }
                 >
-                  <div className="flex items-center gap-1.5 h-7 px-2 rounded-lg bg-black/5 hover:bg-black/10 active:bg-black/15 cursor-pointer text-gray-700 text-xs transition-colors font-medium">
-                    <span className={classNames("w-1.5 h-1.5 rounded-full flex-shrink-0", modeValue === 'storybook' ? 'bg-indigo-400' : 'bg-orange-400')}></span>
+                  <div className="flex items-center gap-1.5 h-7 px-2 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 cursor-pointer text-white/70 text-xs transition-colors font-medium">
+                    <span className={classNames("w-1.5 h-1.5 rounded-full flex-shrink-0", modeValue === 'storybook' ? 'bg-cyan-400' : 'bg-purple-400')}></span>
                     <span className="truncate">{modes.find(m => m.key === modeValue)?.label}</span>
-                    <IconSettings className="w-3.5 h-3.5 flex-shrink-0 text-gray-500" />
+                    <IconSettings className="w-3.5 h-3.5 flex-shrink-0 text-white/50" />
                   </div>
                 </Popover>
               ) : (
@@ -467,12 +508,12 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                           position: "bl",
                           className: "min-w-[120px]"
                         }}
-                        className="!bg-black/5 !border-none !px-2 hover:bg-black/10 rounded-lg h-8 text-gray-800 text-sm font-medium transition-colors min-w-[120px]"
+                        className="!bg-white/5 !border-none !px-2 hover:bg-white/10 rounded-lg h-8 !text-white/80 text-sm font-medium transition-colors min-w-[120px]"
                         renderFormat={(_, value) => {
                           const option = modes.find((o) => o.key === value);
                           return (
-                              <span className="flex items-center gap-1 font-medium whitespace-nowrap">
-                                  <span className={classNames("w-2 h-2 rounded-full flex-shrink-0", value === 'storybook' ? 'bg-indigo-400' : 'bg-orange-400')}></span>
+                              <span className="flex items-center gap-1 font-medium whitespace-nowrap text-white/80">
+                                  <span className={classNames("w-2 h-2 rounded-full flex-shrink-0", value === 'storybook' ? 'bg-cyan-400' : 'bg-purple-400')}></span>
                                   {option?.label}
                               </span>
                           );
@@ -482,7 +523,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                           <Select.Option value={option.key} key={option.key}>
                             <div>
                               <div className="text-[14px] font-medium">{option.label}</div>
-                              <div className="text-[12px] text-gray-400 mt-0.5">
+                              <div className="text-[12px] text-white/50 mt-0.5">
                                 {option.description}
                               </div>
                             </div>
@@ -517,10 +558,10 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                         />
                       }
                     >
-                      <div className="flex items-center gap-2 h-8 px-2 rounded-lg bg-black/5 hover:bg-black/10 cursor-pointer text-gray-800 text-sm transition-colors font-medium">
-                        <div className="font-medium text-xs border border-gray-400 rounded px-1">{resolutionValue || "2K"}</div>
+                      <div className="flex items-center gap-2 h-8 px-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer text-white/80 text-sm transition-colors font-medium">
+                        <div className="font-medium text-xs border border-cyan-400/50 text-cyan-400 rounded px-1">{resolutionValue || "2K"}</div>
                         <div className="flex items-center gap-1">
-                           <span className="w-4 h-4 flex items-center justify-center">
+                           <span className="w-4 h-4 flex items-center justify-center text-white/70">
                               <RatioThumb
                                 ratio={
                                   modeValue === "storybook"
@@ -529,7 +570,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                                 }
                               />
                            </span>
-                          <span className="text-xs">
+                          <span className="text-xs text-white/60">
                             {modeValue === "storybook"
                               ? Ratio.Ratio_9_16
                               : ratioValue || Ratio.Ratio_1_1}
@@ -583,46 +624,6 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
               </Form.Item>
             </>
           )}
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* 剩余次数显示 */}
-          <Tooltip
-            content={
-              isAuthenticated
-                ? `登录用户：剩余 ${remainingCount} 次免费体验（已使用 ${totalCount - remainingCount} 次，共 ${totalCount} 次）`
-                : `非登录用户：剩余 ${remainingCount} 次免费体验（共 ${totalCount} 次），登录后可获得 20 次免费体验`
-            }
-          >
-            <Badge
-              status={
-                remainingCount <= 0
-                  ? "error"
-                  : remainingCount <= 2
-                  ? "warning"
-                  : "success"
-              }
-              text={`${remainingCount}/${totalCount}`}
-              style={{ cursor: "pointer" }}
-            />
-          </Tooltip>
-          
-          <Form.Item className="!mb-0">
-            <Button
-              type="primary"
-              className={classNames(
-                  `rounded-full ${isMobile ? 'w-8 h-8' : 'w-9 h-9'} !p-0 flex items-center justify-center transition-all duration-300`,
-                  textValue ? "bg-black text-white hover:bg-gray-800 active:bg-gray-900" : "bg-gray-200 text-gray-400 cursor-not-allowed"
-              )}
-              htmlType="submit"
-              disabled={!textValue || remainingCount <= 0}
-            >
-              <svg width={isMobile ? "16" : "18"} height={isMobile ? "16" : "18"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 4L12 20M12 4L6 10M12 4L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </Button>
-          </Form.Item>
-        </div>
       </div>
     </Form>
   );

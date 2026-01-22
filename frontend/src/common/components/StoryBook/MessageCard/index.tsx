@@ -37,29 +37,42 @@ export const VsStoryBookMessageCard = ({
     <div className="pl-[18px] pb-[13px] pt-[22px] relative">
       <div className="vs-storybook-message-card cursor-pointer group">
         <div
-          className="vs-storybook-message-card__main flex flex-col justify-between gap-[15px] border border-white/60 bg-white/60 backdrop-blur-md shadow-sm w-full min-h-[144px] rounded-[20px] pt-[16px] pb-[19px] pr-[28px] pl-[143px] transition-all duration-300 group-hover:shadow-lg group-hover:bg-white/80 group-hover:-translate-y-1"
+          className="vs-storybook-message-card__main flex flex-col justify-between gap-[15px] backdrop-blur-md w-full min-h-[144px] rounded-[20px] pt-[16px] pb-[19px] pr-[28px] pl-[143px] transition-all duration-300 group-hover:-translate-y-1"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(177, 74, 237, 0.1))',
+            border: '1px solid rgba(0, 212, 255, 0.3)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 212, 255, 0.1)',
+          }}
           onClick={() => {
             onViewClick?.();
           }}
         >
           {/* 右侧内容*/}
           <div className="flex flex-col gap-y-[4px]">
-            <div className="vs-storybook-message-card__main-title overflow-hidden whitespace-nowrap overflow-ellipsis text-[14px] leading-[22px] tracking-[0.04px] font-[500] text-[#000000]">
+            <div className="vs-storybook-message-card__main-title overflow-hidden whitespace-nowrap overflow-ellipsis text-[14px] leading-[22px] tracking-[0.04px] font-[500] text-white/95">
               {title}
             </div>
-            <div className="vs-storybook-message-card__main-content text-[12px] leading-[20px] tracking-[0.04px] text-[var(--color-text-3,#6e718c)] text-justify overflow-hidden line-clamp-2">
+            <div className="vs-storybook-message-card__main-content text-[12px] leading-[20px] tracking-[0.04px] text-white/70 text-justify overflow-hidden line-clamp-2">
               {content}
             </div>
           </div>
           {/* footer */}
           <div className="flex items-center justify-between w-full gap-x-[4px]">
             {/* time */}
-            <div className="vs-storybook-message-card__main-description flex-1 overflow-hidden whitespace-nowrap overflow-ellipsis text-[12px] leading-[20px] tracking-[0.04px] text-[var(--color-text-4,#aeafc2)]">
+            <div className="vs-storybook-message-card__main-description flex-1 overflow-hidden whitespace-nowrap overflow-ellipsis text-[12px] leading-[20px] tracking-[0.04px] text-white/50">
               {description}
             </div>
 
             {/* button */}
-            <Button className="vs-storybook-message-card__main-button shrink-0 flex justify-center items-center gap-x-[2px] px-[12px] py-[2px] border border-white/50 bg-white/40 rounded-full overflow-hidden text-[var(--color-text-2,#3f3f51)] text-[13px] leading-[22px] tracking-[0.04px] hover:bg-white/80 transition-all duration-300 shadow-sm backdrop-blur-sm">
+            <Button 
+              className="vs-storybook-message-card__main-button shrink-0 flex justify-center items-center gap-x-[2px] px-[12px] py-[2px] rounded-full overflow-hidden text-[13px] leading-[22px] tracking-[0.04px] transition-all duration-300 backdrop-blur-sm"
+              style={{
+                background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(177, 74, 237, 0.2))',
+                border: '1px solid rgba(0, 212, 255, 0.4)',
+                color: 'rgba(0, 212, 255, 0.9)',
+                boxShadow: '0 0 10px rgba(0, 212, 255, 0.2)',
+              }}
+            >
               {viewText}
               <IconArrowRight className="width-[13px] height-[10px]" />
             </Button>

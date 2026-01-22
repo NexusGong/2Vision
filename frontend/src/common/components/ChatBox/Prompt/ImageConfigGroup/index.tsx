@@ -12,7 +12,7 @@
  */
 
 import React from "react";
-import { Form, Radio, Input } from "@arco-design/web-react";
+import { Radio, Input } from "@arco-design/web-react";
 import {
   Resolution,
   Ratio,
@@ -73,16 +73,18 @@ const ImageConfigGroup: React.FC<{
 
   return (
     <div className="w-full mb-6">
-      <Form.Item className="w-full" field="resolution" label="分辨率" layout="vertical" initialValue={Resolution.Resolution_2K}>
+      <div className="mb-4">
+        <div className="text-white/70 text-sm mb-2">分辨率</div>
         <Radio.Group type="button" className="flex" value={current.resolution} onChange={setResolution as any}>
             {resolutionOptions.map((r) => (
-            <Radio className="flex-1 flex items-center justify-center h-[30px] [&.arco-radio-button]: !text-[#737373]" key={r} value={r}>
+            <Radio className="flex-1 flex items-center justify-center h-[30px]" key={r} value={r}>
                 {r}
             </Radio>
             ))}
         </Radio.Group>
-      </Form.Item>
-      <Form.Item className="w-full" field="ratio" label="图片比例" layout="vertical" initialValue={Ratio.Ratio_1_1}>
+      </div>
+      <div className="mb-4">
+        <div className="text-white/70 text-sm mb-2">图片比例</div>
         <Radio.Group
           type="button"
           className="flex"
@@ -92,7 +94,7 @@ const ImageConfigGroup: React.FC<{
         >
             {ratioOptions.map((ra) => (
             <Radio
-                className="flex-1 flex items-center justify-center h-[60px] w-[20px] [&.arco-radio-button]: !text-[#737373]"
+                className="flex-1 flex items-center justify-center h-[60px] w-[20px]"
                 key={ra}
                 value={ra}
             >
@@ -103,8 +105,8 @@ const ImageConfigGroup: React.FC<{
             </Radio>
             ))}
         </Radio.Group>
-      </Form.Item>
-      <div className="mt-4 mb-2">图片尺寸</div>
+      </div>
+      <div className="mt-4 mb-2 text-white/80">图片尺寸</div>
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <Input

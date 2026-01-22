@@ -274,19 +274,25 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
                     original_video_url = status.get("video_url")
                     local_video_url = original_video_url
                     
-                    if original_video_url:
-                        try:
-                            from app.services.file_storage import download_and_save_video, get_local_url
-                            local_path = await download_and_save_video(original_video_url)
-                            if local_path:
-                                local_video_url = get_local_url(local_path)
-                                logger.info(f"视频已保存到本地: {local_path}, URL: {local_video_url}")
-                        except Exception as e:
-                            logger.warning(f"视频下载失败，使用原始URL: {str(e)}")
+                    if not original_video_url:
+                        logger.error(f"视频生成完成但未返回视频URL: {status}")
+                        task_manager.fail_task(task_id, "视频生成完成但未返回视频URL")
+                        return
                     
-                    # 记录使用
+                    # 尝试下载并保存视频到本地
+                    try:
+                        from app.services.file_storage import download_and_save_video, get_local_url
+                        local_path = await download_and_save_video(original_video_url)
+                        if local_path:
+                            local_video_url = get_local_url(local_path)
+                            logger.info(f"视频已保存到本地: {local_path}, URL: {local_video_url}")
+                    except Exception as e:
+                        logger.warning(f"视频下载失败，使用原始URL: {str(e)}")
+                    
+                    # 视频生成成功，记录使用（只有在成功后才扣除次数）
                     try:
                         record_usage(db, "video", token_used, user, session_id)
+                        logger.info(f"成功记录使用次数: 用户ID={user.id if user else None}, 视频URL: {local_video_url}")
                     except Exception as e:
                         logger.error(f"记录使用失败: {str(e)}")
                     
@@ -489,3 +495,52 @@ async def download_video(
     except Exception as e:
         logger.error(f"下载视频失败: {str(e)}")
         raise HTTPException(status_code=500, detail="下载视频失败，请稍后重试")
+
+
+class DeleteVideosRequest(BaseModel):
+    """删除视频请求模型"""
+    video_urls: list[str]
+
+
+@router.post("/delete")
+async def delete_videos(
+    request: DeleteVideosRequest,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """
+    批量删除视频文件
+    
+    Args:
+        request: 删除视频请求，包含视频URL列表
+        
+    Returns:
+        删除结果
+    """
+    try:
+        from app.services.file_storage import delete_video_files
+        
+        video_urls = request.video_urls
+        
+        if not video_urls:
+            return {
+                "status": "success",
+                "message": "没有需要删除的视频",
+                "deleted_count": 0
+            }
+        
+        results = delete_video_files(video_urls)
+        deleted_count = sum(1 for success in results.values() if success)
+        
+        logger.info(f"删除视频请求: 共 {len(video_urls)} 个，成功删除 {deleted_count} 个")
+        
+        return {
+            "status": "success",
+            "message": f"成功删除 {deleted_count}/{len(video_urls)} 个视频",
+            "deleted_count": deleted_count,
+            "total_count": len(video_urls),
+            "results": results
+        }
+    except Exception as e:
+        logger.error(f"删除视频失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"删除视频失败: {str(e)}")

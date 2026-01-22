@@ -37,9 +37,22 @@ export const StoryPreviewBox: React.FC<StoryPreviewBoxProps> = ({
   
   return (
     <VSStoryBookProvider list={pages}>
-      <div className={`w-full h-full bg-[#fafbfd] ${isMobile ? 'p-0 pb-safe' : 'p-5'}`}>
-        <div className={`w-full h-full relative bg-white ${isMobile ? 'rounded-none' : 'rounded-[12px]'} border border-solid border-[rgb(229,231,235)]`}>
-          <div className={`absolute flex items-center justify-between w-full ${isMobile ? 'py-3 px-3' : 'py-4 px-5'} border-b border-solid border-b-[rgb(229,231,235)] border-t-0 border-r-0 border-l-0 z-10 bg-white`}>
+      <div className={`w-full h-full ${isMobile ? 'p-0 pb-safe' : 'p-5'}`} style={{ background: 'linear-gradient(135deg, rgba(15, 15, 25, 0.98), rgba(25, 25, 40, 0.98))' }}>
+        <div 
+          className={`w-full h-full relative ${isMobile ? 'rounded-none' : 'rounded-[12px]'}`}
+          style={{
+            background: 'linear-gradient(135deg, rgba(20, 20, 35, 0.95), rgba(30, 30, 50, 0.95))',
+            border: '1px solid rgba(0, 212, 255, 0.2)',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4), 0 0 40px rgba(0, 212, 255, 0.1)',
+          }}
+        >
+          <div 
+            className={`absolute flex items-center justify-between w-full ${isMobile ? 'py-3 px-3' : 'py-4 px-5'} border-t-0 border-r-0 border-l-0 z-10`}
+            style={{
+              background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(177, 74, 237, 0.05))',
+              borderBottom: '1px solid rgba(0, 212, 255, 0.15)',
+            }}
+          >
             <CanvasHeader
               title={title}
               changeButton={{
@@ -54,7 +67,7 @@ export const StoryPreviewBox: React.FC<StoryPreviewBoxProps> = ({
                 },
                 shareArea() {
                   return (
-                    <div className="cursor-pointer inline-flex items-center justify-center p-1 hover:bg-[#E1E3EF] rounded-[4px] transition-colors active:bg-[#d5d8e6]">
+                    <div className="cursor-pointer inline-flex items-center justify-center p-1 hover:bg-white/10 rounded-[4px] transition-colors active:bg-white/15 text-white/80 hover:text-cyan-400">
                       <IconDownload fontSize={isMobile ? 20 : 18} onClick={onDownload} />
                     </div>
                   );

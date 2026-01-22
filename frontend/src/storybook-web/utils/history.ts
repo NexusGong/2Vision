@@ -122,13 +122,78 @@ export function getChatHistoryById(id: string): ChatHistory | null {
 }
 
 /**
+ * 从消息中提取所有图片URL
+ */
+function extractImageUrlsFromMessages(messages: Message[]): string[] {
+  const imageUrls: string[] = [];
+  
+  for (const msg of messages) {
+    if (msg.type === "assistant" && msg.data?.Items) {
+      // 提取所有图片URL
+      for (const item of msg.data.Items) {
+        if (item?.Url) {
+          imageUrls.push(item.Url);
+        }
+      }
+    }
+  }
+  
+  return imageUrls;
+}
+
+/**
+ * 从消息中提取所有视频URL
+ */
+function extractVideoUrlsFromMessages(messages: Message[]): string[] {
+  const videoUrls: string[] = [];
+  
+  for (const msg of messages) {
+    if (msg.type === "assistant") {
+      // 提取视频URL（支持多种字段名）
+      const videoUrl = msg.data?.video_url || msg.data?.videoUrl;
+      if (videoUrl && videoUrl.trim() !== "") {
+        videoUrls.push(videoUrl);
+      }
+    }
+  }
+  
+  return videoUrls;
+}
+
+/**
  * 删除历史对话
  */
-export function deleteChatHistory(id: string): boolean {
+export async function deleteChatHistory(id: string): Promise<boolean> {
   try {
     const histories = getChatHistories();
+    const history = histories.find((h) => h.id === id);
+    
+    // 先删除对话记录
     const filtered = histories.filter((h) => h.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    
+    // 然后检查并删除未被引用的图片和视频
+    if (history) {
+      const imageUrls = extractImageUrlsFromMessages(history.messages || []);
+      const videoUrls = extractVideoUrlsFromMessages(history.messages || []);
+      
+      // 使用图片引用检查工具，只删除未被引用的图片
+      if (imageUrls.length > 0) {
+        const { deleteUnreferencedImages } = await import("./imageReference");
+        deleteUnreferencedImages(imageUrls, id).catch(() => {
+          // 静默处理错误，不影响删除操作
+        });
+      }
+      
+      // 使用视频引用检查工具，只删除未被引用的视频
+      if (videoUrls.length > 0) {
+        const { deleteUnreferencedVideos } = await import("./imageReference");
+        deleteUnreferencedVideos(videoUrls, id).catch(() => {
+          // 静默处理错误，不影响删除操作
+        });
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error("删除历史对话失败:", error);
@@ -139,9 +204,38 @@ export function deleteChatHistory(id: string): boolean {
 /**
  * 清空所有历史对话
  */
-export function clearAllChatHistory(): boolean {
+export async function clearAllChatHistory(): Promise<boolean> {
   try {
+    // 在清空前提取所有图片URL和视频URL
+    const histories = getChatHistories();
+    const allImageUrls: string[] = [];
+    const allVideoUrls: string[] = [];
+    
+    for (const history of histories) {
+      const imageUrls = extractImageUrlsFromMessages(history.messages || []);
+      const videoUrls = extractVideoUrlsFromMessages(history.messages || []);
+      allImageUrls.push(...imageUrls);
+      allVideoUrls.push(...videoUrls);
+    }
+    
+    // 先清空对话记录
     localStorage.removeItem(STORAGE_KEY);
+    
+    // 然后检查并删除未被引用的图片和视频（所有对话都已删除，所以不需要excludeHistoryId）
+    if (allImageUrls.length > 0) {
+      const { deleteUnreferencedImages } = await import("./imageReference");
+      deleteUnreferencedImages(allImageUrls).catch(() => {
+        // 静默处理错误，不影响删除操作
+      });
+    }
+    
+    if (allVideoUrls.length > 0) {
+      const { deleteUnreferencedVideos } = await import("./imageReference");
+      deleteUnreferencedVideos(allVideoUrls).catch(() => {
+        // 静默处理错误，不影响删除操作
+      });
+    }
+    
     return true;
   } catch (error) {
     console.error("清空历史对话失败:", error);

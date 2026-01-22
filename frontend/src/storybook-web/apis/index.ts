@@ -24,7 +24,7 @@ export interface GenerateStoryBookResponse {
   Title: string;
   Summary: string;
   Mode: "storybook" | "comics";
-  Items: { Url: string; Text?: string; IsCover?: boolean }[];
+  Items: { Url: string; OriginalUrl?: string; Text?: string; IsCover?: boolean }[];
   AnalysisResult?: PoetryAnalysisData;
 }
 
@@ -156,7 +156,6 @@ export const deleteStoryBook = async (id: string | number): Promise<boolean> => 
     const numericId = typeof id === "number" ? id : parseInt(id as string, 10);
     if (isNaN(numericId)) {
       // 如果不是数字ID，说明是前端chat ID，不需要调用后端删除
-      console.log(`跳过后端删除，ID ${id} 是前端chat ID，不是后端project ID`);
       return true; // 返回true表示"成功"（因为不需要删除）
     }
 
@@ -178,10 +177,98 @@ export const deleteStoryBook = async (id: string | number): Promise<boolean> => 
       return true;
     }
     
-    console.warn(`Database deletion failed for id ${numericId}: ${response.status}`);
     return false;
   } catch (error) {
-    console.error("Database deletion error:", error);
+    return false;
+  }
+};
+
+/**
+ * 批量删除图片文件
+ */
+export const deleteImages = async (imageUrls: string[]): Promise<boolean> => {
+  try {
+    if (!imageUrls || imageUrls.length === 0) {
+      return true;
+    }
+
+    // 过滤出本地图片URL（/static/media/...）
+    const localUrls = imageUrls.filter(url => 
+      url && (url.startsWith("/static/media/") || url.startsWith("/static/"))
+    );
+
+    if (localUrls.length === 0) {
+      return true; // 没有本地图片需要删除
+    }
+
+    const token = getAuthToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch("/api/image/delete", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ image_urls: localUrls }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return result.status === "success";
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("删除图片失败:", error);
+    return false;
+  }
+};
+
+/**
+ * 批量删除视频文件
+ */
+export const deleteVideos = async (videoUrls: string[]): Promise<boolean> => {
+  try {
+    if (!videoUrls || videoUrls.length === 0) {
+      return true;
+    }
+
+    // 过滤出本地视频URL（/static/media/...）
+    const localUrls = videoUrls.filter(url => 
+      url && (url.startsWith("/static/media/") || url.startsWith("/static/"))
+    );
+
+    if (localUrls.length === 0) {
+      return true; // 没有本地视频需要删除
+    }
+
+    const token = getAuthToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch("/api/video/delete", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ video_urls: localUrls }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return result.status === "success";
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("删除视频失败:", error);
     return false;
   }
 };
@@ -229,8 +316,12 @@ export const startAsyncAnalysis = async (
  */
 export const getAnalysisTaskStatus = async (taskId: string): Promise<TaskStatus> => {
   try {
-    const response = await fetchWithRetry(`/api/text/task/${taskId}`, {}, 3, 1000);
+    // 任务查询使用更长的超时时间（60秒）和更多重试次数
+    const response = await fetchWithRetry(`/api/text/task/${taskId}`, {}, 5, 2000, 60000);
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`任务不存在 (404)`);
+      }
       throw new Error(`查询任务失败: ${response.status}`);
     }
     return response.json();
@@ -367,21 +458,60 @@ async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
   maxRetries: number = 3,
-  retryDelay: number = 1000
+  retryDelay: number = 1000,
+  timeout: number = 30000
 ): Promise<Response> {
   let lastError: Error | null = null;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // 每次重试都创建新的超时控制器
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    // 合并 signal（每次重试都重新创建）
+    const fetchOptions: RequestInit = {
+      ...options,
+      signal: options.signal ? 
+        (() => {
+          // 如果已有 signal，创建一个组合的 signal
+          const combinedController = new AbortController();
+          options.signal!.addEventListener('abort', () => combinedController.abort());
+          controller.signal.addEventListener('abort', () => combinedController.abort());
+          return combinedController.signal;
+        })() : 
+        controller.signal
+    };
+    
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, fetchOptions);
+      clearTimeout(timeoutId);
+      
       // 对于网络错误或5xx错误，进行重试
-      if (!response.ok && response.status >= 500 && attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
-        continue;
+      // 对于404错误，不重试（任务不存在）
+      if (!response.ok) {
+        if (response.status === 404) {
+          // 404 不重试，直接返回
+          return response;
+        }
+        if (response.status >= 500 && attempt < maxRetries - 1) {
+          clearTimeout(timeoutId);
+          await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
+          continue;
+        }
       }
       return response;
     } catch (error) {
       lastError = error as Error;
+      clearTimeout(timeoutId);
+      
+      // 如果是超时错误，进行重试
+      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout'))) {
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
+          continue;
+        }
+        throw new Error(`请求超时 (${timeout}ms)`);
+      }
       // 网络错误，进行重试
       if (attempt < maxRetries - 1) {
         await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
@@ -398,8 +528,12 @@ async function fetchWithRetry(
  */
 export const getTaskStatus = async (taskId: string): Promise<TaskStatus> => {
   try {
-    const response = await fetchWithRetry(`/api/image/task/${taskId}`, {}, 3, 1000);
+    // 图片生成任务查询使用更长的超时时间（60秒）和更多重试次数
+    const response = await fetchWithRetry(`/api/image/task/${taskId}`, {}, 5, 2000, 60000);
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`任务不存在 (404)`);
+      }
       throw new Error(`查询任务失败: ${response.status}`);
     }
     return response.json();
@@ -464,6 +598,7 @@ export const generateFromStoryboard = async (
           .filter((item: any) => item.image_url && item.image_url.trim() !== "")
           .map((item: any) => ({
             Url: item.image_url || "",
+            OriginalUrl: item.original_url || "", // 保留原始URL用于回退
             Text: item.text || "",
             IsCover: item.is_cover || false,
           }));

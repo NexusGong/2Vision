@@ -1,147 +1,247 @@
 /*
  * 诗词分析等待动画样式
- * 简洁优雅的水墨风格
+ * 科技风格 - 电路脉冲效果
  */
 
-.analysis-loading {
+.cyber-analysis-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  padding: 32px 24px;
-  min-height: 140px;
-  background: linear-gradient(145deg, #faf9f7 0%, #f4f1ec 100%);
-  border-radius: 16px;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
-}
-
-/* 墨滴涟漪动画 */
-.ink-ripple {
+  gap: 24px;
+  padding: 40px 32px;
+  min-height: 180px;
+  background: linear-gradient(145deg, rgba(15, 15, 25, 0.95), rgba(20, 20, 35, 0.9));
+  border-radius: 20px;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  box-shadow: 
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(0, 212, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   position: relative;
-  width: 56px;
-  height: 56px;
+  overflow: hidden;
 }
 
-.ripple {
+/* 背景网格 */
+.cyber-grid-bg {
   position: absolute;
   inset: 0;
-  border: 2px solid #576690;
+  opacity: 0.05;
+  background-image: 
+    linear-gradient(rgba(0, 212, 255, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.5) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* 脉冲环动画 */
+.cyber-pulse-ring {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.pulse-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(0, 212, 255, 0.5);
   border-radius: 50%;
   opacity: 0;
-  animation: ripple-expand 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: cyber-pulse-expand 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-.ripple-1 { animation-delay: 0s; }
-.ripple-2 { animation-delay: 0.8s; }
-.ripple-3 { animation-delay: 1.6s; }
+.pulse-ring-1 { animation-delay: 0s; }
+.pulse-ring-2 { animation-delay: 0.8s; }
+.pulse-ring-3 { animation-delay: 1.6s; }
 
-@keyframes ripple-expand {
+@keyframes cyber-pulse-expand {
   0% {
     transform: scale(0.3);
-    opacity: 0.6;
+    opacity: 0.8;
+    border-color: rgba(0, 212, 255, 0.8);
   }
   100% {
-    transform: scale(1.2);
+    transform: scale(1.5);
     opacity: 0;
+    border-color: rgba(177, 74, 237, 0.3);
   }
 }
 
-.ink-dot {
+.cyber-core {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 12px;
-  height: 12px;
-  background: linear-gradient(135deg, #576690 0%, #3d4a6b 100%);
-  border-radius: 50%;
+  width: 48px;
+  height: 48px;
   transform: translate(-50%, -50%);
-  animation: ink-pulse 2s ease-in-out infinite;
-  box-shadow: 0 2px 8px rgba(87, 102, 144, 0.3);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(177, 74, 237, 0.15));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00d4ff;
+  animation: cyber-core-pulse 2s ease-in-out infinite;
+  box-shadow: 
+    0 0 20px rgba(0, 212, 255, 0.3),
+    inset 0 0 15px rgba(0, 212, 255, 0.1);
 }
 
-@keyframes ink-pulse {
+.cyber-icon-path {
+  animation: cyber-icon-draw 2s ease-in-out infinite;
+}
+
+@keyframes cyber-core-pulse {
   0%, 100% {
     transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
+    box-shadow: 
+      0 0 20px rgba(0, 212, 255, 0.3),
+      inset 0 0 15px rgba(0, 212, 255, 0.1);
   }
   50% {
-    transform: translate(-50%, -50%) scale(1.15);
-    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 
+      0 0 30px rgba(0, 212, 255, 0.5),
+      inset 0 0 20px rgba(0, 212, 255, 0.2);
+  }
+}
+
+@keyframes cyber-icon-draw {
+  0%, 100% {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dashoffset: 50;
   }
 }
 
 /* 步骤文字 */
-.step-text {
+.cyber-step-text {
   font-size: 15px;
   font-weight: 500;
-  color: #4a5578;
-  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: 0.5px;
-  animation: text-fade 2s ease-in-out;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: 'SF Mono', 'Consolas', monospace;
+  letter-spacing: 1px;
+  animation: cyber-text-glitch 2s ease-in-out;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
 }
 
-@keyframes text-fade {
+.cyber-bracket {
+  color: #00d4ff;
+  font-weight: 400;
+  margin: 0 4px;
+}
+
+@keyframes cyber-text-glitch {
   0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
+    filter: blur(4px);
   }
-  15% {
+  20% {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
-  85% {
+  80% {
     opacity: 1;
     transform: translateY(0);
   }
   100% {
-    opacity: 0.7;
-    transform: translateY(-4px);
+    opacity: 0.8;
+    transform: translateY(-5px);
   }
 }
 
 /* 进度指示点 */
-.step-progress {
+.cyber-step-progress {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
-.dot {
-  width: 6px;
-  height: 6px;
+.cyber-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #d4d0c8;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 212, 255, 0.3);
   transition: all 0.3s ease;
 }
 
-.dot.active {
-  background: #576690;
+.cyber-dot.active {
+  background: #00d4ff;
+  border-color: #00d4ff;
   transform: scale(1.3);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
 }
 
-.dot.done {
-  background: #9aa3bc;
+.cyber-dot.done {
+  background: rgba(177, 74, 237, 0.6);
+  border-color: rgba(177, 74, 237, 0.8);
+}
+
+/* 数据流动画 */
+.cyber-data-stream {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.data-line {
+  position: absolute;
+  width: 1px;
+  height: 30px;
+  background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+  animation: data-fall 3s linear infinite;
+  opacity: 0.4;
+}
+
+.data-line:nth-child(1) { left: 10%; }
+.data-line:nth-child(2) { left: 30%; }
+.data-line:nth-child(3) { left: 50%; }
+.data-line:nth-child(4) { left: 70%; }
+.data-line:nth-child(5) { left: 90%; }
+
+@keyframes data-fall {
+  0% {
+    top: -30px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.4;
+  }
+  90% {
+    opacity: 0.4;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
 }
 
 /* 响应式 */
 @media (max-width: 480px) {
-  .analysis-loading {
-    padding: 24px 16px;
-    min-height: 120px;
-    gap: 16px;
+  .cyber-analysis-loading {
+    padding: 32px 20px;
+    min-height: 150px;
+    gap: 20px;
   }
 
-  .ink-ripple {
-    width: 48px;
-    height: 48px;
+  .cyber-pulse-ring {
+    width: 64px;
+    height: 64px;
   }
 
-  .ink-dot {
-    width: 10px;
-    height: 10px;
+  .cyber-core {
+    width: 40px;
+    height: 40px;
   }
 
-  .step-text {
-    font-size: 14px;
+  .cyber-step-text {
+    font-size: 13px;
   }
 }

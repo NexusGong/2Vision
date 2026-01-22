@@ -86,7 +86,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
       // 尝试同步删除数据库记录
       await deleteStoryBook(id);
 
-      if (deleteChatHistory(id)) {
+      if (await deleteChatHistory(id)) {
         Message.success("删除成功");
         loadHistories();
         // 删除成功后即刻跳转到新对话页面
@@ -104,8 +104,8 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
   );
 
   // 清空所有历史记录
-  const handleClearAll = useCallback(() => {
-    if (clearAllChatHistory()) {
+  const handleClearAll = useCallback(async () => {
+    if (await clearAllChatHistory()) {
       Message.success("已清空所有历史记录");
       loadHistories();
     } else {

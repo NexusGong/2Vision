@@ -21,12 +21,15 @@ import {
 
 export const dataAdaptor = (list: IDataItem[]) => {
   const len = list.length;
+  // 计算内容页数量（排除封面）
+  const contentPageCount = list.filter(item => !item.isCover).length;
+  
   return list.reduce<IVsStorybookPage[]>((acc, item, index) => {
     // 封面
     if (item.isCover) {
       acc.push({
         key: item.id,
-        showTitle: true,
+        showTitle: false, // 封面不需要显示额外文本，图片本身已包含
         ...item,
       } satisfies IDataCoverItem);
     } else {
@@ -35,15 +38,34 @@ export const dataAdaptor = (list: IDataItem[]) => {
         id: item.id,
         key: `${item.id}-img`,
         url: item.url,
+        originalUrl: (item as any).originalUrl, // 传递原始URL用于回退
       } satisfies IDataPageImageItem);
       // 右侧正文
+      const textContent = item.text || "";
+      // 调试：检查文本内容
+      if (process.env.NODE_ENV === 'development') {
+        if (!textContent) {
+          console.warn(`dataAdaptor: 内容页 ${index} 文本为空`, { item, textContent });
+        } else {
+          console.log(`dataAdaptor: 内容页 ${index} 文本内容`, { 
+            index, 
+            text: textContent, 
+            textLength: textContent.length,
+            isLastPage: index === len - 1
+          });
+        }
+      }
+      
+      // 计算内容页编号（从1开始，排除封面）
+      const contentPageNumber = list.slice(0, index).filter(i => !i.isCover).length + 1;
+      
       acc.push({
         id: item.id,
         key: `${item.id}-text`,
-        text: item.text,
+        text: textContent, // 确保文本不为undefined
         isLastPage: index === len - 1,
-        pageNumber: index,
-        pageTotal: len - 1,
+        pageNumber: contentPageNumber, // 使用内容页编号而不是原始索引
+        pageTotal: contentPageCount,
       } satisfies IDataPageTextItem);
     }
     return acc;

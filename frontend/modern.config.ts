@@ -33,6 +33,10 @@ export default defineConfig({
           target: "http://127.0.0.1:8000",
           changeOrigin: true,
         },
+        "/static/media": {
+          target: "http://127.0.0.1:8000",
+          changeOrigin: true,
+        },
         "/doubao-seedream-4-0": {
           target:
             "https://ark-content-generation-v2-cn-beijing.tos-cn-beijing.volces.com",

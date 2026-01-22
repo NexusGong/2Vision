@@ -1,54 +1,173 @@
 /*
- * 支付模态框样式
+ * 支付模态框样式 - 科技风深色主题
  */
 
+@cyber-primary: #00d4ff;
+@cyber-purple: #b14aed;
+@cyber-pink: #ff2d95;
+@cyber-cyan: #00ffcc;
+@cyber-bg: rgba(15, 15, 25, 0.98);
+@cyber-card: rgba(25, 25, 40, 0.9);
+@cyber-text: rgba(255, 255, 255, 0.9);
+@cyber-text-secondary: rgba(255, 255, 255, 0.6);
+@cyber-text-muted: rgba(255, 255, 255, 0.4);
+@cyber-border: rgba(0, 212, 255, 0.2);
+
 .paymentModal {
+  :global(.arco-modal) {
+    border-radius: 20px;
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 255, 0.1);
+    border: 1px solid @cyber-border;
+    overflow: hidden;
+  }
+
+  :global(.arco-modal-content) {
+    background: linear-gradient(145deg, @cyber-bg, rgba(20, 20, 35, 0.98)) !important;
+    position: relative;
+    
+    // 顶部渐变线
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.5), rgba(177, 74, 237, 0.5), transparent);
+      z-index: 10;
+    }
+  }
+
+  :global(.arco-modal-header) {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+    background: transparent !important;
+    
+    :global(.arco-modal-title) {
+      font-size: 18px;
+      font-weight: 600;
+      background: linear-gradient(135deg, @cyber-primary, @cyber-purple);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  }
+
+  :global(.arco-modal-close-icon) {
+    top: 18px;
+    right: 18px;
+    width: 32px;
+    height: 32px;
+    color: @cyber-text-muted;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    
+    &:hover {
+      color: @cyber-primary;
+      background: rgba(0, 212, 255, 0.1);
+    }
+  }
+
   :global(.arco-modal-body) {
     padding: 24px;
+    background: transparent !important;
+  }
+
+  :global(.arco-modal-footer) {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(0, 212, 255, 0.1);
+    background: transparent !important;
+    
+    :global(.arco-btn) {
+      border-radius: 12px;
+      height: 44px;
+      padding: 0 24px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    :global(.arco-btn-secondary),
+    :global(.arco-btn-default) {
+      background: @cyber-card !important;
+      border: 1px solid @cyber-border !important;
+      color: @cyber-text-secondary !important;
+
+      &:hover {
+        background: rgba(0, 212, 255, 0.1) !important;
+        border-color: rgba(0, 212, 255, 0.3) !important;
+        color: @cyber-primary !important;
+      }
+    }
+
+    :global(.arco-btn-primary) {
+      background: linear-gradient(135deg, @cyber-primary, @cyber-purple) !important;
+      border: none !important;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+
+      &:hover {
+        box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        transform: translateY(-1px);
+      }
+    }
   }
 }
 
 .paymentContent {
+  // Divider 样式
+  :global(.arco-divider) {
+    border-color: rgba(0, 212, 255, 0.1);
+  }
+  
+  // Tag 样式
+  :global(.arco-tag) {
+    border-radius: 6px;
+    border: none;
+  }
+  
   .paymentTypeSelector {
     margin-bottom: 24px;
 
     .selectorLabel {
       font-size: 14px;
       font-weight: 500;
-      color: var(--gf-text-main, #1d2129);
+      color: @cyber-text;
       margin-bottom: 12px;
     }
 
     .typeCard {
       flex: 1;
       padding: 20px;
-      border: 2px solid rgba(0, 0, 0, 0.06);
-      border-radius: 12px;
+      border: 1px solid @cyber-border;
+      border-radius: 14px;
       cursor: pointer;
       transition: all 0.3s ease;
-      background: rgba(255, 255, 255, 0.8);
+      background: @cyber-card;
       backdrop-filter: blur(8px);
 
       &:hover {
-        border-color: var(--gf-primary, #576690);
-        background: rgba(87, 102, 144, 0.05);
+        border-color: rgba(0, 212, 255, 0.4);
+        background: rgba(0, 212, 255, 0.08);
       }
 
       &.active {
-        border-color: var(--gf-primary, #576690);
-        background: rgba(87, 102, 144, 0.1);
+        border-color: @cyber-primary;
+        background: rgba(0, 212, 255, 0.12);
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
       }
 
       .typeTitle {
         font-size: 16px;
         font-weight: 600;
-        color: var(--gf-text-main, #1d2129);
+        color: @cyber-text;
         margin-bottom: 4px;
       }
 
       .typeDesc {
         font-size: 13px;
-        color: var(--gf-text-secondary, #86909c);
+        color: @cyber-text-muted;
       }
     }
   }
@@ -59,7 +178,7 @@
     .selectorLabel {
       font-size: 14px;
       font-weight: 500;
-      color: var(--gf-text-main, #1d2129);
+      color: @cyber-text;
       margin-bottom: 12px;
     }
 
@@ -69,69 +188,101 @@
       gap: 12px;
 
       .packageItem {
-        padding: 16px;
-        border: 2px solid rgba(0, 0, 0, 0.06);
-        border-radius: 8px;
+        padding: 18px 16px;
+        border: 1px solid @cyber-border;
+        border-radius: 12px;
         cursor: pointer;
         transition: all 0.3s ease;
         text-align: center;
-        background: rgba(255, 255, 255, 0.8);
+        background: @cyber-card;
         backdrop-filter: blur(8px);
+        position: relative;
+        overflow: hidden;
+
+        // 顶部光线
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 20%;
+          right: 20%;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), transparent);
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
 
         &:hover {
-          border-color: var(--gf-primary, #576690);
-          background: rgba(87, 102, 144, 0.05);
-          transform: translateY(-2px);
+          border-color: rgba(0, 212, 255, 0.4);
+          background: rgba(0, 212, 255, 0.08);
+          transform: translateY(-3px);
+
+          &::before {
+            opacity: 1;
+          }
         }
 
         &.active {
-          border-color: var(--gf-primary, #576690);
-          background: rgba(87, 102, 144, 0.1);
-          box-shadow: 0 4px 12px rgba(87, 102, 144, 0.15);
+          border-color: @cyber-primary;
+          background: rgba(0, 212, 255, 0.12);
+          box-shadow: 0 0 25px rgba(0, 212, 255, 0.2);
+
+          &::before {
+            opacity: 1;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+          }
         }
 
         .packageQuantity {
           font-size: 16px;
           font-weight: 600;
-          color: var(--gf-text-main, #1d2129);
-          margin-bottom: 4px;
+          color: @cyber-text;
+          margin-bottom: 6px;
         }
 
         .packagePrice {
-          font-size: 18px;
-          font-weight: 600;
-          color: var(--gf-accent, #9d2933);
+          font-size: 20px;
+          font-weight: 700;
+          background: linear-gradient(135deg, @cyber-cyan, @cyber-primary);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
       }
     }
   }
 
   .paymentSummary {
-    background: rgba(250, 251, 252, 0.8);
+    background: @cyber-card;
     backdrop-filter: blur(8px);
-    border-radius: 8px;
-    padding: 16px;
+    border-radius: 14px;
+    padding: 18px;
     margin-bottom: 24px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid @cyber-border;
 
     .summaryRow {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
+      padding: 10px 0;
       font-size: 14px;
-      color: var(--gf-text-main, #1d2129);
+      color: @cyber-text-secondary;
 
       &.total {
-        border-top: 1px solid rgba(0, 0, 0, 0.06);
-        padding-top: 12px;
-        margin-top: 8px;
+        border-top: 1px solid rgba(0, 212, 255, 0.1);
+        padding-top: 14px;
+        margin-top: 10px;
         font-size: 16px;
         font-weight: 600;
+        color: @cyber-text;
 
         .price {
-          font-size: 20px;
-          color: var(--gf-accent, #9d2933);
+          font-size: 24px;
+          background: linear-gradient(135deg, @cyber-cyan, @cyber-primary);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
         }
       }
     }
@@ -142,43 +293,146 @@
     justify-content: flex-end;
     gap: 12px;
     margin-top: 24px;
+    
+    :global(.arco-btn) {
+      border-radius: 12px;
+      height: 44px;
+      padding: 0 24px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    :global(.arco-btn-default) {
+      background: @cyber-card;
+      border: 1px solid @cyber-border;
+      color: @cyber-text-secondary;
+
+      &:hover {
+        background: rgba(0, 212, 255, 0.1);
+        border-color: rgba(0, 212, 255, 0.3);
+        color: @cyber-primary;
+      }
+    }
+
+    :global(.arco-btn-primary) {
+      background: linear-gradient(135deg, @cyber-primary, @cyber-purple);
+      border: none;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+
+      &:hover {
+        box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        transform: translateY(-1px);
+      }
+      
+      &:disabled {
+        opacity: 0.5;
+        box-shadow: none;
+        transform: none;
+      }
+    }
   }
 }
 
 // 支付方式选择弹窗样式
 .paymentMethodModal {
+  :global(.arco-modal) {
+    border-radius: 20px;
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 255, 0.1);
+    border: 1px solid @cyber-border;
+    overflow: hidden;
+  }
+
+  :global(.arco-modal-content) {
+    background: linear-gradient(145deg, @cyber-bg, rgba(20, 20, 35, 0.98)) !important;
+    position: relative;
+    
+    // 顶部渐变线
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.5), rgba(177, 74, 237, 0.5), transparent);
+      z-index: 10;
+    }
+  }
+
+  :global(.arco-modal-header) {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+    background: transparent !important;
+    
+    :global(.arco-modal-title) {
+      font-size: 18px;
+      font-weight: 600;
+      background: linear-gradient(135deg, @cyber-primary, @cyber-purple);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  }
+
+  :global(.arco-modal-close-icon) {
+    top: 18px;
+    right: 18px;
+    width: 32px;
+    height: 32px;
+    color: @cyber-text-muted;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    
+    &:hover {
+      color: @cyber-primary;
+      background: rgba(0, 212, 255, 0.1);
+    }
+  }
+
   :global(.arco-modal-body) {
     padding: 24px;
+    background: transparent !important;
   }
 }
 
 .paymentMethodContent {
+  // Divider 样式
+  :global(.arco-divider) {
+    border-color: rgba(0, 212, 255, 0.1);
+  }
+  
   .orderInfo {
-    background: rgba(250, 251, 252, 0.8);
+    background: @cyber-card;
     backdrop-filter: blur(8px);
-    border-radius: 8px;
-    padding: 16px;
+    border-radius: 14px;
+    padding: 18px;
     margin-bottom: 20px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid @cyber-border;
 
     .orderInfoRow {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 0;
+      padding: 8px 0;
       font-size: 14px;
-      color: var(--gf-text-main, #1d2129);
+      color: @cyber-text-secondary;
 
       .orderAmount {
-        font-size: 20px;
-        color: var(--gf-accent, #9d2933);
-        font-weight: 600;
+        font-size: 22px;
+        background: linear-gradient(135deg, @cyber-cyan, @cyber-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
       }
 
       .orderId {
-        font-family: monospace;
+        font-family: 'SF Mono', monospace;
         font-size: 12px;
-        color: var(--gf-text-secondary, #86909c);
+        color: @cyber-text-muted;
       }
     }
   }
@@ -191,42 +445,43 @@
     .paymentMethodItem {
       display: flex;
       align-items: center;
-      padding: 16px;
-      border: 2px solid rgba(0, 0, 0, 0.06);
-      border-radius: 8px;
+      padding: 18px;
+      border: 1px solid @cyber-border;
+      border-radius: 14px;
       cursor: pointer;
       transition: all 0.3s ease;
-      background: rgba(255, 255, 255, 0.8);
+      background: @cyber-card;
       backdrop-filter: blur(8px);
       position: relative;
 
       &:hover:not(.disabled) {
-        border-color: var(--gf-primary, #576690);
-        background: rgba(87, 102, 144, 0.05);
+        border-color: rgba(0, 212, 255, 0.4);
+        background: rgba(0, 212, 255, 0.08);
         transform: translateX(4px);
       }
 
       &.selected {
-        border-color: var(--gf-primary, #576690);
-        background: rgba(87, 102, 144, 0.1);
-        box-shadow: 0 4px 12px rgba(87, 102, 144, 0.15);
+        border-color: @cyber-primary;
+        background: rgba(0, 212, 255, 0.12);
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
       }
 
       &.disabled {
         cursor: not-allowed;
-        opacity: 0.6;
+        opacity: 0.5;
       }
 
       .methodIcon {
         font-size: 32px;
         margin-right: 16px;
-        width: 48px;
-        height: 48px;
+        width: 52px;
+        height: 52px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(87, 102, 144, 0.05);
-        border-radius: 8px;
+        background: rgba(0, 212, 255, 0.1);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 12px;
       }
 
       .methodInfo {
@@ -235,25 +490,26 @@
         .methodName {
           font-size: 16px;
           font-weight: 600;
-          color: var(--gf-text-main, #1d2129);
+          color: @cyber-text;
           margin-bottom: 4px;
         }
 
         .methodDesc {
           font-size: 13px;
-          color: var(--gf-text-secondary, #86909c);
+          color: @cyber-text-muted;
         }
       }
 
       .methodLoading {
         font-size: 13px;
-        color: var(--gf-primary, #576690);
+        color: @cyber-primary;
         font-weight: 500;
       }
 
       .methodCheck {
-        color: var(--gf-primary, #576690);
-        font-size: 20px;
+        color: @cyber-primary;
+        font-size: 22px;
+        text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
       }
     }
   }

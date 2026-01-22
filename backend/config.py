@@ -2,9 +2,20 @@
 配置文件
 """
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# 获取backend目录的绝对路径
+BACKEND_DIR = Path(__file__).parent.absolute()
+# .env文件路径（backend目录下的.env）
+ENV_FILE = BACKEND_DIR / ".env"
+
+# 加载环境变量，优先使用backend目录下的.env文件
+if ENV_FILE.exists():
+    load_dotenv(dotenv_path=ENV_FILE, override=True)
+else:
+    # 如果backend/.env不存在，尝试从当前目录或父目录加载
+    load_dotenv()
 
 class Config:
     """应用配置"""
@@ -44,6 +55,32 @@ class Config:
     IMAGES_DIR = os.path.join(STORAGE_DIR, "images")  # 图片存储目录
     VIDEOS_DIR = os.path.join(STORAGE_DIR, "videos")  # 视频存储目录
     STATIC_URL_PREFIX = os.getenv("STATIC_URL_PREFIX", "/static/media")  # 静态文件URL前缀
+    
+    # OAuth 配置
+    # GitHub OAuth
+    GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
+    GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
+    GITHUB_REDIRECT_URI = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:8000/api/auth/oauth/github/callback")
+    
+    # Google OAuth
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/oauth/google/callback")
+    
+    # 微信 OAuth
+    WECHAT_APP_ID = os.getenv("WECHAT_APP_ID", "")
+    WECHAT_APP_SECRET = os.getenv("WECHAT_APP_SECRET", "")
+    WECHAT_REDIRECT_URI = os.getenv("WECHAT_REDIRECT_URI", "http://localhost:8000/api/auth/oauth/wechat/callback")
+    
+    # 前端URL（用于OAuth回调重定向）
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    
+    # 短信服务配置（互亿无线）
+    SMS_ENABLED = os.getenv("SMS_ENABLED", "false").lower() == "true"  # 是否启用短信服务
+    SMS_ACCOUNT = os.getenv("SMS_ACCOUNT", "")  # APIID
+    SMS_PASSWORD = os.getenv("SMS_PASSWORD", "")  # APIKEY
+    SMS_TEMPLATE_ID = os.getenv("SMS_TEMPLATE_ID", "1")  # 模板ID，默认使用模板1
+    SMS_API_URL = os.getenv("SMS_API_URL", "https://api.ihuyi.com/sms/Submit.json")  # 短信API地址
 
 config = Config()
 

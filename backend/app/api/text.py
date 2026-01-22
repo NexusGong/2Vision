@@ -338,8 +338,18 @@ async def analyze_poetry_async(
 @router.get("/task/{task_id}")
 async def get_analysis_task_status(task_id: str):
     """查询文本分析任务状态"""
-    task_status = task_manager.get_task_status(task_id)
-    if not task_status:
-        raise HTTPException(status_code=404, detail="任务不存在")
-    return task_status
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        task_status = task_manager.get_task_status(task_id)
+        if not task_status:
+            logger.warning(f"文本分析任务不存在: {task_id}")
+            raise HTTPException(status_code=404, detail="任务不存在或已过期")
+        return task_status
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"查询文本分析任务状态失败: {task_id}, 错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"查询任务状态失败: {str(e)}")
 

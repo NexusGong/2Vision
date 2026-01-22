@@ -22,15 +22,15 @@ conda activate 2vision
 # 确保使用 conda 环境中的 Python
 export PATH="$(conda info --base)/envs/2vision/bin:$PATH"
 
-# 检查环境变量文件
+# 进入后端目录
+cd backend
+
+# 检查环境变量文件（backend目录下的.env）
 if [ ! -f .env ]; then
-    echo "警告: 未找到 .env 文件，请先配置环境变量"
+    echo "警告: 未找到 backend/.env 文件，请先配置环境变量"
     echo "可以复制 .env.example 并修改配置"
     exit 1
 fi
-
-# 进入后端目录
-cd backend
 
 # 检查依赖
 if [ ! -f "requirements.txt" ]; then

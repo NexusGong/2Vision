@@ -20,16 +20,18 @@ import { useImage } from "../../hooks/useImage";
  * */
 export const VsStoryBookPageImage = ({
   url = "",
+  originalUrl,
   slot,
 }: IDataPageImageItem) => {
-  const status = useImage(url);
+  const { status, src: currentSrc } = useImage(url || '', originalUrl);
+  
   return (
     <div className="vs-storybook__page-image w-full h-full relative">
       <div className="absolute top-0 left-0 w-full h-full vs-storybook__page-image__texture"></div>
-      {status === "error" ? null : (
+      {status === "error" || !currentSrc ? null : (
         <img
-          src={url}
-          className="absolute top-0 left-0 w-full h-full object-cover mix-blend-multiply"
+          src={currentSrc}
+          className="absolute top-0 left-0 w-full h-full object-cover"
           alt=""
         />
       )}

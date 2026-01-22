@@ -11,5 +11,5 @@
  * limitations under the License.
  */
 
-export const MODEL = "古诗词古文图像化学习工具";
+export const MODEL = "2Vision古诗词古文图像化学习工具";
 export const MODEL_VERSION = "1.0.0";

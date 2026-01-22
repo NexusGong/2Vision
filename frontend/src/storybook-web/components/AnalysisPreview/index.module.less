@@ -1,29 +1,35 @@
 /*
- * 诗词分析预览组件样式
+ * 诗词分析预览组件样式 - 深色科技主题
  */
 
 .analysisPreview {
-  background: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(135deg, rgba(20, 20, 35, 0.95), rgba(30, 30, 50, 0.95));
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 40px rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.2);
   max-width: 100%;
+  backdrop-filter: blur(10px);
   
   .header {
     margin-bottom: 24px;
     padding-bottom: 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.15);
     
     .title {
       font-size: 18px;
       font-weight: 600;
-      color: #1d1d1f;
+      color: rgba(255, 255, 255, 0.95);
       margin: 0 0 8px 0;
+      background: linear-gradient(90deg, #00d4ff, #b14aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     
     .subtitle {
       font-size: 14px;
-      color: #86868b;
+      color: rgba(255, 255, 255, 0.6);
     }
   }
   
@@ -37,12 +43,17 @@
     }
     
     &::-webkit-scrollbar-track {
-      background: transparent;
+      background: rgba(0, 212, 255, 0.05);
+      border-radius: 3px;
     }
     
     &::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.1);
+      background: linear-gradient(180deg, rgba(0, 212, 255, 0.4), rgba(177, 74, 237, 0.4));
       border-radius: 3px;
+      
+      &:hover {
+        background: linear-gradient(180deg, rgba(0, 212, 255, 0.6), rgba(177, 74, 237, 0.6));
+      }
     }
   }
   
@@ -57,10 +68,10 @@
   .sectionTitle {
     font-size: 15px;
     font-weight: 600;
-    color: #1d1d1f;
+    color: rgba(255, 255, 255, 0.9);
     margin: 0 0 12px 0;
     padding-left: 12px;
-    border-left: 3px solid #576690;
+    border-left: 3px solid #00d4ff;
   }
   
   .actions {
@@ -69,16 +80,17 @@
     gap: 12px;
     margin-top: 24px;
     padding-top: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    border-top: 1px solid rgba(0, 212, 255, 0.15);
   }
 }
 
 // 诗词信息样式
 .poetryInfo {
-  background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(177, 74, 237, 0.1));
   border-radius: 12px;
   padding: 20px;
   position: relative;
+  border: 1px solid rgba(0, 212, 255, 0.2);
   
   .poetryHeader {
     display: flex;
@@ -90,23 +102,29 @@
     .poetryTitle {
       font-size: 22px;
       font-weight: 700;
-      color: #1d1d1f;
+      color: rgba(255, 255, 255, 0.95);
       margin: 0;
       font-family: "STKaiti", "KaiTi", serif;
+      background: linear-gradient(90deg, #00d4ff, #b14aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     
     .poetryMeta {
       font-size: 14px;
-      color: #576690;
+      color: rgba(0, 212, 255, 0.8);
       font-weight: 500;
     }
     
     .editBtn {
       margin-left: auto;
       opacity: 0.6;
+      color: rgba(255, 255, 255, 0.7);
       
       &:hover {
         opacity: 1;
+        color: #00d4ff;
       }
     }
   }
@@ -115,7 +133,7 @@
     font-family: "STKaiti", "KaiTi", serif;
     font-size: 18px;
     line-height: 2;
-    color: #2c3e50;
+    color: rgba(255, 255, 255, 0.85);
     margin-bottom: 20px;
     
     p {
@@ -127,20 +145,21 @@
   .background {
     margin-top: 16px;
     padding: 12px 16px;
-    background: rgba(87, 102, 144, 0.08);
+    background: rgba(0, 212, 255, 0.08);
     border-radius: 8px;
+    border: 1px solid rgba(0, 212, 255, 0.15);
     
     h4 {
       font-size: 13px;
       font-weight: 600;
-      color: #576690;
+      color: #00d4ff;
       margin: 0 0 8px 0;
     }
     
     p {
       font-size: 14px;
       line-height: 1.8;
-      color: #4a5568;
+      color: rgba(255, 255, 255, 0.7);
       margin: 0;
     }
   }
@@ -148,8 +167,8 @@
 
 // 诗词信息编辑器样式
 .poetryInfoEditor {
-  background: #fff;
-  border: 1px solid rgba(87, 102, 144, 0.2);
+  background: rgba(20, 20, 35, 0.8);
+  border: 1px solid rgba(0, 212, 255, 0.3);
   border-radius: 12px;
   padding: 16px;
   
@@ -159,12 +178,12 @@
     align-items: center;
     margin-bottom: 16px;
     padding-bottom: 12px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.15);
     
     .editorTitle {
       font-size: 15px;
       font-weight: 600;
-      color: #1d1d1f;
+      color: rgba(255, 255, 255, 0.95);
     }
   }
 }
@@ -186,7 +205,7 @@
   label {
     font-size: 13px;
     font-weight: 500;
-    color: #576690;
+    color: rgba(0, 212, 255, 0.9);
   }
 }
 
@@ -199,10 +218,10 @@
 // 逐句分析样式
 .lineAnalysis {
   :global(.arco-collapse-item) {
-    background: #fff;
+    background: rgba(20, 20, 35, 0.6) !important;
     border-radius: 8px !important;
     margin-bottom: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    border: 1px solid rgba(0, 212, 255, 0.15) !important;
     overflow: hidden;
     
     &:last-child {
@@ -213,10 +232,12 @@
   :global(.arco-collapse-item-header) {
     padding: 12px 16px !important;
     background: transparent !important;
+    color: rgba(255, 255, 255, 0.9) !important;
   }
   
   :global(.arco-collapse-item-content) {
     padding: 0 16px 16px !important;
+    color: rgba(255, 255, 255, 0.8) !important;
   }
 }
 
@@ -228,7 +249,7 @@
   .lineNumber {
     font-size: 12px;
     color: #fff;
-    background: #576690;
+    background: linear-gradient(135deg, #00d4ff, #b14aed);
     padding: 2px 8px;
     border-radius: 4px;
     font-weight: 500;
@@ -237,7 +258,7 @@
   .lineText {
     font-size: 15px;
     font-weight: 500;
-    color: #1d1d1f;
+    color: rgba(255, 255, 255, 0.95);
     font-family: "STKaiti", "KaiTi", serif;
   }
 }
@@ -254,9 +275,10 @@
   gap: 8px;
   font-size: 14px;
   line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
   
   .label {
-    color: #86868b;
+    color: rgba(0, 212, 255, 0.8);
     white-space: nowrap;
     flex-shrink: 0;
   }
@@ -273,10 +295,10 @@
     h3 {
       font-size: 15px;
       font-weight: 600;
-      color: #1d1d1f;
+      color: rgba(255, 255, 255, 0.95);
       margin: 0;
       padding-left: 12px;
-      border-left: 3px solid #576690;
+      border-left: 3px solid #00d4ff;
     }
   }
 }
@@ -288,25 +310,25 @@
 }
 
 .storyboardItem {
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(20, 20, 35, 0.6);
+  border: 1px solid rgba(0, 212, 255, 0.15);
   border-radius: 12px;
   padding: 16px;
   transition: all 0.2s ease;
   
   &:hover {
-    border-color: rgba(87, 102, 144, 0.3);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 212, 255, 0.4);
+    box-shadow: 0 2px 12px rgba(0, 212, 255, 0.1);
   }
   
   &.coverItem {
     border-left: 4px solid #f5222d;
-    background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
+    background: linear-gradient(135deg, rgba(245, 34, 45, 0.1), rgba(20, 20, 35, 0.8));
   }
   
   &.editing {
-    border-color: #576690;
-    box-shadow: 0 4px 16px rgba(87, 102, 144, 0.15);
+    border-color: #00d4ff;
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.2);
   }
 }
 
@@ -316,7 +338,7 @@
   align-items: center;
   margin-bottom: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
 }
 
 .storyboardIndex {
@@ -327,7 +349,7 @@
   .indexNumber {
     font-size: 18px;
     font-weight: 700;
-    color: #576690;
+    color: #00d4ff;
     min-width: 28px;
   }
 }
@@ -341,40 +363,41 @@
   .storyboardTitle {
     font-size: 15px;
     font-weight: 600;
-    color: #1d1d1f;
+    color: rgba(255, 255, 255, 0.95);
     margin-bottom: 4px;
   }
   
   .storyboardSubtitle {
     font-size: 13px;
-    color: #86868b;
+    color: rgba(255, 255, 255, 0.6);
     margin-bottom: 8px;
   }
   
   .storyboardText {
     font-size: 15px;
     font-family: "STKaiti", "KaiTi", serif;
-    color: #2c3e50;
+    color: rgba(255, 255, 255, 0.85);
     line-height: 1.8;
     margin-bottom: 12px;
   }
   
   .storyboardPrompt {
-    background: rgba(87, 102, 144, 0.06);
+    background: rgba(0, 212, 255, 0.08);
     border-radius: 6px;
     padding: 10px 12px;
+    border: 1px solid rgba(0, 212, 255, 0.1);
     
     .promptLabel {
       font-size: 12px;
       font-weight: 500;
-      color: #576690;
+      color: #00d4ff;
       display: block;
       margin-bottom: 4px;
     }
     
     .promptText {
       font-size: 13px;
-      color: #4a5568;
+      color: rgba(255, 255, 255, 0.7);
       line-height: 1.6;
     }
   }
@@ -382,11 +405,12 @@
 
 // 已确认状态样式
 .confirmedPreview {
-  background: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(135deg, rgba(20, 20, 35, 0.95), rgba(30, 30, 50, 0.95));
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 212, 255, 0.1);
   overflow: hidden;
-  border: 1px solid rgba(82, 196, 26, 0.2);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  backdrop-filter: blur(10px);
 }
 
 .confirmedHeader {
@@ -394,7 +418,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #f6ffed 0%, #fff 100%);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(177, 74, 237, 0.1));
+  border-bottom: 1px solid rgba(0, 212, 255, 0.2);
 }
 
 .confirmedInfo {
@@ -406,21 +431,22 @@
   .confirmedTitle {
     font-size: 16px;
     font-weight: 600;
-    color: #1d1d1f;
+    color: rgba(255, 255, 255, 0.95);
     font-family: "STKaiti", "KaiTi", serif;
   }
   
   .confirmedMeta {
     font-size: 13px;
-    color: #576690;
+    color: rgba(0, 212, 255, 0.8);
   }
   
   .confirmedCount {
     font-size: 12px;
-    color: #86868b;
+    color: rgba(255, 255, 255, 0.7);
     padding: 2px 8px;
-    background: rgba(0, 0, 0, 0.04);
+    background: rgba(0, 212, 255, 0.15);
     border-radius: 4px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
   }
 }
 
@@ -430,12 +456,12 @@
 
 .confirmedContent {
   padding: 16px 20px 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(0, 212, 255, 0.1);
 }
 
 .readonlySection {
   padding: 16px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
   
   &:last-child {
     border-bottom: none;
@@ -445,7 +471,7 @@
   h4 {
     font-size: 13px;
     font-weight: 600;
-    color: #576690;
+    color: #00d4ff;
     margin: 0 0 12px 0;
   }
   
@@ -453,7 +479,7 @@
     font-family: "STKaiti", "KaiTi", serif;
     font-size: 15px;
     line-height: 2;
-    color: #2c3e50;
+    color: rgba(255, 255, 255, 0.85);
     
     p {
       margin: 0;
@@ -464,13 +490,18 @@
   .background {
     margin-top: 12px;
     padding: 10px 14px;
-    background: rgba(87, 102, 144, 0.06);
+    background: rgba(0, 212, 255, 0.08);
     border-radius: 6px;
+    border: 1px solid rgba(0, 212, 255, 0.1);
+    
+    h4 {
+      color: #00d4ff;
+    }
     
     p {
       font-size: 13px;
       line-height: 1.7;
-      color: #4a5568;
+      color: rgba(255, 255, 255, 0.7);
       margin: 0;
     }
   }
@@ -486,13 +517,14 @@
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.02);
+    background: rgba(0, 212, 255, 0.05);
     border-radius: 6px;
+    border: 1px solid rgba(0, 212, 255, 0.1);
     
     .lineNumber {
       font-size: 11px;
       color: #fff;
-      background: #576690;
+      background: linear-gradient(135deg, #00d4ff, #b14aed);
       padding: 2px 6px;
       border-radius: 3px;
       flex-shrink: 0;
@@ -501,7 +533,7 @@
     .lineText {
       font-size: 14px;
       font-family: "STKaiti", "KaiTi", serif;
-      color: #1d1d1f;
+      color: rgba(255, 255, 255, 0.9);
       flex: 1;
     }
     
@@ -512,9 +544,10 @@
   
   // 完整显示的逐句分析样式
   .lineItemFull {
-    background: rgba(0, 0, 0, 0.02);
+    background: rgba(0, 212, 255, 0.05);
     border-radius: 8px;
     padding: 12px 14px;
+    border: 1px solid rgba(0, 212, 255, 0.1);
     
     .lineHeader {
       display: flex;
@@ -525,7 +558,7 @@
       .lineNumber {
         font-size: 11px;
         color: #fff;
-        background: #576690;
+        background: linear-gradient(135deg, #00d4ff, #b14aed);
         padding: 2px 6px;
         border-radius: 3px;
         flex-shrink: 0;
@@ -534,7 +567,7 @@
       .lineText {
         font-size: 15px;
         font-family: "STKaiti", "KaiTi", serif;
-        color: #1d1d1f;
+        color: rgba(255, 255, 255, 0.95);
         font-weight: 500;
         flex: 1;
       }
@@ -542,13 +575,13 @@
     
     .lineDetails {
       padding-left: 8px;
-      border-left: 2px solid rgba(87, 102, 144, 0.2);
+      border-left: 2px solid rgba(0, 212, 255, 0.3);
       margin-left: 4px;
       
       .lineDetail {
         font-size: 13px;
         line-height: 1.8;
-        color: #4a5568;
+        color: rgba(255, 255, 255, 0.75);
         margin-bottom: 6px;
         
         &:last-child {
@@ -556,7 +589,7 @@
         }
         
         .detailLabel {
-          color: #86868b;
+          color: rgba(0, 212, 255, 0.8);
           margin-right: 4px;
         }
       }
@@ -574,19 +607,20 @@
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.02);
+    background: rgba(0, 212, 255, 0.05);
     border-radius: 6px;
+    border: 1px solid rgba(0, 212, 255, 0.1);
     
     .sbIndex {
       font-size: 14px;
       font-weight: 600;
-      color: #576690;
+      color: #00d4ff;
       min-width: 20px;
     }
     
     .sbText {
       font-size: 13px;
-      color: #4a5568;
+      color: rgba(255, 255, 255, 0.75);
       flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -596,9 +630,10 @@
   
   // 完整显示的分镜样式
   .storyboardItemFull {
-    background: rgba(0, 0, 0, 0.02);
+    background: rgba(0, 212, 255, 0.05);
     border-radius: 8px;
     padding: 14px;
+    border: 1px solid rgba(0, 212, 255, 0.1);
     
     .sbHeader {
       display: flex;
@@ -609,14 +644,14 @@
       .sbIndex {
         font-size: 16px;
         font-weight: 700;
-        color: #576690;
+        color: #00d4ff;
         min-width: 24px;
       }
       
       .sbTitle {
         font-size: 14px;
         font-weight: 500;
-        color: #1d1d1f;
+        color: rgba(255, 255, 255, 0.95);
       }
     }
     
@@ -626,32 +661,33 @@
       .sbText {
         font-size: 15px;
         font-family: "STKaiti", "KaiTi", serif;
-        color: #2c3e50;
+        color: rgba(255, 255, 255, 0.85);
         line-height: 1.8;
         margin-bottom: 10px;
       }
       
       .sbScene {
         font-size: 13px;
-        color: #4a5568;
+        color: rgba(255, 255, 255, 0.7);
         line-height: 1.6;
         margin-bottom: 8px;
         
         .sceneLabel {
-          color: #86868b;
+          color: rgba(0, 212, 255, 0.8);
         }
       }
       
       .sbPrompt {
         font-size: 12px;
-        color: #718096;
+        color: rgba(255, 255, 255, 0.65);
         line-height: 1.6;
         padding: 10px 12px;
-        background: rgba(87, 102, 144, 0.06);
+        background: rgba(0, 212, 255, 0.08);
         border-radius: 6px;
+        border: 1px solid rgba(0, 212, 255, 0.1);
         
         .promptLabel {
-          color: #576690;
+          color: #00d4ff;
           font-weight: 500;
           display: block;
           margin-bottom: 4px;
@@ -728,9 +764,10 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: rgba(87, 102, 144, 0.04);
+  background: rgba(0, 212, 255, 0.05);
   border-radius: 12px;
   padding: 16px;
+  border: 1px solid rgba(0, 212, 255, 0.1);
   
   .promptItem {
     display: flex;
@@ -740,17 +777,36 @@
     .promptLabel {
       font-size: 13px;
       font-weight: 600;
-      color: #576690;
+      color: #00d4ff;
     }
     
     .promptContent {
       font-size: 14px;
       line-height: 1.7;
-      color: #4a5568;
-      background: #fff;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(20, 20, 35, 0.6);
       padding: 12px;
       border-radius: 8px;
-      border: 1px solid rgba(87, 102, 144, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+    }
+  }
+}
+
+// 视频Prompt编辑器样式
+.videoPromptEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  
+  .promptItem {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    
+    .promptLabel {
+      font-size: 13px;
+      font-weight: 600;
+      color: #00d4ff;
     }
   }
 }

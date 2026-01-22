@@ -34,9 +34,14 @@ const Card = ({
   return (
     <div
       className={classNames(
-        "max-h-[28px] px-3 flex items-center bg-white/50 text-gray-700 rounded-lg border border-white/60 backdrop-blur-sm shadow-sm whitespace-nowrap overflow-hidden text-ellipsis text-xs transition-colors hover:bg-white/70",
+        "max-h-[28px] px-3 flex items-center rounded-lg backdrop-blur-sm whitespace-nowrap overflow-hidden text-ellipsis text-xs transition-all",
         className
       )}
+      style={{
+        background: 'rgba(0, 212, 255, 0.1)',
+        border: '1px solid rgba(0, 212, 255, 0.2)',
+        color: 'rgba(255, 255, 255, 0.8)',
+      }}
     >
       {children}
     </div>
@@ -49,23 +54,27 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
   return (
     <div className="mb-6 flex flex-col items-end group ml-auto">
       <div className="flex items-center justify-end mb-1 px-1">
-        <div className="text-[11px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="text-[11px] text-white/40 opacity-0 group-hover:opacity-100 transition-opacity">
           {formatDate(message.timestamp, "HH:mm")}
         </div>
       </div>
 
-      {/* 模仿豆包发送气泡样式：右对齐、固定最大宽度、自适应内容高度 */}
+      {/* 用户消息气泡 - 科技风格 */}
       <div className="flex justify-end w-full">
         <div
           className={classNames(
-            // 容器：圆角气泡、浅底色、次要文字颜色、最大宽度 450，自适应宽度
-            "bg-white rounded-2xl text-gray-800 text-[15px] leading-[1.6]",
-            "px-4 py-2 max-w-[450px] w-fit min-w-0 text-left",
-            // 与示例一致：不加额外效果，由外层阴影/背景控制整体风格
-            "!text-[length:var(--message-send-text-content-font-size,15px)]"
+            "rounded-2xl text-[15px] leading-[1.6]",
+            "px-4 py-3 max-w-[450px] w-fit min-w-0 text-left",
+            "transition-all duration-300"
           )}
-          // 文本：正常自动换行 + 保留用户回车产生的换行
-          style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+          style={{ 
+            whiteSpace: "pre-wrap", 
+            wordBreak: "break-word",
+            background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(177, 74, 237, 0.2))',
+            border: '1px solid rgba(0, 212, 255, 0.3)',
+            color: 'rgba(255, 255, 255, 0.95)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 20px rgba(0, 212, 255, 0.1)',
+          }}
           data-testid="message_text_content"
         >
           {data.query || ""}

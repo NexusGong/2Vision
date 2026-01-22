@@ -12,8 +12,10 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=True)  # 改为可选，支持手机号注册
+    phone = Column(String(20), unique=True, index=True, nullable=True)  # 手机号
     hashed_password = Column(String(255), nullable=True)  # 第三方登录用户可能没有密码
+    password_set = Column(Boolean, default=False)  # 标记用户是否主动设置了密码（手机号注册用户需要主动设置）
     nickname = Column(String(50), nullable=True)  # 昵称
     avatar = Column(Text, nullable=True)  # Base64编码的头像
     is_active = Column(Boolean, default=True)

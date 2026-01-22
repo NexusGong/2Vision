@@ -36,8 +36,8 @@ async def lifespan(app: FastAPI):
 
 # 创建FastAPI应用
 app = FastAPI(
-    title="古诗词古文图像化学习工具 API",
-    description="面向学生和教师的古诗词与古文学习图像化理解辅助工具",
+    title="2Vision古诗词古文图像化学习工具 API",
+    description="古诗词与古文学习图像化理解辅助工具",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -72,7 +72,7 @@ app.include_router(admin.router)
 async def root():
     """根路径"""
     return {
-        "message": "古诗词古文图像化学习工具 API 服务运行中",
+        "message": "2Vision古诗词古文图像化学习工具 API 服务运行中",
         "version": "1.0.0"
     }
 

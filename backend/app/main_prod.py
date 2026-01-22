@@ -42,8 +42,8 @@ async def lifespan(app: FastAPI):
 
 # 创建FastAPI应用
 app = FastAPI(
-    title="古诗词古文图像化学习工具 API",
-    description="面向学生和教师的古诗词与古文学习图像化理解辅助工具（生产模式）",
+    title="2Vision古诗词古文图像化学习工具 API",
+    description="古诗词与古文学习图像化理解辅助工具（生产模式）",
     version="1.0.0",
     lifespan=lifespan
 )

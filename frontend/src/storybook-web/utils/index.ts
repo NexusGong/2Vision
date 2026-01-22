@@ -47,6 +47,11 @@ export function formatPromptData2Params(
 
 export function formatImageUrl(url: string) {
   if (!url) return "";
+  // 如果是本地静态文件路径，直接返回
+  if (url.startsWith("/static/") || url.startsWith("/api/")) {
+    return url;
+  }
+  // 移除外部存储域名前缀
   return url.replace(
     "https://ark-content-generation-v2-cn-beijing.tos-cn-beijing.volces.com",
     ""
@@ -62,12 +67,61 @@ export function ensureImageUrl(url: string | undefined | null): string {
   if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
-  // 如果是相对路径，添加完整域名
+  // 如果是本地静态文件路径（/static/media/...），使用当前服务器
+  // 在开发环境中，这个路径会被代理到后端
+  if (url.startsWith("/static/") || url.startsWith("/api/")) {
+    return url;  // 保持相对路径，让浏览器使用当前域名（开发环境会通过代理访问后端）
+  }
+  // 如果是其他相对路径（来自外部存储），添加外部域名
   if (url.startsWith("/")) {
     return `https://ark-content-generation-v2-cn-beijing.tos-cn-beijing.volces.com${url}`;
   }
   // 其他情况，假设是相对路径，添加完整域名
   return `https://ark-content-generation-v2-cn-beijing.tos-cn-beijing.volces.com/${url}`;
+}
+
+/**
+ * 智能图片URL处理函数，支持过期回退
+ * 优先使用本地URL（避免CORS问题），失败时回退到原始URL
+ * 
+ * @param url 当前URL（通常是本地URL）
+ * @param originalUrl 原始API URL（可选，用于回退）
+ * @returns 处理后的URL
+ */
+export function getImageUrlWithFallback(
+  url: string | undefined | null,
+  originalUrl?: string | undefined | null
+): string {
+  if (!url || url.trim() === "") {
+    // 如果没有本地URL，尝试使用原始URL作为回退
+    if (originalUrl && originalUrl.trim() !== "") {
+      return ensureImageUrl(originalUrl);
+    }
+    return "";
+  }
+  
+  // 优先使用本地URL（避免CORS问题）
+  const formattedUrl = ensureImageUrl(url);
+  
+  // 如果本地URL是有效的（本地路径或同源URL），直接返回
+  if (formattedUrl.startsWith("/") || formattedUrl.startsWith(window.location.origin)) {
+    return formattedUrl;
+  }
+  
+  // 如果本地URL是外部URL，检查是否是同源
+  try {
+    const urlObj = new URL(formattedUrl, window.location.href);
+    if (urlObj.origin === window.location.origin) {
+      return formattedUrl;
+    }
+  } catch {
+    // URL解析失败，继续处理
+  }
+  
+  // 如果本地URL是外部URL（可能导致CORS），尝试使用原始URL（如果提供）
+  // 但更安全的做法是使用本地URL，让后端代理或下载
+  // 这里我们仍然返回本地URL，因为后端应该已经下载了图片
+  return formattedUrl;
 }
 
 export function formatFileName(filename: string) {

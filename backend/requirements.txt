@@ -10,6 +10,7 @@ python-multipart>=0.0.6
 requests>=2.31.0
 httpx>=0.24.0
 user-agents>=2.2.0
+authlib>=1.2.0
 # 火山引擎 SDK - 需要安装 volcengine-python-sdk[ark] 而不是 volcenginesdkarkruntime
 # 参考: https://www.cnblogs.com/Sabre/p/18894868
 # 安装命令: pip install 'volcengine-python-sdk[ark]'

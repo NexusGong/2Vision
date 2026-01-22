@@ -1,15 +1,19 @@
 // ============================================
 // 古诗词库 - 诗词雅集
-// 与墨迹留痕保持统一风格
+// 科技风深色主题
 // ============================================
 
-// 主色调 - 与系统变量对齐
-@ink-primary: var(--gf-text-main, #2c3e50);
-@ink-light: var(--gf-text-secondary, #5d7285);
-@ink-lighter: #8fa3b8;
-@paper-warm: #faf8f5;
-@accent-gold: var(--gf-primary, #576690);
-@accent-rust: var(--gf-accent, #9d2933);
+// 主色调 - 科技风
+@cyber-primary: #00d4ff;
+@cyber-purple: #b14aed;
+@cyber-pink: #ff2d95;
+@cyber-cyan: #00ffcc;
+@cyber-bg: rgba(15, 15, 25, 0.95);
+@cyber-card: rgba(20, 20, 35, 0.85);
+@cyber-text: rgba(255, 255, 255, 0.9);
+@cyber-text-secondary: rgba(255, 255, 255, 0.6);
+@cyber-text-muted: rgba(255, 255, 255, 0.4);
+@cyber-border: rgba(0, 212, 255, 0.2);
 
 .container {
   display: flex;
@@ -19,7 +23,7 @@
 }
 
 // ============================================
-// 背景装饰
+// 背景装饰 - 科技风
 // ============================================
 .bgDecoration {
   position: fixed;
@@ -38,9 +42,9 @@
   right: 5%;
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, rgba(87, 102, 144, 0.03) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 60%);
   border-radius: 50%;
-  filter: blur(40px);
+  filter: blur(60px);
 }
 
 .inkDrop2 {
@@ -49,13 +53,13 @@
   left: 10%;
   width: 250px;
   height: 250px;
-  background: radial-gradient(circle, rgba(87, 102, 144, 0.02) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(177, 74, 237, 0.06) 0%, transparent 60%);
   border-radius: 50%;
-  filter: blur(30px);
+  filter: blur(50px);
 }
 
 // ============================================
-// 顶部区域 - 与墨迹留痕统一
+// 顶部区域 - 科技风
 // ============================================
 .topSection {
   position: relative;
@@ -81,17 +85,19 @@
   gap: 6px;
   padding: 8px 16px;
   font-size: 14px;
-  color: @ink-light;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: @cyber-text-secondary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid @cyber-border;
   border-radius: 20px;
   cursor: pointer;
   transition: all 0.25s ease;
   backdrop-filter: blur(8px);
 
   &:hover {
-    color: @accent-gold;
-    background: rgba(255, 255, 255, 0.9);
+    color: @cyber-primary;
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
     transform: translateX(-2px);
   }
 }
@@ -107,15 +113,19 @@
 .pageTitle {
   font-size: 18px;
   font-weight: 600;
-  color: @ink-primary;
+  background: linear-gradient(135deg, @cyber-primary, @cyber-purple);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin: 0;
 }
 
 .pageSubtitle {
   font-size: 13px;
   font-weight: 500;
-  color: @accent-gold;
-  background: rgba(87, 102, 144, 0.1);
+  color: @cyber-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.2);
   padding: 2px 10px;
   border-radius: 10px;
 }
@@ -132,8 +142,8 @@
 
 .searchInput {
   :global(.arco-input-inner-wrapper) {
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: @cyber-card !important;
+    border: 1px solid @cyber-border !important;
     border-radius: 20px;
     padding: 8px 16px;
     transition: all 0.25s ease;
@@ -141,24 +151,24 @@
 
     &:hover,
     &:focus-within {
-      background: rgba(255, 255, 255, 0.9);
-      border-color: rgba(87, 102, 144, 0.2);
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+      background: rgba(25, 25, 40, 0.9) !important;
+      border-color: rgba(0, 212, 255, 0.4) !important;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
     }
   }
 
   :global(.arco-input) {
     font-size: 13px;
-    color: @ink-primary;
+    color: @cyber-text !important;
 
     &::placeholder {
-      color: @ink-lighter;
+      color: @cyber-text-muted !important;
     }
   }
 }
 
 .searchIcon {
-  color: @ink-lighter;
+  color: @cyber-text-muted;
   font-size: 14px;
 }
 
@@ -192,7 +202,7 @@
 }
 
 // ============================================
-// 左侧树形导航
+// 左侧树形导航 - 科技风
 // ============================================
 .sideNav {
   width: 200px;
@@ -201,15 +211,17 @@
   flex-direction: column;
   padding: 8px 0;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 12px;
+  background: @cyber-card;
+  border: 1px solid @cyber-border;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 212, 255, 0.05);
 
   &::-webkit-scrollbar {
     width: 4px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 212, 255, 0.3);
     border-radius: 2px;
   }
 }
@@ -230,7 +242,7 @@
   flex-direction: column;
   margin-left: 12px;
   padding-left: 12px;
-  border-left: 1px solid rgba(45, 55, 72, 0.08);
+  border-left: 1px solid rgba(0, 212, 255, 0.15);
   animation: treeExpand 0.2s ease-out;
 }
 
@@ -254,28 +266,28 @@
   border: none;
   border-radius: 8px;
   font-size: 13px;
-  color: @ink-light;
+  color: @cyber-text-secondary;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
   margin: 2px 0;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.9);
-    color: @ink-primary;
+    background: rgba(0, 212, 255, 0.08);
+    color: @cyber-primary;
   }
 
   &.active {
-    color: @ink-primary;
+    color: @cyber-primary;
     font-weight: 500;
   }
 
   &.expanded {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(0, 212, 255, 0.1);
     
     .treeArrow {
       transform: rotate(90deg);
-      color: @accent-gold;
+      color: @cyber-primary;
     }
   }
 }
@@ -286,11 +298,12 @@
   padding: 12px;
   
   &.active {
-    background: rgba(201, 169, 89, 0.08);
-    border-left: 3px solid @accent-gold;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.15), transparent);
+    border-left: 3px solid @cyber-primary;
     border-radius: 0 8px 8px 0;
     margin-left: -8px;
     padding-left: 17px;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
   }
 }
 
@@ -299,7 +312,7 @@
   padding: 9px 12px;
   
   &.active {
-    background: rgba(45, 55, 72, 0.06);
+    background: rgba(0, 212, 255, 0.08);
   }
 }
 
@@ -308,19 +321,20 @@
   padding: 8px 12px;
   
   &.active {
-    background: rgba(45, 55, 72, 0.06);
+    background: rgba(0, 212, 255, 0.08);
   }
 }
 
 .treeLevel4 {
   font-size: 12px;
   padding: 7px 12px;
-  color: @ink-lighter;
+  color: @cyber-text-muted;
   
   &.active {
-    background: @ink-primary;
+    background: linear-gradient(135deg, @cyber-primary, @cyber-purple);
     color: #fff;
     border-radius: 6px;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
     
     .treeCount {
       background: rgba(255, 255, 255, 0.2);
@@ -329,7 +343,7 @@
   }
   
   &:hover:not(.active) {
-    color: @ink-primary;
+    color: @cyber-primary;
   }
 }
 
@@ -348,15 +362,15 @@
 
 .treeArrow {
   font-size: 12px;
-  color: @ink-lighter;
+  color: @cyber-text-muted;
   transition: transform 0.2s ease, color 0.2s ease;
   flex-shrink: 0;
 }
 
 .treeCount {
   font-size: 11px;
-  color: @ink-lighter;
-  background: rgba(0, 0, 0, 0.04);
+  color: @cyber-text-muted;
+  background: rgba(0, 212, 255, 0.1);
   padding: 2px 6px;
   border-radius: 10px;
   flex-shrink: 0;
@@ -364,35 +378,38 @@
 }
 
 .customItem {
-  border: 1px dashed rgba(87, 102, 144, 0.2);
+  border: 1px dashed rgba(0, 212, 255, 0.3);
   margin-top: 8px;
 
   &:hover {
-    border-color: @accent-gold;
-    background: rgba(87, 102, 144, 0.05);
+    border-color: @cyber-primary;
+    background: rgba(0, 212, 255, 0.08);
   }
 
   &.active {
-    border-color: @accent-gold;
-    background: rgba(87, 102, 144, 0.08);
+    border-color: @cyber-primary;
+    background: rgba(0, 212, 255, 0.1);
     border-left-width: 1px;
     margin-left: 0;
     padding-left: 12px;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
   }
 }
 
 // ============================================
-// 右侧内容区
+// 右侧内容区 - 科技风
 // ============================================
 .contentArea {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.5);
+  background: @cyber-card;
+  border: 1px solid @cyber-border;
   border-radius: 16px;
   padding: 16px 20px;
   overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 212, 255, 0.05);
 }
 
 // 内容区头部
@@ -401,7 +418,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.1);
   border-radius: 10px;
   margin-bottom: 16px;
   flex-shrink: 0;
@@ -412,7 +430,7 @@
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: @ink-light;
+  color: @cyber-text-secondary;
 }
 
 .pathIcon {
@@ -420,22 +438,22 @@
 }
 
 .pathSep {
-  color: @ink-lighter;
+  color: @cyber-text-muted;
   margin: 0 2px;
 }
 
 .pathHighlight {
   font-weight: 500;
-  color: @ink-primary;
-  background: rgba(201, 169, 89, 0.12);
+  color: @cyber-primary;
+  background: rgba(0, 212, 255, 0.15);
   padding: 2px 8px;
   border-radius: 4px;
 }
 
 .poetryCount {
   font-size: 12px;
-  color: @ink-lighter;
-  background: rgba(45, 55, 72, 0.06);
+  color: @cyber-text-muted;
+  background: rgba(0, 212, 255, 0.1);
   padding: 4px 10px;
   border-radius: 12px;
 }
@@ -455,13 +473,13 @@
   gap: 10px;
   font-size: 15px;
   font-weight: 500;
-  color: @ink-primary;
+  color: @cyber-text;
 }
 
 .customTotalCount {
   font-size: 12px;
   font-weight: 400;
-  color: @ink-lighter;
+  color: @cyber-text-muted;
 }
 
 // ============================================
@@ -478,8 +496,12 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.08);
+    background: rgba(0, 212, 255, 0.2);
     border-radius: 3px;
+    
+    &:hover {
+      background: rgba(0, 212, 255, 0.4);
+    }
   }
 }
 
@@ -490,33 +512,46 @@
 }
 
 // ============================================
-// 诗词卡片 - 与墨迹留痕卡片风格统一
+// 诗词卡片 - 科技风
 // ============================================
 .poetryCard {
   position: relative;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(25, 25, 40, 0.9), rgba(20, 20, 35, 0.85));
+  border: 1px solid @cyber-border;
+  border-radius: 16px;
   cursor: pointer;
-  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+  transition: all 0.3s ease;
   overflow: hidden;
   animation: cardFadeIn 0.4s ease-out forwards;
   opacity: 0;
   transform: translateY(8px);
   backdrop-filter: blur(8px);
 
+  // 顶部渐变线
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.4), transparent);
+  }
+
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(0, 212, 255, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 212, 255, 0.15);
 
     .useBtn {
-      background: @accent-gold;
+      background: linear-gradient(135deg, @cyber-primary, @cyber-purple);
+      border-color: transparent;
       color: #fff;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
     }
 
     .deleteBtn {
-      opacity: 0.6;
+      opacity: 0.8;
     }
   }
 }
@@ -539,7 +574,7 @@
 .title {
   font-size: 14px;
   font-weight: 500;
-  color: #000;
+  color: @cyber-text;
   margin: 0 0 4px;
   overflow: hidden;
   white-space: nowrap;
@@ -553,41 +588,42 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #6e718c;
+  color: @cyber-text-secondary;
   line-height: 20px;
 }
 
 .dynasty {
-  color: @accent-gold;
+  color: @cyber-primary;
   padding: 1px 6px;
-  background: rgba(87, 102, 144, 0.1);
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.2);
   border-radius: 4px;
   font-size: 11px;
 }
 
 .author {
-  color: #6e718c;
+  color: @cyber-text-secondary;
 }
 
 .content {
   margin-bottom: 12px;
   padding: 8px 10px;
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(0, 212, 255, 0.03);
   border-radius: 8px;
-  border-left: 2px solid rgba(87, 102, 144, 0.15);
+  border-left: 2px solid rgba(0, 212, 255, 0.3);
 }
 
 .line {
   font-size: 12px;
   line-height: 1.8;
-  color: #6e718c;
+  color: @cyber-text-secondary;
   margin: 0;
   letter-spacing: 0.04px;
 }
 
 .ellipsis {
   font-size: 11px;
-  color: #aeafc2;
+  color: @cyber-text-muted;
   margin: 4px 0 0;
   letter-spacing: 2px;
 }
@@ -609,16 +645,17 @@
   background: transparent;
   border: none;
   border-radius: 6px;
-  color: @ink-light;
+  color: @cyber-text-secondary;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 14px;
   opacity: 0;
 
   &:hover {
-    background: rgba(157, 41, 51, 0.1);
-    color: @accent-rust;
+    background: rgba(255, 45, 149, 0.15);
+    color: @cyber-pink;
     opacity: 1 !important;
+    box-shadow: 0 0 15px rgba(255, 45, 149, 0.2);
   }
 }
 
@@ -627,18 +664,17 @@
   align-items: center;
   gap: 4px;
   padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
   border-radius: 20px;
   transition: all 0.3s ease;
   backdrop-filter: blur(4px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .useBtnText {
   font-size: 13px;
   font-weight: 400;
-  color: #3f3f51;
+  color: @cyber-primary;
   transition: color 0.2s ease;
   letter-spacing: 0.04px;
   line-height: 22px;
@@ -649,7 +685,7 @@
 }
 
 // ============================================
-// 空状态 - 与墨迹留痕统一
+// 空状态 - 科技风
 // ============================================
 .emptyState {
   display: flex;
@@ -667,17 +703,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(87, 102, 144, 0.08);
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.2);
   border-radius: 50%;
   margin-bottom: 20px;
   font-size: 36px;
-  color: @accent-gold;
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 .emptyText {
   font-size: 14px;
-  color: @ink-light;
+  color: @cyber-text-muted;
   margin: 0;
 }
 
@@ -713,7 +749,7 @@
 .sectionTitle {
   font-size: 16px;
   font-weight: 600;
-  color: @ink-primary;
+  color: @cyber-text;
   margin: 0;
   display: flex;
   align-items: center;
@@ -723,8 +759,8 @@
 .resultCount {
   font-size: 13px;
   font-weight: 500;
-  color: @accent-gold;
-  background: rgba(87, 102, 144, 0.1);
+  color: @cyber-primary;
+  background: rgba(0, 212, 255, 0.1);
   padding: 2px 10px;
   border-radius: 10px;
   min-width: 24px;
@@ -738,30 +774,44 @@
   padding: 6px 14px;
   font-size: 13px;
   background: transparent;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 45, 149, 0.3);
   border-radius: 16px;
-  color: @ink-light;
+  color: @cyber-pink;
   cursor: pointer;
   transition: all 0.25s ease;
 
   &:hover {
-    background: rgba(157, 41, 51, 0.05);
-    border-color: rgba(157, 41, 51, 0.3);
-    color: @accent-rust;
+    background: rgba(255, 45, 149, 0.1);
+    border-color: rgba(255, 45, 149, 0.5);
+    box-shadow: 0 0 15px rgba(255, 45, 149, 0.2);
   }
 }
 
 // ============================================
-// 添加弹窗
+// 添加弹窗 - 科技风
 // ============================================
 .addModal {
   :global(.arco-modal-content) {
     padding: 20px 24px;
+    background: linear-gradient(145deg, rgba(15, 15, 25, 0.98), rgba(20, 20, 35, 0.95)) !important;
+    border: 1px solid @cyber-border !important;
   }
 
   :global(.arco-modal-title) {
     font-weight: 600;
-    color: @ink-primary;
+    color: @cyber-text !important;
+  }
+  
+  :global(.arco-modal-header) {
+    border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+  }
+  
+  :global(.arco-modal-footer) {
+    border-top: 1px solid rgba(0, 212, 255, 0.1) !important;
+  }
+  
+  :global(.arco-form-label-item) {
+    color: @cyber-text-secondary !important;
   }
 }
 
@@ -831,7 +881,7 @@
     }
     
     &:active {
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(0, 212, 255, 0.2);
     }
   }
 
@@ -876,7 +926,7 @@
     -webkit-tap-highlight-color: transparent;
     
     &:active {
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(0, 212, 255, 0.15);
     }
   }
   
@@ -908,7 +958,7 @@
   .poetryCard {
     &:active {
       transform: translateY(-2px);
-      background: rgba(255, 255, 255, 0.85);
+      border-color: rgba(0, 212, 255, 0.4);
     }
   }
   
@@ -920,8 +970,8 @@
     
     &:active {
       opacity: 1;
-      background: rgba(157, 41, 51, 0.1);
-      color: @accent-rust;
+      background: rgba(255, 45, 149, 0.15);
+      color: @cyber-pink;
     }
   }
 }

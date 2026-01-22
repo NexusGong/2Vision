@@ -8,7 +8,7 @@
  * - 自动选择：设置为 -1，表示由模型在 [4,12] 范围内自主选择合适的视频长度
  */
 import React from "react";
-import { Form, Radio } from "@arco-design/web-react";
+import { Radio } from "@arco-design/web-react";
 
 export interface VideoConfigValue {
   duration: number; // 支持 [4,12] 范围内的整数，或 -1（自动选择）
@@ -63,14 +63,15 @@ const VideoConfigGroup: React.FC<{
 
   return (
     <div className="w-full mb-6">
-      <Form.Item className="w-full" field="videoDuration" label="视频时长" layout="vertical" initialValue={-1}>
-        <div className="text-xs text-gray-500 mb-2">
+      <div className="mb-4">
+        <div className="text-white/70 text-sm mb-1">视频时长</div>
+        <div className="text-xs text-white/50 mb-2">
           指定具体时长（4-12秒）或自动选择（-1）。注意视频时长与计费相关，请谨慎设置。
         </div>
         <Radio.Group type="button" className="flex flex-wrap gap-1" value={current.duration} onChange={setDuration as any}>
           {durationOptions.map((option) => (
             <Radio
-              className="flex-1 flex items-center justify-center h-[30px] min-w-[60px] [&.arco-radio-button]:!text-[#737373]"
+              className="flex-1 flex items-center justify-center h-[30px] min-w-[60px]"
               key={option.value}
               value={option.value}
             >
@@ -78,13 +79,14 @@ const VideoConfigGroup: React.FC<{
             </Radio>
           ))}
         </Radio.Group>
-      </Form.Item>
+      </div>
 
-      <Form.Item className="w-full" field="videoFps" label="帧率（FPS）" layout="vertical" initialValue={24}>
+      <div className="mb-4">
+        <div className="text-white/70 text-sm mb-2">帧率（FPS）</div>
         <Radio.Group type="button" className="flex" value={current.fps} onChange={setFps as any}>
           {fpsOptions.map((f) => (
             <Radio
-              className="flex-1 flex items-center justify-center h-[30px] [&.arco-radio-button]:!text-[#737373]"
+              className="flex-1 flex items-center justify-center h-[30px]"
               key={f}
               value={f}
             >
@@ -92,13 +94,14 @@ const VideoConfigGroup: React.FC<{
             </Radio>
           ))}
         </Radio.Group>
-      </Form.Item>
+      </div>
 
-      <Form.Item className="w-full" field="videoAspectRatio" label="视频比例" layout="vertical" initialValue="16:9">
+      <div className="mb-4">
+        <div className="text-white/70 text-sm mb-2">视频比例</div>
         <Radio.Group type="button" className="flex" value={current.aspectRatio} onChange={setAspectRatio as any}>
           {aspectRatioOptions.map((option) => (
             <Radio
-              className="flex-1 flex items-center justify-center h-[30px] [&.arco-radio-button]:!text-[#737373]"
+              className="flex-1 flex items-center justify-center h-[30px]"
               key={option.value}
               value={option.value}
             >
@@ -106,7 +109,7 @@ const VideoConfigGroup: React.FC<{
             </Radio>
           ))}
         </Radio.Group>
-      </Form.Item>
+      </div>
     </div>
   );
 };

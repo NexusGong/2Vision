@@ -11,6 +11,213 @@
  * limitations under the License.
  */
 
+/* 科技风加载动画样式 */
+
+/* 光晕球体 */
+.cyber-glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.4;
+}
+
+.cyber-glow-orb-1 {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.6) 0%, transparent 70%);
+  top: -50px;
+  left: -50px;
+  animation: cyber-float 8s ease-in-out infinite;
+}
+
+.cyber-glow-orb-2 {
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(177, 74, 237, 0.6) 0%, transparent 70%);
+  bottom: -30px;
+  right: -30px;
+  animation: cyber-float 10s ease-in-out infinite reverse;
+}
+
+/* 扫描线 */
+.cyber-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.8), transparent);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  animation: cyber-scan 3s linear infinite;
+  opacity: 0.7;
+}
+
+/* 旋转光环 */
+.cyber-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  margin-top: -40px;
+  margin-left: -40px;
+  border: 2px solid transparent;
+  border-top-color: rgba(0, 212, 255, 0.8);
+  border-right-color: rgba(0, 212, 255, 0.4);
+  border-radius: 50%;
+  animation: cyber-spin 2s linear infinite;
+}
+
+.cyber-ring-reverse {
+  width: 90px;
+  height: 90px;
+  margin-top: -45px;
+  margin-left: -45px;
+  border-top-color: rgba(177, 74, 237, 0.6);
+  border-right-color: rgba(177, 74, 237, 0.3);
+  animation: cyber-spin 3s linear infinite reverse;
+}
+
+/* 加载点动画 */
+.cyber-dots {
+  display: inline-flex;
+  margin-left: 2px;
+}
+
+.cyber-dots span {
+  opacity: 0.3;
+  animation: cyber-dot-pulse 1.4s ease-in-out infinite;
+}
+
+.cyber-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.cyber-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.cyber-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* 进度条 */
+.cyber-progress-bar {
+  width: 120px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cyber-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.3), rgba(0, 212, 255, 0.8), rgba(177, 74, 237, 0.8), rgba(0, 212, 255, 0.3));
+  background-size: 200% 100%;
+  animation: cyber-progress-flow 1.5s linear infinite;
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+/* 边角装饰 */
+.cyber-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: rgba(0, 212, 255, 0.4);
+  border-style: solid;
+  border-width: 0;
+}
+
+.cyber-corner-tl {
+  top: 8px;
+  left: 8px;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+
+.cyber-corner-tr {
+  top: 8px;
+  right: 8px;
+  border-top-width: 2px;
+  border-right-width: 2px;
+}
+
+.cyber-corner-bl {
+  bottom: 8px;
+  left: 8px;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+}
+
+.cyber-corner-br {
+  bottom: 8px;
+  right: 8px;
+  border-bottom-width: 2px;
+  border-right-width: 2px;
+}
+
+/* 动画定义 */
+@keyframes cyber-float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(20px, -20px) scale(1.1);
+  }
+}
+
+@keyframes cyber-scan {
+  0% {
+    top: -2px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.7;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes cyber-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cyber-dot-pulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@keyframes cyber-progress-flow {
+  0% {
+    left: -30%;
+    background-position: 0% 0%;
+  }
+  100% {
+    left: 100%;
+    background-position: 200% 0%;
+  }
+}
+
+/* 兼容旧动画 */
 @keyframes neon-gradient {
   0% {
     background-position: 0% 50%;
@@ -23,7 +230,6 @@
   }
 }
 
-/* 光晕旋转 */
 @keyframes neon-spin {
   0% {
     transform: rotate(0deg);

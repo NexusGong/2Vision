@@ -26,7 +26,8 @@ class UserProfileResponse(BaseModel):
     """用户资料响应模型"""
     id: int
     username: str
-    email: str
+    email: Optional[str] = None  # 可选，手机号注册用户可能没有真实邮箱
+    phone: Optional[str] = None  # 手机号
     nickname: Optional[str] = None
     avatar: Optional[str] = None
     is_admin: bool = False
@@ -91,6 +92,7 @@ async def get_profile(
         id=current_user.id,
         username=current_user.username,
         email=current_user.email,
+        phone=current_user.phone,
         nickname=current_user.nickname,
         avatar=current_user.avatar,
         is_admin=current_user.is_admin or False,
@@ -148,6 +150,7 @@ async def update_profile(
         id=current_user.id,
         username=current_user.username,
         email=current_user.email,
+        phone=current_user.phone,
         nickname=current_user.nickname,
         avatar=current_user.avatar,
         is_admin=current_user.is_admin or False,

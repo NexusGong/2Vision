@@ -11,32 +11,33 @@
  * limitations under the License.
  */
 
+/* 科技风滚动条样式 */
 .contentScrollbar {
   /* Firefox */
   scrollbar-width: thin;
-  scrollbar-color: #c8c9cc transparent;
+  scrollbar-color: rgba(0, 212, 255, 0.3) transparent;
 
-  /* 清除背景，避免滚动槽阴影 */
   background: transparent;
-
-  /* WebKit */
 }
+
 .contentScrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
   background: transparent;
 }
+
 .contentScrollbar::-webkit-scrollbar-track {
   background: transparent;
   box-shadow: none;
   border: none;
 }
+
 .contentScrollbar::-webkit-scrollbar-thumb {
-  background-color: #c8c9cc;
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.3), rgba(177, 74, 237, 0.3));
   border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-  transition: background-color 0.2s;
+  border: none;
+  transition: background 0.2s;
 }
+
 .contentScrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #a6a7ab;
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.5), rgba(177, 74, 237, 0.5));
 }

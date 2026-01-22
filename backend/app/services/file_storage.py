@@ -188,3 +188,162 @@ def get_local_url(relative_path: str) -> str:
     # 构建URL
     url = f"{config.STATIC_URL_PREFIX}/{relative_path}"
     return url
+
+
+def get_file_path_from_url(url: str) -> Optional[str]:
+    """
+    从URL获取本地文件路径（使用相对路径）
+    
+    Args:
+        url: 图片URL（如 "/static/media/images/filename.png" 或完整URL）
+        
+    Returns:
+        本地文件绝对路径，如果URL无效则返回None
+    """
+    if not url:
+        return None
+    
+    # 如果是本地URL，提取相对路径
+    if url.startswith(config.STATIC_URL_PREFIX):
+        relative_path = url[len(config.STATIC_URL_PREFIX):].lstrip("/")
+    elif url.startswith("/static/media/"):
+        relative_path = url[len("/static/media/"):]
+    else:
+        # 如果是外部URL，尝试从original_url生成文件名
+        # 但这种情况通常不应该删除，因为文件可能不存在
+        return None
+    
+    # 构建完整路径 - 使用相对路径
+    # config.STORAGE_DIR 可能是相对路径，需要转换为绝对路径
+    # 从 backend 目录开始计算（__file__ 是 backend/app/services/file_storage.py）
+    if os.path.isabs(config.STORAGE_DIR):
+        storage_dir = Path(config.STORAGE_DIR)
+    else:
+        # 相对路径，从backend目录开始
+        # __file__ = backend/app/services/file_storage.py
+        # parent.parent.parent = backend
+        backend_dir = Path(__file__).parent.parent.parent
+        storage_dir = backend_dir / config.STORAGE_DIR
+    
+    # 使用相对路径拼接
+    file_path = storage_dir / relative_path
+    
+    # 确保路径在存储目录内（安全检查）
+    try:
+        file_path = file_path.resolve()
+        storage_dir_resolved = storage_dir.resolve()
+        if not str(file_path).startswith(str(storage_dir_resolved)):
+            logger.warning(f"路径安全检查失败: {file_path} 不在 {storage_dir_resolved} 内")
+            return None
+    except Exception as e:
+        logger.warning(f"路径解析失败: {e}")
+        return None
+    
+    # 返回绝对路径
+    return str(file_path)
+
+
+def delete_image_file(url: str) -> bool:
+    """
+    删除本地图片文件（使用相对路径）
+    
+    Args:
+        url: 图片URL（如 "/static/media/images/filename.png"）
+        
+    Returns:
+        是否删除成功
+    """
+    file_path = get_file_path_from_url(url)
+    if not file_path:
+        logger.warning(f"无法从URL解析文件路径: {url}")
+        return False
+    
+    try:
+        # 获取相对路径用于日志显示
+        backend_dir = Path(__file__).parent.parent.parent
+        try:
+            relative_path = os.path.relpath(file_path, backend_dir)
+        except ValueError:
+            # 如果无法计算相对路径（跨磁盘等），使用文件名
+            relative_path = os.path.basename(file_path)
+        
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"图片文件已删除: {relative_path}")
+            return True
+        else:
+            logger.warning(f"图片文件不存在: {relative_path}")
+            return False
+    except Exception as e:
+        logger.error(f"删除图片文件失败: {relative_path if 'relative_path' in locals() else file_path}, 错误: {str(e)}")
+        return False
+
+
+def delete_image_files(urls: list[str]) -> dict[str, bool]:
+    """
+    批量删除本地图片文件
+    
+    Args:
+        urls: 图片URL列表
+        
+    Returns:
+        删除结果字典，key为URL，value为是否删除成功
+    """
+    results = {}
+    for url in urls:
+        if url:
+            results[url] = delete_image_file(url)
+    return results
+
+
+def delete_video_file(url: str) -> bool:
+    """
+    删除本地视频文件（使用相对路径）
+    
+    Args:
+        url: 视频URL（如 "/static/media/videos/filename.mp4"）
+        
+    Returns:
+        是否删除成功
+    """
+    file_path = get_file_path_from_url(url)
+    if not file_path:
+        logger.warning(f"无法从URL解析文件路径: {url}")
+        return False
+    
+    try:
+        # 获取相对路径用于日志显示
+        backend_dir = Path(__file__).parent.parent.parent
+        try:
+            relative_path = os.path.relpath(file_path, backend_dir)
+        except ValueError:
+            # 如果无法计算相对路径（跨磁盘等），使用文件名
+            relative_path = os.path.basename(file_path)
+        
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"视频文件已删除: {relative_path}")
+            return True
+        else:
+            logger.warning(f"视频文件不存在: {relative_path}")
+            return False
+    except Exception as e:
+        logger.error(f"删除视频文件失败: {relative_path if 'relative_path' in locals() else file_path}, 错误: {str(e)}")
+        return False
+
+
+def delete_video_files(urls: list[str]) -> dict[str, bool]:
+    """
+    批量删除本地视频文件
+    
+    Args:
+        urls: 视频URL列表
+        
+    Returns:
+        删除结果字典，key为URL，value为是否删除成功
+    """
+    results = {}
+    for url in urls:
+        if url:
+            results[url] = delete_video_file(url)
+    return results

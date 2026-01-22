@@ -39,9 +39,17 @@ export interface IDataCoverItem extends IDataBaseItem {
   isCover: true;
   url: string;
   /**
-   * 标题
+   * 原始图片URL（用于回退，当原始URL过期时使用本地URL）
+   * */
+  originalUrl?: string;
+  /**
+   * 标题（题目）
    * */
   title?: string | ReactNode;
+  /**
+   * 副标题（朝代·作者）
+   * */
+  subtitle?: string;
   /**
    * 是否展示标题内容
    * */
@@ -66,6 +74,10 @@ export interface IDataCoverItem extends IDataBaseItem {
 export interface IDataPageImageItem extends IDataBaseItem {
   isCover?: false;
   url?: string;
+  /**
+   * 原始图片URL（用于回退，当原始URL过期时使用本地URL）
+   * */
+  originalUrl?: string;
   slot?: ReactNode | string;
 }
 

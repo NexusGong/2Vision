@@ -189,9 +189,10 @@ async def generate_images_from_storyboards(
     
     logger.info(f"生成 {len(storyboards)} 个分镜 ({mode}模式)")
     
-    image_results = []
+    # 第一阶段：生成所有图片（不下载）
+    generation_results = []
     
-    # 按分镜顺序生成图像
+    logger.info(f"开始生成 {len(storyboards)} 张图片...")
     for i, storyboard in enumerate(storyboards):
         try:
             # 使用分镜中的 image_prompt，或者生成新的
@@ -231,56 +232,86 @@ async def generate_images_from_storyboards(
             
             if image_urls:
                 original_url = image_urls[0]
-                # 下载并保存图片到本地
-                local_path = await download_and_save_image(original_url)
-                if local_path:
-                    # 使用本地URL
-                    local_url = get_local_url(local_path)
-                    logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
-                    image_results.append({
-                        "storyboard_index": storyboard_index,
-                        "storyboard_type": storyboard_type,
-                        "image_url": local_url,
-                        "original_url": original_url,  # 保留原始URL作为备份
-                        "text": storyboard.get("text", ""),
-                        "title": storyboard.get("title", ""),
-                        "is_cover": is_cover
-                    })
-                else:
-                    # 下载失败，使用原始URL
-                    logger.warning(f"图片下载失败，使用原始URL: {original_url[:100]}...")
-                    image_results.append({
-                        "storyboard_index": storyboard_index,
-                        "storyboard_type": storyboard_type,
-                        "image_url": original_url,
-                        "text": storyboard.get("text", ""),
-                        "title": storyboard.get("title", ""),
-                        "is_cover": is_cover
-                    })
-            else:
-                logger.warning(f"分镜 {storyboard_index} 未返回图像")
-                image_results.append({
+                generation_results.append({
                     "storyboard_index": storyboard_index,
                     "storyboard_type": storyboard_type,
-                    "image_url": "",
+                    "original_url": original_url,
+                    "text": storyboard.get("text", ""),
+                    "title": storyboard.get("title", ""),
+                    "is_cover": is_cover
+                })
+            else:
+                logger.warning(f"分镜 {storyboard_index} 未返回图像")
+                generation_results.append({
+                    "storyboard_index": storyboard_index,
+                    "storyboard_type": storyboard_type,
+                    "original_url": "",
                     "text": storyboard.get("text", ""),
                     "title": storyboard.get("title", ""),
                     "is_cover": is_cover
                 })
                 
         except Exception as e:
-            logger.error(f"分镜 {storyboard.get('index', i + 1)} 失败: {str(e)}")
-            image_results.append({
+            logger.error(f"分镜 {storyboard.get('index', i + 1)} 生成失败: {str(e)}")
+            generation_results.append({
                 "storyboard_index": storyboard.get("index", i + 1),
                 "storyboard_type": storyboard.get("type", "content"),
-                "image_url": "",
+                "original_url": "",
                 "text": storyboard.get("text", ""),
                 "title": storyboard.get("title", ""),
                 "is_cover": storyboard.get("type") == "cover",
                 "error": str(e)
             })
     
+    logger.info(f"图片生成完成，开始批量下载...")
+    
+    # 第二阶段：批量下载所有图片
+    image_results = []
+    for result in generation_results:
+        original_url = result.get("original_url", "")
+        
+        if original_url:
+            # 下载并保存图片到本地
+            local_path = await download_and_save_image(original_url)
+            if local_path:
+                # 使用本地URL
+                local_url = get_local_url(local_path)
+                logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
+                image_results.append({
+                    "storyboard_index": result.get("storyboard_index"),
+                    "storyboard_type": result.get("storyboard_type"),
+                    "image_url": local_url,
+                    "original_url": original_url,  # 保留原始URL作为备份
+                    "text": result.get("text", ""),
+                    "title": result.get("title", ""),
+                    "is_cover": result.get("is_cover", False)
+                })
+            else:
+                # 下载失败，使用原始URL
+                logger.warning(f"图片下载失败，使用原始URL: {original_url[:100]}...")
+                image_results.append({
+                    "storyboard_index": result.get("storyboard_index"),
+                    "storyboard_type": result.get("storyboard_type"),
+                    "image_url": original_url,
+                    "original_url": original_url,
+                    "text": result.get("text", ""),
+                    "title": result.get("title", ""),
+                    "is_cover": result.get("is_cover", False)
+                })
+        else:
+            # 没有原始URL，直接添加结果
+            image_results.append({
+                "storyboard_index": result.get("storyboard_index"),
+                "storyboard_type": result.get("storyboard_type"),
+                "image_url": "",
+                "original_url": "",
+                "text": result.get("text", ""),
+                "title": result.get("title", ""),
+                "is_cover": result.get("is_cover", False),
+                "error": result.get("error", "")
+            })
+    
     success_count = len([r for r in image_results if r.get('image_url')])
-    logger.info(f"完成: {success_count}/{len(storyboards)} 张")
+    logger.info(f"完成: 生成 {len(generation_results)} 张，成功下载 {success_count} 张")
     return image_results
 

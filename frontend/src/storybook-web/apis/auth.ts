@@ -23,7 +23,8 @@ export interface TokenResponse {
 export interface UserResponse {
   id: number;
   username: string;
-  email: string;
+  email?: string | null;
+  phone?: string | null;
   nickname?: string;
   avatar?: string;
   is_active: boolean;
@@ -31,12 +32,49 @@ export interface UserResponse {
   is_vip: boolean;
   free_usage_count: number;
   total_usage_count: number;
+  password_set?: boolean;  // 是否已设置密码
 }
 
 export interface OAuthLoginRequest {
-  provider: string; // wechat/github/google
+  provider: string; // github/google
   code: string;
   state?: string;
+}
+
+export interface SmsSendRequest {
+  phone: string;
+}
+
+export interface SmsRegisterRequest {
+  username: string;
+  phone: string;
+  code: string;
+}
+
+export interface SmsLoginRequest {
+  phone: string;
+  code: string;
+}
+
+export interface PasswordLoginRequest {
+  phone: string;
+  password: string;
+}
+
+export interface SetPasswordRequest {
+  password: string;
+  confirm_password: string;
+}
+
+export interface ChangePasswordRequest {
+  old_password: string;
+  new_password: string;
+  confirm_password: string;
+}
+
+export interface PasswordStatusResponse {
+  password_set: boolean;
+  phone: string | null;
 }
 
 /**
@@ -103,7 +141,16 @@ export const login = async (data: LoginRequest): Promise<TokenResponse> => {
 };
 
 /**
- * 第三方登录
+ * 跳转到OAuth授权页面
+ */
+export const oauthAuthorize = (provider: string): void => {
+  // 直接跳转到后端授权端点，后端会重定向到OAuth提供商
+  window.location.href = `/api/auth/oauth/${provider}/authorize`;
+};
+
+/**
+ * 第三方登录（已废弃，使用oauthAuthorize代替）
+ * @deprecated 使用 oauthAuthorize 代替
  */
 export const oauthLogin = async (
   provider: string,
@@ -184,4 +231,168 @@ export const getOrCreateSessionId = (): string => {
     localStorage.setItem("session_id", sessionId);
   }
   return sessionId;
+};
+
+/**
+ * 发送短信验证码
+ */
+export const sendSmsCode = async (data: SmsSendRequest): Promise<{ message: string; phone: string; expire_minutes: number; user_exists: boolean }> => {
+  const response = await fetch("/api/auth/sms/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "发送验证码失败");
+  }
+
+  return response.json();
+};
+
+/**
+ * 使用短信验证码注册（注册成功后自动登录）
+ */
+export const registerBySms = async (data: SmsRegisterRequest): Promise<TokenResponse> => {
+  const response = await fetch("/api/auth/sms/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "注册失败");
+  }
+
+  return response.json();
+};
+
+/**
+ * 使用短信验证码登录
+ */
+export const loginBySms = async (data: SmsLoginRequest): Promise<TokenResponse> => {
+  const response = await fetch("/api/auth/sms/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "登录失败");
+  }
+
+  return response.json();
+};
+
+/**
+ * 使用手机号和密码登录
+ */
+export const loginByPassword = async (data: PasswordLoginRequest): Promise<TokenResponse> => {
+  const response = await fetch("/api/auth/password/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    let errorMessage = "登录失败";
+    try {
+      const error = await response.json();
+      errorMessage = error.detail || error.message || `登录失败 (${response.status})`;
+    } catch (e) {
+      // 如果响应不是JSON，使用状态码
+      errorMessage = `登录失败 (${response.status} ${response.statusText})`;
+    }
+    console.error("密码登录失败:", errorMessage, { status: response.status });
+    throw new Error(errorMessage);
+  }
+
+  return response.json();
+};
+
+/**
+ * 设置密码（首次设置）
+ */
+export const setPassword = async (data: SetPasswordRequest): Promise<{ message: string }> => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("未登录");
+  }
+
+  const response = await fetch("/api/auth/password/set", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "设置密码失败");
+  }
+
+  return response.json();
+};
+
+/**
+ * 修改密码
+ */
+export const changePassword = async (data: ChangePasswordRequest): Promise<{ message: string }> => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("未登录");
+  }
+
+  const response = await fetch("/api/auth/password/change", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "修改密码失败");
+  }
+
+  return response.json();
+};
+
+/**
+ * 获取密码设置状态
+ */
+export const getPasswordStatus = async (): Promise<PasswordStatusResponse> => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("未登录");
+  }
+
+  const response = await fetch("/api/auth/password/status", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "获取密码状态失败");
+  }
+
+  return response.json();
 };

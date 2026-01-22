@@ -92,20 +92,20 @@ const CanvasHeader: FC<PropsWithChildren<ICanvasHeaderProps>> = (props) => {
   //   }
 
   const titleNode = (
-    <div className="text-[14px] leading-6 font-medium text-[#0c0d0e] truncate line-clamp-1">
+    <div className="text-[14px] leading-6 font-medium text-white/90 truncate line-clamp-1">
       {title}
     </div>
   );
 
   const titleArea = slots.titleArea?.(titleNode) ?? (
     <>
-      <IconBook />
+      <IconBook className="text-cyan-400" />
       {titleNode}
     </>
   );
   const shareNode = (
     <div
-      className="flex items-center p-[4px] hover:bg-[#E1E3EF] rounded-[4px]"
+      className="flex items-center p-[4px] hover:bg-white/10 rounded-[4px] text-white/70 hover:text-cyan-400 transition-colors"
       onClick={onShare}
     >
       <IconShared />
@@ -138,9 +138,9 @@ const CanvasHeader: FC<PropsWithChildren<ICanvasHeaderProps>> = (props) => {
             </FullScreen>
           </div>
         </div>
-        <div className="w-[1px] h-5 bg-gray-200"></div>
+        <div className="w-[1px] h-5 bg-cyan-500/30"></div>
         <div
-          className="flex items-center cursor-pointer hover:bg-[#E1E3EF] rounded-[4px]"
+          className="flex items-center cursor-pointer hover:bg-white/10 rounded-[4px] text-white/70 hover:text-cyan-400 transition-colors"
           onClick={onClose}
         >
           <IconClose />

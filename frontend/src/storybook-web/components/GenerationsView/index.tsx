@@ -84,10 +84,10 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
     return () => window.removeEventListener("generations-updated", handleUpdate);
   }, [loadRecords]);
 
-  const confirmDelete = useCallback((id: string, type: "image" | "video") => {
+  const confirmDelete = useCallback(async (id: string, type: "image" | "video") => {
     const success = type === "image" 
-      ? deleteGenerationRecord(id)
-      : deleteVideoGenerationRecord(id);
+      ? await deleteGenerationRecord(id)
+      : await deleteVideoGenerationRecord(id);
     if (success) {
       Message.success("删除成功");
       loadRecords();
@@ -96,9 +96,9 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
     }
   }, [loadRecords]);
 
-  const handleClearAll = useCallback(() => {
-    const imageCleared = clearAllGenerationRecords();
-    const videoCleared = deleteVideoGenerationRecord("all");
+  const handleClearAll = useCallback(async () => {
+    const imageCleared = await clearAllGenerationRecords();
+    const videoCleared = await deleteVideoGenerationRecord("all");
     if (imageCleared && videoCleared) {
       Message.success("已清空所有记录");
       loadRecords();
@@ -192,7 +192,7 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
               <div key={record.id} className={`${styles.cardItem} pl-[18px] pb-[13px] pt-[22px] relative`}>
                 <div className="cursor-pointer group" onClick={() => handleView(record)}>
                   {/* 卡片主体 - 固定高度避免跳动 */}
-                  <div className="flex flex-col justify-between gap-[15px] border border-white/60 bg-white/60 backdrop-blur-md shadow-sm w-full h-[144px] rounded-[20px] pt-[16px] pb-[19px] pr-[28px] pl-[143px] transition-[transform,box-shadow,background-color] duration-300 group-hover:shadow-lg group-hover:bg-white/80 group-hover:-translate-y-1">
+                  <div className="flex flex-col justify-between gap-[15px] border border-cyan-500/20 bg-[rgba(20,20,35,0.85)] backdrop-blur-md shadow-lg w-full h-[144px] rounded-[20px] pt-[16px] pb-[19px] pr-[28px] pl-[143px] transition-all duration-300 group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_25px_rgba(0,212,255,0.15)] group-hover:border-cyan-500/40 group-hover:-translate-y-1">
                     {/* 内容区 */}
                     <div className="flex flex-col gap-y-[4px]">
                       {editingId === record.id ? (
@@ -221,7 +221,7 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
                       ) : (
                         <>
                           <div className="flex items-center gap-2">
-                            <div className="overflow-hidden whitespace-nowrap overflow-ellipsis text-[14px] leading-[22px] tracking-[0.04px] font-[500] text-[#000000] flex-1">
+                            <div className="overflow-hidden whitespace-nowrap overflow-ellipsis text-[14px] leading-[22px] tracking-[0.04px] font-[500] text-white/90 flex-1">
                               {record.title}
                             </div>
                             <Tooltip content="修改标题" mini>
@@ -233,7 +233,7 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
                               </button>
                             </Tooltip>
                           </div>
-                          <div className="text-[12px] leading-[20px] tracking-[0.04px] text-[#6e718c] text-justify overflow-hidden line-clamp-2">
+                          <div className="text-[12px] leading-[20px] tracking-[0.04px] text-white/60 text-justify overflow-hidden line-clamp-2">
                             {record.summary}
                           </div>
                         </>
@@ -242,7 +242,7 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
 
                     {/* 底部 */}
                     <div className="flex items-center justify-between w-full gap-x-[8px]">
-                      <div className="text-[11px] leading-[18px] text-[#aeafc2] whitespace-nowrap">
+                      <div className="text-[11px] leading-[18px] text-white/40 whitespace-nowrap">
                         {formatDate(record.timestamp, "YYYY-MM-DD HH:mm")}
                       </div>
                       
@@ -259,7 +259,7 @@ const GenerationsView: React.FC<GenerationsViewProps> = ({
                           </Popconfirm>
                         </div>
                         
-                        <Button className="shrink-0 flex justify-center items-center gap-x-[2px] px-[12px] py-[2px] border border-white/50 bg-white/40 rounded-full overflow-hidden text-[#3f3f51] text-[13px] leading-[22px] tracking-[0.04px] hover:bg-white/80 transition-all duration-300 shadow-sm backdrop-blur-sm">
+                        <Button className="shrink-0 flex justify-center items-center gap-x-[2px] px-[12px] py-[2px] border border-cyan-500/30 bg-cyan-500/10 rounded-full overflow-hidden text-cyan-400 text-[13px] leading-[22px] tracking-[0.04px] hover:bg-gradient-to-r hover:from-cyan-500 hover:to-purple-500 hover:border-transparent hover:text-white hover:shadow-[0_0_15px_rgba(0,212,255,0.4)] transition-all duration-300 backdrop-blur-sm">
                           查看
                           <ArrowRightIcon />
                         </Button>

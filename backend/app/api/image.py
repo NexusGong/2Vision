@@ -200,8 +200,12 @@ async def generate_from_storyboard(
 
 # ============ 后台任务相关 API ============
 
-async def _run_storyboard_generation(task_id: str, params: dict, db: Session, user: Optional[User], session_id: Optional[str]):
+async def _run_storyboard_generation(task_id: str, params: dict, db: Optional[Session], user: Optional[User], session_id: Optional[str]):
     """后台运行分镜图像生成任务"""
+    # 在后台任务中创建新的数据库会话，避免使用传入的会话（可能已关闭）
+    from app.database import SessionLocal
+    task_db = SessionLocal()
+    
     try:
         task_manager.start_task(task_id)
         
@@ -213,10 +217,13 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Session, us
         reference_images = params.get("reference_images")
         
         total_steps = len(storyboards)
-        image_results = []
         
         # 记录使用（在生成完成后）
         token_used = 0  # 可以根据实际消耗计算
+        
+        # 第一阶段：生成所有图片（不下载）
+        generation_results = []
+        logger.info(f"开始生成 {total_steps} 张图片...")
         
         for i, storyboard in enumerate(storyboards):
             try:
@@ -247,38 +254,34 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Session, us
                 )
                 
                 image_urls = [item.get("url", "") for item in image_result.get("data", [])]
-                
                 original_url = image_urls[0] if image_urls else ""
-                local_url = original_url
                 
-                # 下载并保存图片到本地
-                if original_url:
-                    from app.services.file_storage import download_and_save_image, get_local_url
-                    local_path = await download_and_save_image(original_url)
-                    if local_path:
-                        local_url = get_local_url(local_path)
-                        logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
+                text_content = storyboard.get("text", "")
+                # 调试：检查文本字段
+                if not text_content and storyboard.get("type") != "cover":
+                    logger.warning(f"分镜 {i+1} (非封面) 的 text 字段为空: storyboard={storyboard}")
                 
-                result_item = {
+                generation_results.append({
                     "storyboard_index": storyboard.get("index", i + 1),
                     "storyboard_type": storyboard.get("type", "content"),
-                    "image_url": local_url,
-                    "original_url": original_url,  # 保留原始URL作为备份
-                    "text": storyboard.get("text", ""),
+                    "original_url": original_url,
+                    "text": text_content,
                     "title": storyboard.get("title", ""),
                     "is_cover": storyboard.get("type") == "cover"
-                }
-                image_results.append(result_item)
+                })
                 
-                # 更新进度
-                task_manager.update_task_progress(task_id, i + 1, total_steps, result_item)
+                # 更新进度（生成阶段）
+                task_manager.update_task_progress(task_id, i + 1, total_steps, {
+                    "storyboard_index": storyboard.get("index", i + 1),
+                    "status": "generating"
+                })
                 
             except Exception as e:
                 logger.error(f"分镜 {i+1} 生成失败: {str(e)}")
-                image_results.append({
+                generation_results.append({
                     "storyboard_index": storyboard.get("index", i + 1),
                     "storyboard_type": storyboard.get("type", "content"),
-                    "image_url": "",
+                    "original_url": "",
                     "text": storyboard.get("text", ""),
                     "title": storyboard.get("title", ""),
                     "is_cover": storyboard.get("type") == "cover",
@@ -286,11 +289,70 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Session, us
                 })
                 task_manager.update_task_progress(task_id, i + 1, total_steps)
         
-        # 任务完成，记录使用
+        logger.info(f"图片生成完成，开始批量下载...")
+        
+        # 第二阶段：批量下载所有图片
+        image_results = []
+        from app.services.file_storage import download_and_save_image, get_local_url
+        
+        for i, result in enumerate(generation_results):
+            original_url = result.get("original_url", "")
+            local_url = original_url
+            
+            if original_url:
+                # 下载并保存图片到本地
+                local_path = await download_and_save_image(original_url)
+                if local_path:
+                    local_url = get_local_url(local_path)
+                    logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
+                else:
+                    logger.warning(f"图片下载失败，使用原始URL: {original_url[:100]}...")
+            
+            result_item = {
+                "storyboard_index": result.get("storyboard_index"),
+                "storyboard_type": result.get("storyboard_type"),
+                "image_url": local_url,
+                "original_url": original_url,  # 保留原始URL作为备份
+                "text": result.get("text", ""),
+                "title": result.get("title", ""),
+                "is_cover": result.get("is_cover", False)
+            }
+            
+            # 调试：检查文本字段
+            if not result_item.get("text"):
+                logger.warning(f"分镜 {i+1} 的 text 字段为空: storyboard_index={result_item.get('storyboard_index')}, is_cover={result_item.get('is_cover')}")
+            
+            image_results.append(result_item)
+            
+            # 更新进度（下载阶段）
+            task_manager.update_task_progress(task_id, i + 1, total_steps, result_item)
+        
+        # 检查是否所有图片都成功生成（至少有一张图片有URL）
+        success_count = sum(1 for r in image_results if r.get("image_url") or r.get("original_url"))
+        if success_count == 0:
+            logger.error(f"图片生成失败：没有成功生成任何图片")
+            task_manager.fail_task(task_id, "图片生成失败：没有成功生成任何图片")
+            return
+        
+        # 任务成功完成，记录使用（使用新的数据库会话）
+        # 只有在成功生成至少一张图片后才扣除次数
         try:
-            record_usage(db, "image", token_used, user, session_id)
+            # 如果传入了 user_id，需要从数据库重新获取用户对象
+            task_user = None
+            if params.get("user_id"):
+                from app.models.user import User
+                task_user = task_db.query(User).filter(User.id == params["user_id"]).first()
+            record_usage(task_db, "image", token_used, task_user, params.get("session_id"))
+            task_db.commit()
+            logger.info(f"成功记录使用次数: 用户ID={task_user.id if task_user else None}, 成功生成 {success_count}/{total_steps} 张图片")
         except Exception as e:
             logger.error(f"记录使用失败: {str(e)}")
+            task_db.rollback()
+        
+        # 调试：检查最终返回的数据
+        for i, result_item in enumerate(image_results):
+            if not result_item.get("text") and not result_item.get("is_cover"):
+                logger.warning(f"最终结果中分镜 {i+1} (非封面) 的 text 字段为空: {result_item}")
         
         task_manager.complete_task(task_id, {
             "status": "success",
@@ -298,9 +360,18 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Session, us
             "poetry_info": poetry_info
         })
         
+        logger.info(f"任务完成，返回 {len(image_results)} 个结果，其中包含文本的分镜数: {sum(1 for r in image_results if r.get('text'))}")
+        
     except Exception as e:
-        logger.error(f"后台任务失败: {str(e)}")
+        logger.error(f"后台任务失败: {str(e)}", exc_info=True)
+        # 任务失败时不扣除次数
         task_manager.fail_task(task_id, str(e))
+    finally:
+        # 确保数据库会话被关闭
+        try:
+            task_db.close()
+        except Exception as e:
+            logger.error(f"关闭数据库会话失败: {str(e)}")
 
 
 @router.post("/generate_from_storyboard_async")
@@ -327,6 +398,10 @@ async def generate_from_storyboard_async(
         if not allowed:
             raise HTTPException(status_code=403, detail=error_msg)
         
+        # 检查并发任务限制
+        if not task_manager.can_start_new_task():
+            raise HTTPException(status_code=503, detail="当前任务队列已满，请稍后再试")
+        
         # 创建任务
         params = {
             "storyboards": [sb.model_dump() for sb in request.storyboards],
@@ -344,8 +419,8 @@ async def generate_from_storyboard_async(
             message_id=request.message_id or ""
         )
         
-        # 启动后台任务
-        background_tasks.add_task(_run_storyboard_generation, task_id, params, db, current_user, session_id)
+        # 启动后台任务（不传递 db 和 current_user，在任务内部创建新的会话）
+        background_tasks.add_task(_run_storyboard_generation, task_id, params, None, None, session_id)
         
         return {
             "status": "accepted",
@@ -363,10 +438,20 @@ async def generate_from_storyboard_async(
 @router.get("/task/{task_id}")
 async def get_task_status(task_id: str):
     """查询任务状态"""
-    task_status = task_manager.get_task_status(task_id)
-    if not task_status:
-        raise HTTPException(status_code=404, detail="任务不存在")
-    return task_status
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        task_status = task_manager.get_task_status(task_id)
+        if not task_status:
+            logger.warning(f"任务不存在: {task_id}")
+            raise HTTPException(status_code=404, detail="任务不存在或已过期")
+        return task_status
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"查询任务状态失败: {task_id}, 错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"查询任务状态失败: {str(e)}")
 
 
 @router.delete("/task/{task_id}")
@@ -376,6 +461,55 @@ async def cancel_task(task_id: str):
     if success:
         return {"status": "cancelled", "task_id": task_id}
     raise HTTPException(status_code=400, detail="任务无法取消（可能已完成或不存在）")
+
+
+class DeleteImagesRequest(BaseModel):
+    """删除图片请求模型"""
+    image_urls: List[str]
+
+
+@router.post("/delete")
+async def delete_images(
+    request: DeleteImagesRequest,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """
+    批量删除图片文件
+    
+    Args:
+        request: 删除图片请求，包含图片URL列表
+        
+    Returns:
+        删除结果
+    """
+    try:
+        from app.services.file_storage import delete_image_files
+        
+        image_urls = request.image_urls
+        
+        if not image_urls:
+            return {
+                "status": "success",
+                "message": "没有需要删除的图片",
+                "deleted_count": 0
+            }
+        
+        results = delete_image_files(image_urls)
+        deleted_count = sum(1 for success in results.values() if success)
+        
+        logger.info(f"删除图片请求: 共 {len(image_urls)} 张，成功删除 {deleted_count} 张")
+        
+        return {
+            "status": "success",
+            "message": f"成功删除 {deleted_count}/{len(image_urls)} 张图片",
+            "deleted_count": deleted_count,
+            "total_count": len(image_urls),
+            "results": results
+        }
+    except Exception as e:
+        logger.error(f"删除图片失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"删除图片失败: {str(e)}")
 
 
 @router.get("/tasks/active")

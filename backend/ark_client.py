@@ -18,14 +18,12 @@ from typing import List, Dict, Any, Optional
 import os
 import logging
 import requests
-from dotenv import load_dotenv
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 加载环境变量
-load_dotenv()
+# 环境变量已在config.py中统一加载，这里不需要重复加载
 
 class ArkClient:
     def __init__(self):

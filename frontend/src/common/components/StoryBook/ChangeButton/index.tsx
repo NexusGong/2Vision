@@ -64,10 +64,10 @@ const StorybookChangeButton: FC<StorybookChangeButtonProps> = (props) => {
       <div
         onClick={prev}
         className={cls(
-          "cursor-pointer w-6 h-6 text-[#3f3f51]",
+          "cursor-pointer w-6 h-6 text-white/70 hover:text-cyan-400 transition-colors",
           { "pointer-events-none": isFirstPage },
-          `${isFirstPage ? "!text-[#c9c9d4]" : ""}`,
-          `p-[2px] hover:bg-[#E1E3EF] rounded-[4px]`
+          `${isFirstPage ? "!text-white/30" : ""}`,
+          `p-[2px] hover:bg-white/10 rounded-[4px]`
         )}
       >
         <IconArrowLeft />
@@ -79,17 +79,19 @@ const StorybookChangeButton: FC<StorybookChangeButtonProps> = (props) => {
         onClickOutside={() => setPopupVisible(false)}
         popup={() => (
           <div
-            className="bg-white flex flex-col border border-[#eaedf1] rounded-lg py-[8px] px-[6px] w-[240px] space-y-[4px] cursor-pointer"
+            className="flex flex-col rounded-lg py-[8px] px-[6px] w-[240px] space-y-[4px] cursor-pointer backdrop-blur-md"
             style={{
-              boxShadow: `0px 5px 15px 0px #0000000D, 0px 15px 35px -2px #0000000D`,
+              background: 'linear-gradient(135deg, rgba(20, 20, 35, 0.95), rgba(30, 30, 50, 0.95))',
+              border: '1px solid rgba(0, 212, 255, 0.3)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 212, 255, 0.1)',
             }}
           >
             <div
               className={cls(
-                "py-[5px] px-[12px] flex items-center space-x-[6px] text-[#0c0d0e] select-none",
+                "py-[5px] px-[12px] flex items-center space-x-[6px] text-white/90 select-none",
                 isFirstPage
-                  ? "cursor-not-allowed !text-[#c7ccd6]"
-                  : "hover:bg-[#f6f8fa] rounded"
+                  ? "cursor-not-allowed !text-white/30"
+                  : "hover:bg-cyan-500/20 rounded hover:text-cyan-400"
               )}
               onClick={goFirst}
             >
@@ -98,10 +100,10 @@ const StorybookChangeButton: FC<StorybookChangeButtonProps> = (props) => {
             </div>
             <div
               className={cls(
-                "py-[5px] px-[12px] flex items-center space-x-[6px] text-[#0c0d0e] select-none",
+                "py-[5px] px-[12px] flex items-center space-x-[6px] text-white/90 select-none",
                 isLastPage
-                  ? "cursor-not-allowed !text-[#c7ccd6]"
-                  : "hover:bg-[#f6f8fa] rounded"
+                  ? "cursor-not-allowed !text-white/30"
+                  : "hover:bg-cyan-500/20 rounded hover:text-cyan-400"
               )}
               onClick={goEnd}
             >
@@ -112,17 +114,17 @@ const StorybookChangeButton: FC<StorybookChangeButtonProps> = (props) => {
         )}
       >
         <div
-          className="select-none w-[54px] flex items-center justify-center hover:bg-[#E1E3EF] rounded-[6px]"
+          className="select-none w-[54px] flex items-center justify-center hover:bg-white/10 rounded-[6px] transition-colors"
           onClick={() => setPopupVisible(true)}
         >
           {isFirstPage ? (
-            <div className="text-[#0b0b0f] text-[14px] leading-6">
+            <div className="text-white/90 text-[14px] leading-6">
               {btnText?.page || "封面"}
             </div>
           ) : (
-            <div className="text-[#0b0b0f] text-[14px] leading-6">
+            <div className="text-white/90 text-[14px] leading-6">
               <span>{pageNum!}</span>
-              <span className="text-[#c9c9d4]"> / {totalPage!}</span>
+              <span className="text-white/50"> / {totalPage!}</span>
             </div>
           )}
         </div>
@@ -130,12 +132,12 @@ const StorybookChangeButton: FC<StorybookChangeButtonProps> = (props) => {
       <div
         onClick={next}
         className={cls(
-          "cursor-pointer w-6 h-6 text-[#3f3f51]",
+          "cursor-pointer w-6 h-6 text-white/70 hover:text-cyan-400 transition-colors",
           {
             "pointer-events-none": isLastPage,
           },
-          `${isLastPage ? "!text-[#c9c9d4]" : ""}`,
-          `p-[2px] hover:bg-[#E1E3EF] rounded-[4px]`
+          `${isLastPage ? "!text-white/30" : ""}`,
+          `p-[2px] hover:bg-white/10 rounded-[4px]`
         )}
       >
         <IconArrowRight />

@@ -25,19 +25,81 @@ export const Loading: React.FC<LoadingProps> = ({ className, text }) => {
   return (
     <div
       className={classNames(
-        "relative w-full aspect-video overflow-hidden rounded-[12px]",
+        "relative w-full aspect-video overflow-hidden rounded-2xl",
         className
       )}
+      style={{
+        background: 'linear-gradient(145deg, rgba(15, 15, 25, 0.95), rgba(20, 20, 35, 0.9))',
+        border: '1px solid rgba(0, 212, 255, 0.2)',
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 212, 255, 0.1)',
+      }}
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-pink-300 via-blue-300 to-purple-300 animate-[neon-gradient_6s_ease_infinite]"></div>
-      <div className="absolute inset-[-50%] bg-[conic-gradient(from_180deg,#ff9a9e,#fad0c4,#a1c4fd,#c2e9fb,#ff9a9e)] blur-[120px] animate-[neon-spin_10s_linear_infinite]"></div>
-      <div className="h-full flex items-center justify-center flex-col text-white font-medium relative z-20">
-        <IconImage fontSize={30} />
-        <div className="text-[13px] leading-[20px] mt-[4px]">
+      {/* 背景网格 */}
+      <div 
+        className="absolute inset-0 opacity-10"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(0, 212, 255, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 212, 255, 0.3) 1px, transparent 1px)
+          `,
+          backgroundSize: '30px 30px',
+        }}
+      />
+      
+      {/* 科技感光晕 */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="cyber-glow-orb cyber-glow-orb-1" />
+        <div className="cyber-glow-orb cyber-glow-orb-2" />
+      </div>
+      
+      {/* 扫描线效果 */}
+      <div className="cyber-scan-line" />
+      
+      {/* 内容区域 */}
+      <div className="h-full flex items-center justify-center flex-col relative z-20">
+        {/* 旋转光环 */}
+        <div className="relative mb-4">
+          <div className="cyber-ring" />
+          <div className="cyber-ring cyber-ring-reverse" />
+          <div 
+            className="w-16 h-16 flex items-center justify-center rounded-xl"
+            style={{
+              background: 'rgba(0, 212, 255, 0.1)',
+              border: '1px solid rgba(0, 212, 255, 0.3)',
+              boxShadow: '0 0 20px rgba(0, 212, 255, 0.2)',
+            }}
+          >
+            <IconImage 
+              fontSize={28} 
+              style={{ color: '#00d4ff' }}
+            />
+          </div>
+        </div>
+        
+        {/* 加载文字 */}
+        <div 
+          className="text-sm font-medium"
+          style={{ color: 'rgba(255, 255, 255, 0.9)' }}
+        >
           {text || "图片生成中"}
-          <span className="animate-ellipsis align-middle">...</span>
+          <span className="cyber-dots">
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+          </span>
+        </div>
+        
+        {/* 进度条 */}
+        <div className="cyber-progress-bar mt-4">
+          <div className="cyber-progress-fill" />
         </div>
       </div>
+      
+      {/* 边角装饰 */}
+      <div className="cyber-corner cyber-corner-tl" />
+      <div className="cyber-corner cyber-corner-tr" />
+      <div className="cyber-corner cyber-corner-bl" />
+      <div className="cyber-corner cyber-corner-br" />
     </div>
   );
 };

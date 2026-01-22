@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Input, Empty, Message, Modal, Form, Button } from "@arco-design/web-react";
 import { IconSearch, IconArrowLeft, IconPlus, IconDelete } from "@arco-design/web-react/icon";
 import classNames from "classnames";
@@ -17,6 +17,9 @@ import {
   CustomPoetry,
 } from "../../data/poetryData";
 import styles from "./index.module.less";
+
+// 状态保存的key
+const POETRY_LIBRARY_STATE_KEY = "poetry_library_state";
 
 const FormItem = Form.Item;
 const TextArea = Input.TextArea;
@@ -151,38 +154,180 @@ const AddPoetryModal: React.FC<{
   );
 };
 
+// 保存状态到localStorage
+const savePoetryLibraryState = (state: {
+  selectedTypeName?: string;
+  selectedEditionId?: string;
+  selectedStageName?: string;
+  selectedGradeId?: string;
+  selectedCategoryId?: string;
+  expandedType?: string | null;
+  expandedEdition?: string | null;
+  expandedGrade?: string | null;
+  showCustom?: boolean;
+}) => {
+  try {
+    localStorage.setItem(POETRY_LIBRARY_STATE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error("保存诗词雅集状态失败:", error);
+  }
+};
+
+// 从localStorage恢复状态
+const loadPoetryLibraryState = (): {
+  selectedTypeName?: string;
+  selectedEditionId?: string;
+  selectedStageName?: string;
+  selectedGradeId?: string;
+  selectedCategoryId?: string;
+  expandedType?: string | null;
+  expandedEdition?: string | null;
+  expandedGrade?: string | null;
+  showCustom?: boolean;
+} | null => {
+  try {
+    const data = localStorage.getItem(POETRY_LIBRARY_STATE_KEY);
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("恢复诗词雅集状态失败:", error);
+  }
+  return null;
+};
+
 const PoetryLibrary: React.FC<PoetryLibraryProps> = ({ onBack, onSelectPoetry }) => {
   // 数据状态
   const editions = useMemo(() => getEditions(), []);
   const [customList, setCustomList] = useState<CustomPoetry[]>(getCustomPoetryList());
 
+  // 从localStorage恢复状态
+  const savedState = useMemo(() => loadPoetryLibraryState(), []);
+
+  // 根据保存的状态或默认值初始化选择状态
+  const getInitialState = useCallback(() => {
+    if (savedState) {
+      // 尝试根据保存的ID恢复状态
+      let type: ContentType | null = null;
+      let edition: Edition | null = null;
+      let stage: Stage | null = null;
+      let grade: Grade | null = null;
+      let category: Category | null = null;
+
+      // 查找类型
+      if (savedState.selectedTypeName) {
+        for (const ed of editions) {
+          const foundType = ed.types.find(t => t.name === savedState.selectedTypeName);
+          if (foundType) {
+            type = foundType;
+            break;
+          }
+        }
+      }
+
+      // 查找版本
+      if (savedState.selectedEditionId) {
+        edition = editions.find(ed => ed.id === savedState.selectedEditionId) || null;
+        if (edition && !type) {
+          type = edition.types[0] || null;
+        }
+      }
+
+      // 如果找到了类型，继续查找后续层级
+      if (type) {
+        if (savedState.selectedStageName) {
+          stage = type.stages.find(s => s.name === savedState.selectedStageName) || type.stages[0] || null;
+        } else {
+          stage = type.stages[0] || null;
+        }
+
+        if (stage) {
+          if (savedState.selectedGradeId) {
+            grade = stage.grades.find(g => g.id === savedState.selectedGradeId) || stage.grades[0] || null;
+          } else {
+            grade = stage.grades[0] || null;
+          }
+
+          if (grade) {
+            if (savedState.selectedCategoryId) {
+              category = grade.categories.find(c => c.id === savedState.selectedCategoryId) || grade.categories[0] || null;
+            } else {
+              category = grade.categories[0] || null;
+            }
+          }
+        }
+      }
+
+      // 如果恢复失败，使用默认值
+      if (!type || !edition || !stage || !grade) {
+        type = editions[0]?.types[0] || null;
+        edition = editions[0] || null;
+        stage = editions[0]?.types[0]?.stages[0] || null;
+        grade = editions[0]?.types[0]?.stages[0]?.grades[0] || null;
+        category = editions[0]?.types[0]?.stages[0]?.grades[0]?.categories[0] || null;
+      }
+
+      return {
+        type,
+        edition,
+        stage,
+        grade,
+        category,
+        expandedType: savedState.expandedType || type?.name || null,
+        expandedEdition: savedState.expandedEdition || edition?.id || null,
+        expandedGrade: savedState.expandedGrade || grade?.id || null,
+        showCustom: savedState.showCustom || false,
+      };
+    }
+
+    // 默认值
+    return {
+      type: editions[0]?.types[0] || null,
+      edition: editions[0] || null,
+      stage: editions[0]?.types[0]?.stages[0] || null,
+      grade: editions[0]?.types[0]?.stages[0]?.grades[0] || null,
+      category: editions[0]?.types[0]?.stages[0]?.grades[0]?.categories[0] || null,
+      expandedType: editions[0]?.types[0]?.name || null,
+      expandedEdition: editions[0]?.id || null,
+      expandedGrade: editions[0]?.types[0]?.stages[0]?.grades[0]?.id || null,
+      showCustom: false,
+    };
+  }, [editions, savedState]);
+
+  const initialState = useMemo(() => getInitialState(), [getInitialState]);
+
   // 选择状态 - 顺序：类型 → 版本 → 年级 → 分类
-  const [selectedType, setSelectedType] = useState<ContentType | null>(
-    editions[0]?.types[0] || null
-  );
-  const [selectedEdition, setSelectedEdition] = useState<Edition | null>(editions[0] || null);
-  const [selectedStage, setSelectedStage] = useState<Stage | null>(
-    editions[0]?.types[0]?.stages[0] || null
-  );
-  const [selectedGrade, setSelectedGrade] = useState<Grade | null>(
-    editions[0]?.types[0]?.stages[0]?.grades[0] || null
-  );
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    editions[0]?.types[0]?.stages[0]?.grades[0]?.categories[0] || null
-  );
+  const [selectedType, setSelectedType] = useState<ContentType | null>(initialState.type);
+  const [selectedEdition, setSelectedEdition] = useState<Edition | null>(initialState.edition);
+  const [selectedStage, setSelectedStage] = useState<Stage | null>(initialState.stage);
+  const [selectedGrade, setSelectedGrade] = useState<Grade | null>(initialState.grade);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(initialState.category);
 
   // UI 状态
   const [searchKeyword, setSearchKeyword] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [showCustom, setShowCustom] = useState(false);
+  const [showCustom, setShowCustom] = useState(initialState.showCustom);
   const [addModalVisible, setAddModalVisible] = useState(false);
 
   // 展开/收纳状态
-  const [expandedType, setExpandedType] = useState<string | null>(editions[0]?.types[0]?.name || null);
-  const [expandedEdition, setExpandedEdition] = useState<string | null>(editions[0]?.id || null);
-  const [expandedGrade, setExpandedGrade] = useState<string | null>(
-    editions[0]?.types[0]?.stages[0]?.grades[0]?.id || null
-  );
+  const [expandedType, setExpandedType] = useState<string | null>(initialState.expandedType);
+  const [expandedEdition, setExpandedEdition] = useState<string | null>(initialState.expandedEdition);
+  const [expandedGrade, setExpandedGrade] = useState<string | null>(initialState.expandedGrade);
+
+  // 当选择状态改变时保存到localStorage
+  useEffect(() => {
+    savePoetryLibraryState({
+      selectedTypeName: selectedType?.name,
+      selectedEditionId: selectedEdition?.id,
+      selectedStageName: selectedStage?.name,
+      selectedGradeId: selectedGrade?.id,
+      selectedCategoryId: selectedCategory?.id,
+      expandedType,
+      expandedEdition,
+      expandedGrade,
+      showCustom,
+    });
+  }, [selectedType, selectedEdition, selectedStage, selectedGrade, selectedCategory, expandedType, expandedEdition, expandedGrade, showCustom]);
 
   // 搜索结果
   const searchResults = useMemo(() => {

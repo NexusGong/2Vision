@@ -5,7 +5,8 @@
 export interface UserProfile {
   id: number;
   username: string;
-  email: string;
+  email?: string;  // 可选，手机号注册用户可能没有真实邮箱
+  phone?: string;  // 手机号
   nickname?: string;
   avatar?: string;
   is_admin: boolean;
