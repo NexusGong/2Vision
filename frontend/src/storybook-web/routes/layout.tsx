@@ -43,8 +43,27 @@ function LayoutContent() {
   }, [isAuthenticated]);
 
   const handleLoginSuccess = async (token: string) => {
-    await refreshUser();
-    await refreshUsage();
+    // 异步刷新用户信息，不阻塞UI
+    // 使用setTimeout确保在下一个事件循环中执行，避免阻塞
+    setTimeout(async () => {
+      try {
+        // 先刷新用户信息
+        await refreshUser();
+        // 等待一下确保user状态已更新，然后刷新使用统计
+        setTimeout(async () => {
+          try {
+            await refreshUsage();
+          } catch (error) {
+            console.error("刷新使用统计失败:", error);
+            // 即使失败也不影响登录流程
+          }
+        }, 200);
+      } catch (error) {
+        console.error("登录后刷新用户信息失败:", error);
+        // 即使刷新失败，也不影响登录流程
+        // 用户信息会在下次访问时自动刷新
+      }
+    }, 0);
   };
 
   const handleLogout = async () => {

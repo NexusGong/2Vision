@@ -553,6 +553,16 @@ const VideoPromptEditor: React.FC<{
           onChange={(v) => handleFieldChange("video_prompt", v)}
           autoSize={{ minRows: 4, maxRows: 8 }}
           placeholder="完整的视频生成提示词，包含场景、画面、风格、音乐、朗诵等所有要素"
+          className={styles.videoPromptTextarea}
+          style={{
+            fontSize: '15px',
+            lineHeight: '2',
+            color: '#ffffff',
+            backgroundColor: 'rgba(0, 5, 15, 1)',
+            border: '2px solid rgba(0, 212, 255, 0.6)',
+            borderRadius: '10px',
+            padding: '20px 24px',
+          }}
         />
       </div>
       <div className={styles.promptItem}>
@@ -562,6 +572,16 @@ const VideoPromptEditor: React.FC<{
           onChange={(v) => handleFieldChange("scene_description", v)}
           autoSize={{ minRows: 2, maxRows: 4 }}
           placeholder="主要场景的详细描述（连贯完整）"
+          className={styles.videoPromptTextarea}
+          style={{
+            fontSize: '16px',
+            lineHeight: '1.8',
+            color: '#ffffff',
+            backgroundColor: 'rgba(5, 10, 20, 1)',
+            border: '2px solid rgba(0, 212, 255, 0.5)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+          }}
         />
       </div>
       <div className={styles.promptItem}>
@@ -571,6 +591,16 @@ const VideoPromptEditor: React.FC<{
           onChange={(v) => handleFieldChange("visual_style", v)}
           autoSize={{ minRows: 2, maxRows: 4 }}
           placeholder="视觉风格描述（详细，包括色调、氛围、绘画风格等）"
+          className={styles.videoPromptTextarea}
+          style={{
+            fontSize: '16px',
+            lineHeight: '1.8',
+            color: '#ffffff',
+            backgroundColor: 'rgba(5, 10, 20, 1)',
+            border: '2px solid rgba(0, 212, 255, 0.5)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+          }}
         />
       </div>
       <div className={styles.promptItem}>
@@ -580,6 +610,16 @@ const VideoPromptEditor: React.FC<{
           onChange={(v) => handleFieldChange("background_music", v)}
           autoSize={{ minRows: 2, maxRows: 4 }}
           placeholder="背景音乐要求：类型、风格、情感、节奏、乐器等（详细）"
+          className={styles.videoPromptTextarea}
+          style={{
+            fontSize: '16px',
+            lineHeight: '1.8',
+            color: '#ffffff',
+            backgroundColor: 'rgba(5, 10, 20, 1)',
+            border: '2px solid rgba(0, 212, 255, 0.5)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+          }}
         />
       </div>
       <div className={styles.promptItem}>
@@ -589,6 +629,16 @@ const VideoPromptEditor: React.FC<{
           onChange={(v) => handleFieldChange("narration_style", v)}
           autoSize={{ minRows: 2, maxRows: 4 }}
           placeholder="古诗朗诵要求：风格、节奏、情感表达、语调、语音特色等（详细）"
+          className={styles.videoPromptTextarea}
+          style={{
+            fontSize: '16px',
+            lineHeight: '1.8',
+            color: '#ffffff',
+            backgroundColor: 'rgba(5, 10, 20, 1)',
+            border: '2px solid rgba(0, 212, 255, 0.5)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+          }}
         />
       </div>
       <div className={styles.promptItem}>
@@ -598,6 +648,16 @@ const VideoPromptEditor: React.FC<{
           onChange={(v) => handleFieldChange("transitions", v)}
           autoSize={{ minRows: 2, maxRows: 4 }}
           placeholder="转场效果描述（详细）"
+          className={styles.videoPromptTextarea}
+          style={{
+            fontSize: '16px',
+            lineHeight: '1.8',
+            color: '#ffffff',
+            backgroundColor: 'rgba(5, 10, 20, 1)',
+            border: '2px solid rgba(0, 212, 255, 0.5)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+          }}
         />
       </div>
       <div className={styles.promptItem}>
@@ -607,6 +667,16 @@ const VideoPromptEditor: React.FC<{
           onChange={(v) => handleFieldChange("camera_movement", v)}
           autoSize={{ minRows: 2, maxRows: 4 }}
           placeholder="镜头运动描述（详细，包括推拉摇移等）"
+          className={styles.videoPromptTextarea}
+          style={{
+            fontSize: '16px',
+            lineHeight: '1.8',
+            color: '#ffffff',
+            backgroundColor: 'rgba(5, 10, 20, 1)',
+            border: '2px solid rgba(0, 212, 255, 0.5)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+          }}
         />
       </div>
     </div>

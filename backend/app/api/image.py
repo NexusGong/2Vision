@@ -11,7 +11,7 @@ import asyncio
 from app.database import get_db
 from app.services.auth import get_current_user, get_optional_user
 from app.models.user import User
-from app.services.usage_manager import check_usage_limit, record_usage
+from app.services.usage_manager import check_token_balance, record_usage
 from app.services.image_generator import (
     generate_images_for_segments,
     generate_storybook_images_stream,
@@ -218,8 +218,11 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Optional[Se
         
         total_steps = len(storyboards)
         
-        # 记录使用（在生成完成后）
-        token_used = 0  # 可以根据实际消耗计算
+        # 计算token消耗（统一token系统）
+        # 图像生成：文本分析3,993 tokens + 图片生成等价40,000 tokens = 43,993 tokens/分镜
+        # 但根据统一token定价，图像生成等价76,685 tokens/分镜
+        IMAGE_TOKENS_PER_STORYBOARD = 76685  # 统一token定价下的图像生成token
+        token_used = IMAGE_TOKENS_PER_STORYBOARD * len(storyboards)
         
         # 第一阶段：生成所有图片（不下载）
         generation_results = []
@@ -393,8 +396,13 @@ async def generate_from_storyboard_async(
         # 获取session_id（非登录用户）
         session_id = http_request.headers.get("X-Session-Id")
         
-        # 检查使用次数限制
-        allowed, error_msg = check_usage_limit(db, current_user, session_id)
+        # 估算需要的token数量（统一token系统）
+        # 图像生成：每个分镜等价76,685 tokens（统一token定价）
+        IMAGE_TOKENS_PER_STORYBOARD = 76685
+        required_tokens = IMAGE_TOKENS_PER_STORYBOARD
+        
+        # 检查统一token余额
+        allowed, error_msg = check_token_balance(db, current_user, session_id, required_tokens)
         if not allowed:
             raise HTTPException(status_code=403, detail=error_msg)
         

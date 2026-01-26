@@ -3,7 +3,7 @@
  */
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, Message } from "@arco-design/web-react";
-import { sendSmsCode, registerBySms, loginBySms, loginByPassword } from "@/storybook-web/apis/auth";
+import { sendSmsCode, registerBySms, loginBySms, loginByPassword, type TokenResponse } from "@/storybook-web/apis/auth";
 import styles from "./index.module.less";
 
 interface AuthModalProps {
@@ -51,6 +51,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose, onSuccess }) =>
       setUsernameError("");
       setCountdown(0);
       setUserExists(false);
+      setLoading(false); // 确保关闭时重置loading状态
     }
   }, [visible]);
 
@@ -105,21 +106,52 @@ const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose, onSuccess }) =>
 
     try {
       setLoading(true);
-      const res = await loginByPassword({ phone: trimmed, password });
+      setPhoneError("");
+      setPasswordError("");
+      
+      console.log("开始密码登录，手机号:", trimmed.substring(0, 3) + "****");
+      
+      // 添加超时控制
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("请求超时，请检查网络连接")), 15000); // 15秒超时
+      });
+      
+      const res = await Promise.race([
+        loginByPassword({ phone: trimmed, password }),
+        timeoutPromise
+      ]) as TokenResponse;
+      
+      console.log("登录成功，收到token");
       localStorage.setItem("token", res.access_token);
       Message.success("登录成功");
-      onSuccess(res.access_token);
+      
+      // 重置状态（在关闭前）
+      setLoading(false);
+      setPassword("");
+      
+      // 先关闭弹窗，然后异步刷新用户信息（不阻塞UI）
       onClose();
+      
+      // 异步调用onSuccess，不等待完成
+      Promise.resolve(onSuccess(res.access_token)).catch((error) => {
+        console.error("登录后刷新用户信息失败:", error);
+        // 即使失败也不影响登录流程
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "登录失败";
+      console.error("登录错误:", e, { message: msg });
+      
+      // 确保loading状态被重置
+      setLoading(false);
+      
       if (msg.includes("未设置密码")) {
         Message.warning("该账号未设置密码，请使用验证码登录");
         setLoginMode("sms");
+      } else if (msg.includes("超时")) {
+        Message.error("登录请求超时，请检查网络连接后重试");
       } else {
-        Message.error(msg);
+        Message.error(msg || "登录失败，请重试");
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -177,18 +209,50 @@ const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose, onSuccess }) =>
     if (userExists) {
       try {
         setLoading(true);
-        const res = await loginBySms({ phone, code: verifyCode });
+        console.log("开始验证码登录，手机号:", phone.substring(0, 3) + "****");
+        
+        // 添加超时控制
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("请求超时，请检查网络连接")), 15000); // 15秒超时
+        });
+        
+        const res = await Promise.race([
+          loginBySms({ phone, code: verifyCode }),
+          timeoutPromise
+        ]) as TokenResponse;
+        
+        console.log("登录成功，收到token");
         localStorage.setItem("token", res.access_token);
         Message.success("登录成功");
-        onSuccess(res.access_token);
+        
+        // 重置状态（在关闭前）
+        setLoading(false);
+        setCode("");
+        codeRefs.current.forEach(r => r && (r.value = ""));
+        
+        // 先关闭弹窗，然后异步刷新用户信息（不阻塞UI）
         onClose();
+        
+        // 异步调用onSuccess，不等待完成
+        Promise.resolve(onSuccess(res.access_token)).catch((error) => {
+          console.error("登录后刷新用户信息失败:", error);
+          // 即使失败也不影响登录流程
+        });
       } catch (e) {
-        Message.error(e instanceof Error ? e.message : "验证码错误");
+        const msg = e instanceof Error ? e.message : "验证码错误";
+        console.error("登录错误:", e, { message: msg });
+        
+        // 确保loading状态被重置
+        setLoading(false);
+        
+        if (msg.includes("超时")) {
+          Message.error("登录请求超时，请检查网络连接后重试");
+        } else {
+          Message.error(msg || "验证码错误，请重试");
+        }
         setCode("");
         codeRefs.current.forEach(r => r && (r.value = ""));
         codeRefs.current[0]?.focus();
-      } finally {
-        setLoading(false);
       }
     } else {
       setStep("username");
@@ -211,21 +275,51 @@ const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose, onSuccess }) =>
 
     try {
       setLoading(true);
-      const res = await registerBySms({ username: username.trim(), phone, code });
+      setUsernameError("");
+      
+      // 添加超时控制
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("请求超时，请检查网络连接")), 15000); // 15秒超时
+      });
+      
+      const res = await Promise.race([
+        registerBySms({ username: username.trim(), phone, code }),
+        timeoutPromise
+      ]) as TokenResponse;
+      
       localStorage.setItem("token", res.access_token);
       Message.success("注册成功");
-      onSuccess(res.access_token);
+      
+      // 先关闭弹窗，然后异步刷新用户信息（不阻塞UI）
       onClose();
+      
+      // 重置状态
+      setLoading(false);
+      setUsername("");
+      setCode("");
+      codeRefs.current.forEach(r => r && (r.value = ""));
+      
+      // 异步调用onSuccess，不等待完成
+      Promise.resolve(onSuccess(res.access_token)).catch((error) => {
+        console.error("注册后刷新用户信息失败:", error);
+        // 即使失败也不影响注册流程
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "注册失败";
-      Message.error(msg);
+      console.error("注册错误:", e);
+      
+      if (msg.includes("超时")) {
+        Message.error("注册请求超时，请检查网络连接后重试");
+      } else {
+        Message.error(msg || "注册失败，请重试");
+      }
+      
       if (msg.includes("验证码")) {
         setStep("code");
         setCode("");
         codeRefs.current.forEach(r => r && (r.value = ""));
         codeRefs.current[0]?.focus();
       }
-    } finally {
       setLoading(false);
     }
   };

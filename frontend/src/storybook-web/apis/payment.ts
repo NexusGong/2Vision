@@ -3,19 +3,25 @@
  */
 
 export interface PaymentCreateRequest {
-  payment_type: "times" | "tokens";
-  quantity: number;
+  quantity: number;  // token数量
   payment_method?: string;
 }
 
 export interface PaymentOrder {
   order_id: number;
   transaction_id: string;
-  payment_type: string;
   amount: number;
-  quantity: number;
+  quantity: number;  // token数量
   status: string;
   created_at: string;
+  payment_method?: string;  // 支付方式
+  payment_info?: {
+    qr_code_url: string;  // 收款码图片URL
+    account_name: string;  // 账号名称
+    amount: number;  // 支付金额
+    transaction_id: string;  // 订单号
+    remark: string;  // 备注信息
+  };
 }
 
 export interface PaymentSimulateRequest {

@@ -49,10 +49,15 @@ frontend/dist/
 .env.development
 .env.production
 *.env
+# 确保所有 .env 文件都被忽略（包括 backend/.env）
+backend/.env
+**/.env
 config.local.py
 secrets.py
 *.pem
 *.key
+*.cert
+*.crt
 
 # =========================
 # 数据库文件
@@ -117,10 +122,17 @@ temp/
 .cache/
 
 # =========================
-# 文件存储目录
+# 文件存储目录（包含用户上传的文件和收款码等敏感信息）
 # =========================
 storage/
 backend/storage/
+**/storage/
+# 收款码图片（包含个人信息）
+**/qrcode/
+**/*qrcode*
+**/alipay*.jpg
+**/alipay*.png
+**/alipay*.jpeg
 
 # =========================
 # ngrok 本地配置（如果存在）

@@ -40,10 +40,10 @@ class UsageRecord(Base):
     os = Column(String(100), nullable=True)  # 操作系统
     
     # Token信息
-    token_used = Column(Integer, default=0)  # 消耗的token数（兼容旧字段）
     input_tokens = Column(Integer, default=0)  # 输入token数
     output_tokens = Column(Integer, default=0)  # 输出token数
-    total_tokens = Column(Integer, default=0)  # 总token数
+    total_tokens = Column(Integer, default=0)  # 总token数（优先使用此字段）
+    token_used = Column(Integer, default=0)  # 消耗的token数（已废弃，仅用于兼容旧数据，新代码应使用total_tokens）
     
     # 错误信息
     error_message = Column(Text, nullable=True)  # 错误信息

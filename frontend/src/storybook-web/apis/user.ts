@@ -12,7 +12,8 @@ export interface UserProfile {
   is_admin: boolean;
   is_vip: boolean;
   vip_expires_at?: string;
-  free_usage_count: number;
+  free_tokens: number;  // 统一免费token
+  token_balance: number;  // 统一付费token余额
   total_usage_count: number;
   total_token_used: number;
   created_at: string;
@@ -88,7 +89,7 @@ export const updateProfile = async (
 };
 
 /**
- * 获取剩余使用次数（支持登录和非登录用户）
+ * 获取剩余统一token余额（支持登录和非登录用户）
  */
 export const getRemainingUsage = async (): Promise<{
   remaining_count: number;
@@ -107,29 +108,85 @@ export const getRemainingUsage = async (): Promise<{
     headers["X-Session-Id"] = sessionId;
   }
 
-  const response = await fetch("/api/user/usage/remaining", {
+  const response = await fetch(`/api/user/usage/remaining`, {
     method: "GET",
     headers,
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.detail || "获取剩余次数失败");
+    throw new Error(error.detail || "获取剩余token失败");
   }
 
   return response.json();
 };
 
 /**
- * 获取使用统计
+ * 获取使用统计（已废弃，请使用getUserBalance）
+ * @deprecated 使用 getUserBalance 代替
  */
 export const getUsageStats = async (): Promise<UsageStats> => {
+  // 为了向后兼容，调用getUserBalance并转换格式
+  const balance = await getUserBalance();
+  return {
+    remaining_count: balance.data.total_remaining,
+    total_usage_count: balance.data.image.total_used + balance.data.video.total_used,
+    total_token_used: balance.data.used_tokens,
+    recent_usage: [
+      ...balance.data.image.recent_usage.map(r => ({
+        id: r.id,
+        usage_type: r.usage_type,
+        token_used: r.token_used,
+        created_at: r.created_at
+      })),
+      ...balance.data.video.recent_usage.map(r => ({
+        id: r.id,
+        usage_type: r.usage_type,
+        token_used: r.token_used,
+        created_at: r.created_at
+      }))
+    ]
+  };
+};
+
+/**
+ * 获取用户使用统计（统一token系统，返回统一token余额和分别的生成次数）
+ */
+export const getUserBalance = async (): Promise<{
+  status: string;
+  data: {
+    total_remaining: number;  // 统一token剩余
+    used_tokens: number;      // 统一token已使用
+    image: {
+      total_used: number;       // 图像生成次数
+      used_tokens: number;      // 图像生成已使用的token
+      recent_usage: Array<{
+        id: number;
+        usage_type: string;
+        token_used: number;
+        total_tokens: number;
+        created_at: string;
+      }>;
+    };
+    video: {
+      total_used: number;       // 视频生成次数
+      used_tokens: number;      // 视频生成已使用的token
+      recent_usage: Array<{
+        id: number;
+        usage_type: string;
+        token_used: number;
+        total_tokens: number;
+        created_at: string;
+      }>;
+    };
+  };
+}> => {
   const token = localStorage.getItem("token");
   if (!token) {
     throw new Error("未登录");
   }
 
-  const response = await fetch("/api/user/usage", {
+  const response = await fetch("/api/user/balance", {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -138,7 +195,7 @@ export const getUsageStats = async (): Promise<UsageStats> => {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.detail || "获取使用统计失败");
+    throw new Error(error.detail || "获取余额失败");
   }
 
   return response.json();

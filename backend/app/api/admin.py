@@ -24,6 +24,116 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["后台管理"])
 
+# ============ 辅助函数 ============
+
+def get_total_tokens_from_record(record: UsageRecord) -> int:
+    """从使用记录获取token数量（优先使用total_tokens）"""
+    return record.total_tokens or 0
+
+def calculate_token_summary(db: Session, user_id: Optional[int] = None, usage_type: Optional[str] = None, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> dict:
+    """
+    计算token统计摘要（优化版，支持时间范围筛选）
+    
+    Args:
+        db: 数据库会话
+        user_id: 用户ID（可选）
+        usage_type: 使用类型（可选）
+        start_date: 开始日期（可选）
+        end_date: 结束日期（可选）
+    
+    Returns:
+        包含input_tokens, output_tokens, total_tokens的字典
+    """
+    query = db.query(UsageRecord)
+    
+    if user_id:
+        query = query.filter(UsageRecord.user_id == user_id)
+    if usage_type:
+        query = query.filter(UsageRecord.usage_type == usage_type)
+    if start_date:
+        query = query.filter(UsageRecord.created_at >= start_date)
+    if end_date:
+        query = query.filter(UsageRecord.created_at <= end_date)
+    
+    result = query.with_entities(
+        func.sum(UsageRecord.input_tokens).label('input_tokens'),
+        func.sum(UsageRecord.output_tokens).label('output_tokens'),
+        func.sum(UsageRecord.total_tokens).label('total_tokens'),
+        func.count(UsageRecord.id).label('count')
+    ).first()
+    
+    return {
+        "input_tokens": int(result.input_tokens or 0),
+        "output_tokens": int(result.output_tokens or 0),
+        "total_tokens": int(result.total_tokens or 0),
+        "count": int(result.count or 0)
+    }
+
+# 成本配置（基于COST_ANALYSIS.md）
+# 使用分档定价：输入0.8元/百万，输出8元/百万
+COST_CONFIG = {
+    "input_price_per_million": 0.8,  # 输入tokens价格（元/百万tokens）
+    "output_price_per_million": 8.0,  # 输出tokens价格（元/百万tokens）
+    "unified_price_per_million": 2.6,  # 统一定价（元/百万tokens，如适用）
+    "use_unified_pricing": False,  # 是否使用统一定价
+}
+
+# 销售价格配置（从payment.py导入逻辑）
+def calculate_sale_price(quantity: int) -> float:
+    """计算销售价格（统一token定价）"""
+    from app.api.payment import calculate_price
+    try:
+        return calculate_price(quantity)
+    except:
+        return 0.0
+
+def calculate_cost(input_tokens: int, output_tokens: int) -> float:
+    """
+    计算成本（基于tokens）
+    
+    Args:
+        input_tokens: 输入tokens
+        output_tokens: 输出tokens
+    
+    Returns:
+        成本（元）
+    """
+    if COST_CONFIG["use_unified_pricing"]:
+        total_tokens = input_tokens + output_tokens
+        return total_tokens / 1_000_000 * COST_CONFIG["unified_price_per_million"]
+    else:
+        input_cost = input_tokens / 1_000_000 * COST_CONFIG["input_price_per_million"]
+        output_cost = output_tokens / 1_000_000 * COST_CONFIG["output_price_per_million"]
+        return input_cost + output_cost
+
+def calculate_sale_price_by_usage(mode: str, usage_count: int = 1, total_tokens: int = 0) -> float:
+    """
+    根据使用情况计算销售价格（统一token定价系统）
+    
+    Args:
+        mode: 模式（image/video）
+        usage_count: 使用次数
+        total_tokens: 总tokens
+    
+    Returns:
+        销售价格（元）
+    """
+    if total_tokens > 0:
+        # 统一token定价：0.0190元/1000 tokens（利润17%）
+        unit_price = 0.0190
+        return total_tokens / 1000 * unit_price
+    elif usage_count > 0:
+        # 根据模式估算token消耗
+        if mode == "image":
+            # 图像生成：约76,685 tokens/次
+            estimated_tokens = 76685 * usage_count
+        else:  # video
+            # 视频生成：约263,193 tokens/次（720p 12秒）
+            estimated_tokens = 263193 * usage_count
+        unit_price = 0.0190
+        return estimated_tokens / 1000 * unit_price
+    return 0.0
+
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """要求管理员权限"""
     if not current_user.is_admin:
@@ -34,7 +144,7 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 class UserListItem(BaseModel):
-    """用户列表项"""
+    """用户列表项（统一token系统）"""
     id: int
     username: str
     email: str
@@ -42,7 +152,8 @@ class UserListItem(BaseModel):
     is_active: bool
     is_admin: bool
     is_vip: bool
-    free_usage_count: int
+    free_tokens: int  # 统一免费token
+    token_balance: int  # 统一付费token余额
     total_usage_count: int
     total_token_used: int
     created_at: str
@@ -51,7 +162,7 @@ class UserListItem(BaseModel):
         from_attributes = True
 
 class UserUpdateRequest(BaseModel):
-    """用户更新请求"""
+    """用户更新请求（统一token系统）"""
     username: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None  # 新密码（如果提供则更新）
@@ -59,7 +170,8 @@ class UserUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
     is_vip: Optional[bool] = None
-    free_usage_count: Optional[int] = None
+    free_tokens: Optional[int] = None  # 统一免费token
+    token_balance: Optional[int] = None  # 统一付费token余额
     total_usage_count: Optional[int] = None
     total_token_used: Optional[int] = None
 
@@ -108,7 +220,8 @@ async def get_all_users(
                 is_active=u.is_active,
                 is_admin=u.is_admin or False,
                 is_vip=u.is_vip or False,
-                free_usage_count=u.free_usage_count or 0,
+                free_tokens=u.free_tokens or 1250000,
+                token_balance=u.token_balance or 0,
                 total_usage_count=u.total_usage_count or 0,
                 total_token_used=u.total_token_used or 0,
                 created_at=u.created_at.isoformat() if u.created_at else ""
@@ -155,7 +268,8 @@ async def get_user_detail(
                 is_active=user.is_active,
                 is_admin=user.is_admin or False,
                 is_vip=user.is_vip or False,
-                free_usage_count=user.free_usage_count or 0,
+                free_tokens=user.free_tokens or 1250000,
+                token_balance=user.token_balance or 0,
                 total_usage_count=user.total_usage_count or 0,
                 total_token_used=user.total_token_used or 0,
                 created_at=user.created_at.isoformat() if user.created_at else ""
@@ -164,7 +278,8 @@ async def get_user_detail(
                 {
                     "id": r.id,
                     "usage_type": r.usage_type,
-                    "token_used": r.token_used,
+                    "total_tokens": r.total_tokens or 0,  # 优先使用total_tokens
+                    "token_used": r.total_tokens or 0,  # 兼容字段
                     "created_at": r.created_at.isoformat()
                 }
                 for r in usage_records
@@ -235,8 +350,10 @@ async def update_user(
         user.is_admin = user_data.is_admin
     if user_data.is_vip is not None:
         user.is_vip = user_data.is_vip
-    if user_data.free_usage_count is not None:
-        user.free_usage_count = user_data.free_usage_count
+    if user_data.free_tokens is not None:
+        user.free_tokens = user_data.free_tokens
+    if user_data.token_balance is not None:
+        user.token_balance = user_data.token_balance
     if user_data.total_usage_count is not None:
         user.total_usage_count = user_data.total_usage_count
     if user_data.total_token_used is not None:
@@ -256,7 +373,8 @@ async def update_user(
             is_active=user.is_active,
             is_admin=user.is_admin or False,
             is_vip=user.is_vip or False,
-            free_usage_count=user.free_usage_count or 0,
+            free_tokens=user.free_tokens or 1250000,
+            token_balance=user.token_balance or 0,
             total_usage_count=user.total_usage_count or 0,
             total_token_used=user.total_token_used or 0,
             created_at=user.created_at.isoformat() if user.created_at else ""
@@ -491,8 +609,8 @@ async def get_usage_records(
             "os": record.os,
             "input_tokens": record.input_tokens,
             "output_tokens": record.output_tokens,
-            "total_tokens": record.total_tokens,
-            "token_used": record.token_used,
+            "total_tokens": record.total_tokens or 0,  # 优先使用total_tokens
+            "token_used": record.total_tokens or 0,  # 兼容字段，使用total_tokens的值
             "error_message": record.error_message,
             "task_id": record.task_id,
             "project_id": record.project_id,
@@ -559,8 +677,8 @@ async def get_usage_record_detail(
             "os": record.os,
             "input_tokens": record.input_tokens,
             "output_tokens": record.output_tokens,
-            "total_tokens": record.total_tokens,
-            "token_used": record.token_used,
+            "total_tokens": record.total_tokens or 0,  # 优先使用total_tokens
+            "token_used": record.total_tokens or 0,  # 兼容字段，使用total_tokens的值
             "error_message": record.error_message,
             "task_id": record.task_id,
             "project_id": record.project_id,
@@ -764,15 +882,14 @@ async def get_usage_analytics(
     
     device_by_type = {device_type: count for device_type, count in device_stats}
     
-    # Token消耗统计
-    token_stats = db.query(
-        func.sum(UsageRecord.total_tokens).label("total_tokens"),
-        func.sum(UsageRecord.input_tokens).label("input_tokens"),
-        func.sum(UsageRecord.output_tokens).label("output_tokens"),
-        func.avg(UsageRecord.total_tokens).label("avg_tokens")
-    ).filter(
-        UsageRecord.created_at >= start_time
-    ).first()
+    # Token消耗统计（使用优化的辅助函数）
+    token_summary = calculate_token_summary(db, start_date=start_time, end_date=now)
+    token_stats = type('TokenStats', (), {
+        'total_tokens': token_summary['total_tokens'],
+        'input_tokens': token_summary['input_tokens'],
+        'output_tokens': token_summary['output_tokens'],
+        'avg_tokens': token_summary['total_tokens'] / token_summary['count'] if token_summary['count'] > 0 else 0
+    })()
     
     # 用户活跃度
     active_users = db.query(
@@ -840,7 +957,7 @@ async def get_user_activity(
                     "usage_type": r.usage_type,
                     "api_endpoint": r.api_endpoint,
                     "created_at": r.created_at.isoformat(),
-                    "total_tokens": r.total_tokens,
+                    "total_tokens": get_total_tokens_from_record(r),
                 }
                 for r in usage_records
             ],
@@ -890,7 +1007,7 @@ async def get_user_timeline(
         timeline.append({
             "date": day_start.isoformat(),
             "count": len(records),
-            "total_tokens": sum(r.total_tokens for r in records),
+            "total_tokens": sum(get_total_tokens_from_record(r) for r in records),
             "usage_types": {}
         })
         
@@ -969,7 +1086,7 @@ async def get_user_stats(
                     "usage_type": r.usage_type,
                     "api_endpoint": r.api_endpoint,
                     "created_at": r.created_at.isoformat(),
-                    "total_tokens": r.total_tokens,
+                    "total_tokens": get_total_tokens_from_record(r),
                 }
                 for r in recent_records
             ]
@@ -1096,4 +1213,456 @@ async def run_archive(
     return {
         "status": result.get("status", "success"),
         "data": result
+    }
+
+# ============ 成本监控 ============
+
+@router.get("/cost/overview")
+async def get_cost_overview(
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    usage_type: Optional[str] = None,
+):
+    """
+    获取成本概览
+    按模型、使用类型等维度统计成本和收入
+    """
+    # 解析日期
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+    else:
+        start_dt = datetime.utcnow() - timedelta(days=7)
+    
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+    else:
+        end_dt = datetime.utcnow()
+    
+    # 构建查询
+    query = db.query(UsageRecord).filter(
+        UsageRecord.created_at >= start_dt,
+        UsageRecord.created_at <= end_dt
+    )
+    
+    if usage_type:
+        query = query.filter(UsageRecord.usage_type == usage_type)
+    
+    records = query.all()
+    
+    # 查询实际收入（从支付记录中获取已完成的支付金额）
+    payment_query = db.query(
+        func.sum(Payment.amount).label("total_revenue")
+    ).filter(
+        Payment.status == "completed",
+        Payment.completed_at >= start_dt,
+        Payment.completed_at <= end_dt
+    )
+    actual_revenue_result = payment_query.first()
+    actual_revenue = float(actual_revenue_result.total_revenue or 0) if actual_revenue_result else 0.0
+    
+    # 按使用类型统计
+    stats_by_type = {}
+    total_cost = 0.0
+    total_sale = 0.0  # 理论收入（基于使用记录计算）
+    total_input_tokens = 0
+    total_output_tokens = 0
+    total_tokens = 0
+    
+    for record in records:
+        usage_type_key = record.usage_type or "unknown"
+        if usage_type_key not in stats_by_type:
+            stats_by_type[usage_type_key] = {
+                "count": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "sale": 0.0,
+            }
+        
+        input_tokens = record.input_tokens or 0
+        output_tokens = record.output_tokens or 0
+        # 优先使用total_tokens，如果没有则计算
+        total_record_tokens = record.total_tokens if record.total_tokens and record.total_tokens > 0 else (input_tokens + output_tokens)
+        
+        # 计算成本（包含文本分析和生成成本）
+        text_analysis_cost = calculate_cost(input_tokens, output_tokens)
+        
+        # 根据使用类型添加生成成本
+        if usage_type_key == "image":
+            # 图像生成：每次生成6张图片，成本1.2元
+            generation_cost = 6 * 0.2  # 6张 × 0.2元/张
+            cost = text_analysis_cost + generation_cost
+        elif usage_type_key == "video":
+            # 视频生成：720p 12秒有声，token用量259,200，成本4.1472元
+            # token用量 = (1280 × 720 × 24 × 12) / 1024 = 259,200 tokens
+            video_tokens = 259200
+            generation_cost = video_tokens / 1_000_000 * 16.00  # 有声16元/百万token
+            cost = text_analysis_cost + generation_cost
+        else:
+            cost = text_analysis_cost
+        
+        # 计算销售价格（根据使用类型判断mode）
+        mode = "image" if usage_type_key == "image" else "video"
+        sale = calculate_sale_price_by_usage(mode, 1, total_record_tokens)
+        
+        stats_by_type[usage_type_key]["count"] += 1
+        stats_by_type[usage_type_key]["input_tokens"] += input_tokens
+        stats_by_type[usage_type_key]["output_tokens"] += output_tokens
+        stats_by_type[usage_type_key]["total_tokens"] += total_record_tokens
+        stats_by_type[usage_type_key]["cost"] += cost
+        stats_by_type[usage_type_key]["sale"] += sale
+        
+        total_cost += cost
+        total_sale += sale
+        total_input_tokens += input_tokens
+        total_output_tokens += output_tokens
+        total_tokens += total_record_tokens
+    
+    # 计算利润
+    # 理论利润（基于使用记录计算的理论收入）
+    theoretical_profit = total_sale - total_cost
+    theoretical_profit_margin = (theoretical_profit / total_sale * 100) if total_sale > 0 else 0
+    
+    # 实际利润（基于实际充值收入）
+    actual_profit = actual_revenue - total_cost
+    actual_profit_margin = (actual_profit / actual_revenue * 100) if actual_revenue > 0 else 0
+    
+    return {
+        "status": "success",
+        "data": {
+            "period": {
+                "start_date": start_dt.isoformat(),
+                "end_date": end_dt.isoformat(),
+            },
+            "summary": {
+                "total_records": len(records),
+                "total_input_tokens": total_input_tokens,
+                "total_output_tokens": total_output_tokens,
+                "total_tokens": total_tokens,
+                "total_cost": round(total_cost, 4),
+                "total_sale": round(total_sale, 4),  # 理论收入（基于使用记录计算）
+                "actual_revenue": round(actual_revenue, 4),  # 实际收入（用户实际充值）
+                "theoretical_profit": round(theoretical_profit, 4),  # 理论利润
+                "theoretical_profit_margin": round(theoretical_profit_margin, 2),  # 理论利润率
+                "actual_profit": round(actual_profit, 4),  # 实际利润
+                "actual_profit_margin": round(actual_profit_margin, 2),  # 实际利润率
+                # 兼容旧字段
+                "total_profit": round(actual_profit, 4),  # 使用实际利润
+                "profit_margin": round(actual_profit_margin, 2),  # 使用实际利润率
+            },
+            "by_type": {
+                k: {
+                    "count": v["count"],
+                    "input_tokens": v["input_tokens"],
+                    "output_tokens": v["output_tokens"],
+                    "total_tokens": v["total_tokens"],
+                    "cost": round(v["cost"], 4),
+                    "sale": round(v["sale"], 4),
+                    "profit": round(v["sale"] - v["cost"], 4),
+                    "profit_margin": round((v["sale"] - v["cost"]) / v["sale"] * 100, 2) if v["sale"] > 0 else 0,
+                    "avg_cost_per_record": round(v["cost"] / v["count"], 4) if v["count"] > 0 else 0,
+                    "avg_sale_per_record": round(v["sale"] / v["count"], 4) if v["count"] > 0 else 0,
+                }
+                for k, v in stats_by_type.items()
+            }
+        }
+    }
+
+@router.get("/cost/by-user")
+async def get_cost_by_user(
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user_id: Optional[int] = None,
+    page: int = 1,
+    page_size: int = 50,
+):
+    """
+    按用户统计成本和收入
+    """
+    # 解析日期
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+    else:
+        start_dt = datetime.utcnow() - timedelta(days=7)
+    
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+    else:
+        end_dt = datetime.utcnow()
+    
+    # 构建查询
+    query = db.query(
+        UsageRecord.user_id,
+        UsageRecord.usage_type,
+        func.count(UsageRecord.id).label("count"),
+        func.sum(UsageRecord.input_tokens).label("total_input_tokens"),
+        func.sum(UsageRecord.output_tokens).label("total_output_tokens"),
+        func.sum(UsageRecord.total_tokens).label("total_tokens"),
+    ).filter(
+        UsageRecord.created_at >= start_dt,
+        UsageRecord.created_at <= end_dt,
+        UsageRecord.user_id.isnot(None)
+    )
+    
+    if user_id:
+        query = query.filter(UsageRecord.user_id == user_id)
+    
+    # 按用户分组
+    user_stats = query.group_by(
+        UsageRecord.user_id,
+        UsageRecord.usage_type
+    ).all()
+    
+    # 查询每个用户的实际充值收入
+    user_payment_query = db.query(
+        Payment.user_id,
+        func.sum(Payment.amount).label("total_payment")
+    ).filter(
+        Payment.status == "completed",
+        Payment.completed_at >= start_dt,
+        Payment.completed_at <= end_dt
+    )
+    
+    if user_id:
+        user_payment_query = user_payment_query.filter(Payment.user_id == user_id)
+    
+    user_payments = user_payment_query.group_by(Payment.user_id).all()
+    user_payment_map = {up.user_id: float(up.total_payment or 0) for up in user_payments}
+    
+    # 聚合用户数据
+    user_data = {}
+    for stat in user_stats:
+        user_id = stat.user_id
+        if user_id not in user_data:
+            user_data[user_id] = {
+                "user_id": user_id,
+                "total_records": 0,
+                "total_input_tokens": 0,
+                "total_output_tokens": 0,
+                "total_tokens": 0,
+                "total_cost": 0.0,
+                "total_sale": 0.0,
+                "by_type": {}
+            }
+        
+        usage_type = stat.usage_type or "unknown"
+        input_tokens = int(stat.total_input_tokens or 0)
+        output_tokens = int(stat.total_output_tokens or 0)
+        total_tokens = int(stat.total_tokens or 0)
+        count = int(stat.count or 0)
+        
+        # 计算成本（包含文本分析和生成成本）
+        text_analysis_cost = calculate_cost(input_tokens, output_tokens)
+        
+        # 根据使用类型添加生成成本
+        if usage_type == "image":
+            # 图像生成：每次生成6张图片，成本1.2元
+            generation_cost = 6 * 0.2 * count  # 6张 × 0.2元/张 × 次数
+            cost = text_analysis_cost + generation_cost
+        elif usage_type == "video":
+            # 视频生成：720p 12秒有声，token用量259,200，成本4.1472元
+            video_tokens = 259200
+            generation_cost = (video_tokens / 1_000_000 * 16.00) * count  # 有声16元/百万token × 次数
+            cost = text_analysis_cost + generation_cost
+        else:
+            cost = text_analysis_cost
+        
+        # 计算销售价格
+        mode = "image" if usage_type == "image" else "video"
+        sale = calculate_sale_price_by_usage(mode, count, total_tokens)
+        
+        user_data[user_id]["total_records"] += count
+        user_data[user_id]["total_input_tokens"] += input_tokens
+        user_data[user_id]["total_output_tokens"] += output_tokens
+        user_data[user_id]["total_tokens"] += total_tokens
+        user_data[user_id]["total_cost"] += cost
+        user_data[user_id]["total_sale"] += sale
+        user_data[user_id]["by_type"][usage_type] = {
+            "count": count,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "cost": cost,
+            "sale": sale,
+        }
+    
+    # 获取用户信息
+    user_ids = list(user_data.keys())
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    user_map = {u.id: u for u in users}
+    
+    # 格式化结果
+    result = []
+    for user_id, data in user_data.items():
+        user = user_map.get(user_id)
+        # 获取该用户的实际充值收入
+        actual_revenue = user_payment_map.get(user_id, 0.0)
+        
+        # 理论利润（基于使用记录计算）
+        theoretical_profit = data["total_sale"] - data["total_cost"]
+        theoretical_profit_margin = (theoretical_profit / data["total_sale"] * 100) if data["total_sale"] > 0 else 0
+        
+        # 实际利润（基于实际充值收入）
+        actual_profit = actual_revenue - data["total_cost"]
+        actual_profit_margin = (actual_profit / actual_revenue * 100) if actual_revenue > 0 else 0
+        
+        # 兼容旧字段，使用实际利润
+        total_profit = actual_profit
+        profit_margin = actual_profit_margin
+        
+        result.append({
+            "user_id": user_id,
+            "username": user.username if user else f"用户{user_id}",
+            "email": user.email if user else None,
+            "total_records": data["total_records"],
+            "total_input_tokens": data["total_input_tokens"],
+            "total_output_tokens": data["total_output_tokens"],
+            "total_tokens": data["total_tokens"],
+            "total_cost": round(data["total_cost"], 4),
+            "total_sale": round(data["total_sale"], 4),  # 理论收入（基于使用记录计算）
+            "actual_revenue": round(actual_revenue, 4),  # 实际收入（用户实际充值）
+            "theoretical_profit": round(theoretical_profit, 4),  # 理论利润
+            "theoretical_profit_margin": round(theoretical_profit_margin, 2),  # 理论利润率
+            "actual_profit": round(actual_profit, 4),  # 实际利润
+            "actual_profit_margin": round(actual_profit_margin, 2),  # 实际利润率
+            "total_profit": round(total_profit, 4),  # 兼容旧字段，使用实际利润
+            "profit_margin": round(profit_margin, 2),  # 兼容旧字段，使用实际利润率
+            "by_type": {
+                k: {
+                    "count": v["count"],
+                    "input_tokens": v["input_tokens"],
+                    "output_tokens": v["output_tokens"],
+                    "total_tokens": v["total_tokens"],
+                    "cost": round(v["cost"], 4),
+                    "sale": round(v["sale"], 4),
+                    "profit": round(v["sale"] - v["cost"], 4),
+                }
+                for k, v in data["by_type"].items()
+            }
+        })
+    
+    # 排序（按总成本降序）
+    result.sort(key=lambda x: x["total_cost"], reverse=True)
+    
+    # 分页
+    total = len(result)
+    offset = (page - 1) * page_size
+    paginated_result = result[offset:offset + page_size]
+    
+    return {
+        "status": "success",
+        "data": paginated_result,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
+
+@router.get("/cost/detailed")
+async def get_cost_detailed(
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user_id: Optional[int] = None,
+    usage_type: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+):
+    """
+    获取详细的成本记录（每次调用）
+    """
+    # 解析日期
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+    else:
+        start_dt = datetime.utcnow() - timedelta(days=7)
+    
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+    else:
+        end_dt = datetime.utcnow()
+    
+    # 构建查询
+    query = db.query(UsageRecord).filter(
+        UsageRecord.created_at >= start_dt,
+        UsageRecord.created_at <= end_dt
+    )
+    
+    if user_id:
+        query = query.filter(UsageRecord.user_id == user_id)
+    
+    if usage_type:
+        query = query.filter(UsageRecord.usage_type == usage_type)
+    
+    # 总数
+    total = query.count()
+    
+    # 分页
+    offset = (page - 1) * page_size
+    records = query.order_by(desc(UsageRecord.created_at)).offset(offset).limit(page_size).all()
+    
+    # 获取用户信息
+    user_ids = list(set(r.user_id for r in records if r.user_id))
+    users = db.query(User).filter(User.id.in_(user_ids)).all() if user_ids else []
+    user_map = {u.id: u for u in users}
+    
+    # 格式化结果
+    result = []
+    for record in records:
+        input_tokens = record.input_tokens or 0
+        output_tokens = record.output_tokens or 0
+        total_tokens = record.total_tokens or (input_tokens + output_tokens)
+        
+        # 计算成本（包含文本分析和生成成本）
+        text_analysis_cost = calculate_cost(input_tokens, output_tokens)
+        
+        # 根据使用类型添加生成成本
+        if record.usage_type == "image":
+            # 图像生成：每次生成6张图片，成本1.2元
+            generation_cost = 6 * 0.2  # 6张 × 0.2元/张
+            cost = text_analysis_cost + generation_cost
+        elif record.usage_type == "video":
+            # 视频生成：720p 12秒有声，token用量259,200，成本4.1472元
+            video_tokens = 259200
+            generation_cost = video_tokens / 1_000_000 * 16.00  # 有声16元/百万token
+            cost = text_analysis_cost + generation_cost
+        else:
+            cost = text_analysis_cost
+        
+        # 计算销售价格
+        mode = "image" if record.usage_type == "image" else "video"
+        sale = calculate_sale_price_by_usage(mode, 1, total_tokens)
+        profit = sale - cost
+        profit_margin = (profit / sale * 100) if sale > 0 else 0
+        
+        user = user_map.get(record.user_id) if record.user_id else None
+        
+        result.append({
+            "id": record.id,
+            "user_id": record.user_id,
+            "username": user.username if user else None,
+            "usage_type": record.usage_type,
+            "api_endpoint": record.api_endpoint,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "cost": round(cost, 4),
+            "sale": round(sale, 4),
+            "profit": round(profit, 4),
+            "profit_margin": round(profit_margin, 2),
+            "response_status": record.response_status,
+            "created_at": record.created_at.isoformat() if record.created_at else None,
+        })
+    
+    return {
+        "status": "success",
+        "data": result,
+        "total": total,
+        "page": page,
+        "page_size": page_size
     }

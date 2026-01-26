@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button, Message, Avatar, Upload } from "@arco-design/web-react";
 import { IconLock, IconCheck } from "@arco-design/web-react/icon";
-import { getProfile, updateProfile, type UserProfile, type ProfileUpdate } from "@/storybook-web/apis/user";
+import { getProfile, updateProfile, getUserBalance, type UserProfile, type ProfileUpdate } from "@/storybook-web/apis/user";
 import { setPassword, changePassword, getPasswordStatus } from "@/storybook-web/apis/auth";
 import styles from "./index.module.less";
 
@@ -18,6 +18,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onClose, o
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [form] = Form.useForm<UserProfile>();
+  const [balance, setBalance] = useState<{
+    total_remaining: number;  // 统一token剩余
+    used_tokens: number;      // 统一token已使用
+    image: {
+      total_used: number;       // 图像生成次数
+      used_tokens: number;      // 图像生成已使用的token
+    };
+    video: {
+      total_used: number;       // 视频生成次数
+      used_tokens: number;      // 视频生成已使用的token
+    };
+  } | null>(null);
   
   // 密码相关状态
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -29,6 +41,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onClose, o
     if (visible) {
       loadProfile();
       loadPasswordStatus();
+      loadBalance();
     }
   }, [visible]);
 
@@ -46,6 +59,27 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onClose, o
       Message.error(e instanceof Error ? e.message : "获取资料失败");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadBalance = async () => {
+    try {
+      const data = await getUserBalance();
+      setBalance({
+        total_remaining: data.data.total_remaining,
+        used_tokens: data.data.used_tokens || 0,
+        image: {
+          total_used: data.data.image.total_used,
+          used_tokens: data.data.image.used_tokens || 0,
+        },
+        video: {
+          total_used: data.data.video.total_used,
+          used_tokens: data.data.video.used_tokens || 0,
+        },
+      });
+    } catch (e) {
+      // 静默失败，不影响主流程
+      console.error("获取余额失败:", e);
     }
   };
 
@@ -200,19 +234,61 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onClose, o
             </div>
           )}
 
-          <div className={styles["usage-stats"]}>
-            <div className={styles["stats-title"]}>使用统计</div>
-            <div className={styles["stats-grid"]}>
-              <div className={styles["stat-item"]}>
-                <div className={styles["stat-value"]}>{profile.free_usage_count}</div>
-                <div className={styles["stat-label"]}>剩余次数</div>
+          {/* 使用统计（统一token系统：显示统一token的已使用/剩余，以及分别的图像和视频生成次数） */}
+          {balance && (
+            <div className={styles["usage-stats"]} style={{ marginTop: 24 }}>
+              <div className={styles["stats-title"]}>使用统计</div>
+              
+              {/* 统一Token余额 */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.8)", marginBottom: 12 }}>
+                  Token余额
+                </div>
+                <div className={styles["stats-grid"]} style={{ gridTemplateColumns: "1fr" }}>
+                  <div className={styles["stat-item"]}>
+                    <div className={styles["stat-value"]}>
+                      {balance.used_tokens.toLocaleString()}/{balance.total_remaining.toLocaleString()}
+                    </div>
+                    <div className={styles["stat-label"]}>已使用/剩余</div>
+                  </div>
+                </div>
               </div>
-              <div className={styles["stat-item"]}>
-                <div className={styles["stat-value"]}>{profile.total_usage_count}</div>
-                <div className={styles["stat-label"]}>累计使用</div>
+              
+              {/* 分析+图像生成 */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.8)", marginBottom: 12 }}>
+                  分析+图像生成
+                </div>
+                <div className={styles["stats-grid"]} style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div className={styles["stat-item"]}>
+                    <div className={styles["stat-value"]}>{balance.image.used_tokens.toLocaleString()}</div>
+                    <div className={styles["stat-label"]}>消耗tokens</div>
+                  </div>
+                  <div className={styles["stat-item"]}>
+                    <div className={styles["stat-value"]}>{balance.image.total_used}</div>
+                    <div className={styles["stat-label"]}>生成次数</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 分析+视频生成 */}
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.8)", marginBottom: 12 }}>
+                  分析+视频生成
+                </div>
+                <div className={styles["stats-grid"]} style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div className={styles["stat-item"]}>
+                    <div className={styles["stat-value"]}>{balance.video.used_tokens.toLocaleString()}</div>
+                    <div className={styles["stat-label"]}>消耗tokens</div>
+                  </div>
+                  <div className={styles["stat-item"]}>
+                    <div className={styles["stat-value"]}>{balance.video.total_used}</div>
+                    <div className={styles["stat-label"]}>生成次数</div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </Form>
       </Modal>
 

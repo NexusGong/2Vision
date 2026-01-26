@@ -35,13 +35,21 @@ class UsageTrackerMiddleware(BaseHTTPMiddleware):
         "/api/project",
     ]
     
-    # 排除的路径（健康检查等）
+    # 排除的路径（健康检查、查询类API等）
     EXCLUDED_PATHS = [
         "/api/health",
         "/",
         "/docs",
         "/openapi.json",
         "/redoc",
+    ]
+    
+    # 排除的路径模式（查询类API，不产生实际成本）
+    EXCLUDED_PATTERNS = [
+        "/api/image/tasks/active",  # 查询活跃任务（轮询用）
+        "/api/image/tasks/",  # 查询任务状态（轮询用）
+        "/api/video/tasks/active",  # 查询活跃任务（轮询用）
+        "/api/video/tasks/",  # 查询任务状态（轮询用）
     ]
     
     def __init__(self, app: ASGIApp):
@@ -168,6 +176,11 @@ class UsageTrackerMiddleware(BaseHTTPMiddleware):
         # 排除的路径
         if path in self.EXCLUDED_PATHS:
             return False
+        
+        # 排除的路径模式（查询类API，不产生实际成本）
+        for pattern in self.EXCLUDED_PATTERNS:
+            if path.startswith(pattern):
+                return False
         
         # 只追踪指定的API前缀
         for prefix in self.TRACKED_PREFIXES:

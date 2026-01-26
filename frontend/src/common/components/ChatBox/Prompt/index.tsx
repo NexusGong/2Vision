@@ -49,8 +49,8 @@ export interface PromptData {
   resolution?: string;
   size?: string;
   // 视频相关参数
-  videoDuration?: number; // 视频时长（秒），支持 [4,12] 范围内的整数，或 -1（自动选择）
-  videoFps?: number; // 帧率
+  videoDuration?: number; // 视频时长（秒），只支持 5 或 12
+  videoResolution?: "720p" | "1080p"; // 视频清晰度：720p 或 1080p
   videoAspectRatio?: string; // 视频宽高比
 }
 
@@ -91,7 +91,7 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
   const textValue = Form.useWatch("text", form as any) as string;
   const imagesValue = Form.useWatch("images", form as any);
   const videoDuration = Form.useWatch("videoDuration", form as any) as number | undefined;
-  const videoFps = Form.useWatch("videoFps", form as any) as number | undefined;
+  const videoResolution = Form.useWatch("videoResolution", form as any) as "720p" | "1080p" | undefined;
   const videoAspectRatio = Form.useWatch("videoAspectRatio", form as any) as string | undefined;
 
   const handleSubmit = async () => {
@@ -100,18 +100,34 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
     form.setFieldValue("images", []);
     onSubmit?.(result);
     
-    // 提交后更新剩余次数
+    // 提交后更新剩余token（后端会自动扣除，这里只需要刷新）
     if (isAuthenticated && user) {
-      // 登录用户：刷新用户信息（后端会更新 free_usage_count）
+      // 登录用户：刷新用户信息（后端会更新免费token余额）
       await refreshUser();
     } else {
-      // 匿名用户：前端递减计数器
+      // 匿名用户：更新已使用的token（估算）
       const sessionId = localStorage.getItem("session_id");
       if (sessionId) {
-        const usedCount = parseInt(localStorage.getItem(`usage_count_${sessionId}`) || "0", 10);
-        localStorage.setItem(`usage_count_${sessionId}`, String(usedCount + 1));
-        const anonymousTotal = 5;
-        setRemainingCount(Math.max(0, anonymousTotal - usedCount - 1));
+        // 根据生成类型估算token消耗
+        let estimatedTokens = 0;
+        if (generationType === "video") {
+          // 视频生成：根据参数计算（默认720p 12秒 = 263,193 tokens）
+          const duration = videoDuration || 12;
+          const resolution = videoResolution || "720p";
+          // 简化计算：720p 12秒 = 263,193 tokens，1080p 12秒 = 597,197 tokens
+          if (resolution === "1080p") {
+            estimatedTokens = duration === 5 ? 243000 + 3993 : 597197 + 3993;
+          } else {
+            estimatedTokens = duration === 5 ? 108000 + 3993 : 263193 + 3993;
+          }
+        } else {
+          // 图像生成：76,685 tokens/分镜
+          estimatedTokens = 76685;
+        }
+        const usedTokens = parseInt(localStorage.getItem(`used_tokens_${sessionId}`) || "0", 10);
+        localStorage.setItem(`used_tokens_${sessionId}`, String(usedTokens + estimatedTokens));
+        const ANONYMOUS_FREE_TOKENS = 494000; // 统一免费token（保证3次图像 + 1次视频）
+        setRemainingCount(Math.max(0, ANONYMOUS_FREE_TOKENS - usedTokens - estimatedTokens));
       }
     }
   };
@@ -136,16 +152,19 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
       form.setFieldValue("size", sizeArray ? sizeArray.join("x") : "");
     }
     // 当切换到视频时，设置默认值
-    // doubao-seedance-1-5-pro 支持 duration: [4,12] 范围内的整数，或 -1（自动选择）
+    // 默认720p 12秒（基于定价策略）
     if (generationType === "video") {
       if (!form.getFieldValue("videoDuration")) {
-        form.setFieldValue("videoDuration", -1); // 默认自动选择
+        form.setFieldValue("videoDuration", 12); // 默认12秒
       }
-      if (!form.getFieldValue("videoFps")) {
-        form.setFieldValue("videoFps", 24);
+      if (!form.getFieldValue("videoResolution")) {
+        form.setFieldValue("videoResolution", "720p"); // 默认720p
       }
       if (!form.getFieldValue("videoAspectRatio")) {
         form.setFieldValue("videoAspectRatio", "16:9");
+      }
+      if (!form.getFieldValue("videoResolution")) {
+        form.setFieldValue("videoResolution", "720p"); // 默认720p
       }
     }
   }, [modeValue, generationType]);
@@ -154,23 +173,26 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
     data && form.setFieldsValue(data || {});
   }, [data]);
 
-  // 更新剩余次数显示（直接从 UserContext 获取，无需额外请求）
+  // 更新剩余统一token显示
   useEffect(() => {
     if (isAuthenticated && user) {
-      // 登录用户：直接从 user 对象获取
-      setRemainingCount(user.free_usage_count || 0);
-      setTotalCount((user.free_usage_count || 0) + (user.total_usage_count || 0));
+      // 登录用户：获取统一token余额（免费token + 付费token余额）
+      const totalTokens = (user.free_tokens || 0) + (user.token_balance || 0);
+      setRemainingCount(totalTokens);
+      setTotalCount(totalTokens);
     } else {
-      // 匿名用户：从 localStorage 获取（前端维护）
+      // 匿名用户：计算已使用的token（从localStorage获取）
       const sessionId = localStorage.getItem("session_id");
       if (sessionId) {
-        const usedCount = parseInt(localStorage.getItem(`usage_count_${sessionId}`) || "0", 10);
-        const anonymousTotal = 5; // 匿名用户总共5次
-        setRemainingCount(Math.max(0, anonymousTotal - usedCount));
-        setTotalCount(anonymousTotal);
+        const usedTokens = parseInt(localStorage.getItem(`used_tokens_${sessionId}`) || "0", 10);
+        // 匿名用户统一免费token额度：494,000 tokens（保证3次图像 + 1次视频）
+        const ANONYMOUS_FREE_TOKENS = 494000;
+        setRemainingCount(Math.max(0, ANONYMOUS_FREE_TOKENS - usedTokens));
+        setTotalCount(ANONYMOUS_FREE_TOKENS);
       } else {
-        setRemainingCount(5);
-        setTotalCount(5);
+        const ANONYMOUS_FREE_TOKENS = 494000;
+        setRemainingCount(ANONYMOUS_FREE_TOKENS);
+        setTotalCount(ANONYMOUS_FREE_TOKENS);
       }
     }
   }, [isAuthenticated, user, usageStats]);
@@ -239,21 +261,56 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
         {/* 右侧：剩余次数 + 发送按钮 */}
         <div className="flex items-center gap-2 flex-shrink-0 pb-0.5">
           <Tooltip
-            content={
-              isAuthenticated
-                ? `登录用户：剩余 ${remainingCount} 次免费体验（已使用 ${totalCount - remainingCount} 次，共 ${totalCount} 次）`
-                : `非登录用户：剩余 ${remainingCount} 次免费体验（共 ${totalCount} 次），登录后可获得 20 次免费体验`
-            }
+            content={(() => {
+              // 计算约等于图像/视频次数（向下取整）
+              const IMAGE_TOKENS_PER_GENERATION = 76685; // 图像生成：76,685 tokens/次
+              const VIDEO_TOKENS_720P_12S = 263193; // 视频生成：720p 12秒 = 263,193 tokens
+              const VIDEO_TOKENS_1080P_12S = 597197; // 视频生成：1080p 12秒 = 597,197 tokens
+              
+              // 计算可以生成的次数（向下取整）
+              const imageCount = Math.floor(remainingCount / IMAGE_TOKENS_PER_GENERATION);
+              
+              // 根据当前选择的视频参数计算视频次数
+              let videoCount = 0;
+              let videoDesc = "";
+              if (generationType === "video") {
+                const duration = videoDuration || 12;
+                const resolution = videoResolution || "720p";
+                if (resolution === "1080p") {
+                  const tokensPerVideo = duration === 5 ? 243000 + 3993 : VIDEO_TOKENS_1080P_12S + 3993;
+                  videoCount = Math.floor(remainingCount / tokensPerVideo);
+                  videoDesc = `${resolution} ${duration}秒`;
+                } else {
+                  const tokensPerVideo = duration === 5 ? 108000 + 3993 : VIDEO_TOKENS_720P_12S + 3993;
+                  videoCount = Math.floor(remainingCount / tokensPerVideo);
+                  videoDesc = `${resolution} ${duration}秒`;
+                }
+              } else {
+                // 图像模式，显示720p 12秒的视频次数
+                videoCount = Math.floor(remainingCount / VIDEO_TOKENS_720P_12S);
+                videoDesc = "720p 12秒";
+              }
+              
+              // 图像：x次(约x张)，视频：x次（x清晰度 x秒）
+              const imageDesc = `图像：${imageCount}次(约${imageCount * 5}张)`;
+              const videoDescText = `视频：${videoCount}次（${videoDesc}）`;
+              
+              if (isAuthenticated) {
+                return `剩余 ${remainingCount.toLocaleString()} tokens（${imageDesc}，${videoDescText}）`;
+              } else {
+                return `剩余 ${remainingCount.toLocaleString()} tokens（${imageDesc}，${videoDescText}），登录后可获得更多免费Tokens`;
+              }
+            })()}
           >
             <Badge
               status={
                 remainingCount <= 0
                   ? "error"
-                  : remainingCount <= 2
+                  : remainingCount <= 76685  // 少于1次图像生成
                   ? "warning"
                   : "success"
               }
-              text={`${remainingCount}/${totalCount}`}
+              text={`${(remainingCount / 1000).toFixed(0)}K/${(totalCount / 1000).toFixed(0)}K`}
               style={{ cursor: "pointer" }}
             />
           </Tooltip>
@@ -268,7 +325,24 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                     : "!bg-white/10 !text-white/30 cursor-not-allowed"
               )}
               htmlType="submit"
-              disabled={!textValue || remainingCount <= 0}
+              disabled={(() => {
+                if (!textValue) return true;
+                // 根据生成类型检查token是否足够
+                if (generationType === "video") {
+                  const duration = videoDuration || 12;
+                  const resolution = videoResolution || "720p";
+                  let requiredTokens = 0;
+                  if (resolution === "1080p") {
+                    requiredTokens = duration === 5 ? 243000 + 3993 : 597197 + 3993;
+                  } else {
+                    requiredTokens = duration === 5 ? 108000 + 3993 : 263193 + 3993;
+                  }
+                  return remainingCount < requiredTokens;
+                } else {
+                  // 图像生成：76,685 tokens/分镜
+                  return remainingCount < 76685;
+                }
+              })()}
             >
               <svg width={isMobile ? "16" : "18"} height={isMobile ? "16" : "18"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 4L12 20M12 4L6 10M12 4L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -379,18 +453,18 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                   className="!w-[calc(100vw-32px)] !max-w-[360px]"
                   content={
                     <div className="p-3">
-                      <VideoConfigGroup
-                        value={{
-                          duration: videoDuration ?? -1,
-                          fps: videoFps || 24,
-                          aspectRatio: videoAspectRatio || "16:9",
-                        }}
-                        onChange={(val) => {
-                          form.setFieldValue("videoDuration", val.duration);
-                          form.setFieldValue("videoFps", val.fps);
-                          form.setFieldValue("videoAspectRatio", val.aspectRatio);
-                        }}
-                      />
+                  <VideoConfigGroup
+                      value={{
+                        duration: videoDuration ?? 12,
+                        resolution: (videoResolution || "720p") as "720p" | "1080p",
+                        aspectRatio: videoAspectRatio || "16:9",
+                      }}
+                      onChange={(val) => {
+                        form.setFieldValue("videoDuration", val.duration);
+                        form.setFieldValue("videoResolution", val.resolution);
+                        form.setFieldValue("videoAspectRatio", val.aspectRatio);
+                      }}
+                    />
                     </div>
                   }
                 >
@@ -408,13 +482,13 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                   content={
                     <VideoConfigGroup
                       value={{
-                        duration: videoDuration ?? -1,
-                        fps: videoFps || 24,
+                        duration: videoDuration ?? 12,
+                        resolution: (videoResolution || "720p") as "720p" | "1080p",
                         aspectRatio: videoAspectRatio || "16:9",
                       }}
                       onChange={(val) => {
                         form.setFieldValue("videoDuration", val.duration);
-                        form.setFieldValue("videoFps", val.fps);
+                        form.setFieldValue("videoResolution", val.resolution);
                         form.setFieldValue("videoAspectRatio", val.aspectRatio);
                       }}
                     />
@@ -422,10 +496,10 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
                 >
                   <div className="flex items-center gap-2 h-8 px-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer text-white/80 text-sm transition-colors font-medium">
                     <div className="font-medium text-xs border border-cyan-400/50 text-cyan-400 rounded px-1">
-                      {videoDuration === -1 ? "自动" : `${videoDuration ?? -1}s`}
+                      {videoResolution || "720p"}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-white/60">{videoFps || 24} FPS</span>
+                    <div className="font-medium text-xs border border-cyan-400/50 text-cyan-400 rounded px-1">
+                      {videoDuration ?? 12}s
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-xs text-white/60">{videoAspectRatio || "16:9"}</span>
@@ -613,10 +687,10 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
           {/* 视频参数隐藏字段 */}
           {generationType === "video" && (
             <>
-              <Form.Item field="videoDuration" initialValue={-1} noStyle>
+              <Form.Item field="videoDuration" initialValue={12} noStyle>
                 <div></div>
               </Form.Item>
-              <Form.Item field="videoFps" initialValue={24} noStyle>
+              <Form.Item field="videoResolution" initialValue="720p" noStyle>
                 <div></div>
               </Form.Item>
               <Form.Item field="videoAspectRatio" initialValue="16:9" noStyle>

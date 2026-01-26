@@ -70,7 +70,7 @@ import { StoryPreviewBox } from "../components/StoryPreviewBox";
 import { StoryPrintBox, StoryPrintBoxRef } from "../components/StoryBookPrint";
 import AnalysisPreview from "../components/AnalysisPreview";
 import { MODEL, MODEL_VERSION } from "../consts";
-import { IconDownload, IconFullscreen } from "@arco-design/web-react/icon";
+import { IconDownload, IconFullscreen, IconImageClose } from "@arco-design/web-react/icon";
 import { ReactComponent as SeedComicsIcon } from "./assets/comics.svg";
 import HistorySidebar from "../components/HistorySidebar";
 import {
@@ -343,10 +343,8 @@ const Index = () => {
           
           const existingMsg = history.messages?.find((m) => m.id === messageId);
           
-          // 如果消息已经完成（success、error 或 editing），不需要恢复
-          // editing 状态表示分析已完成，正在等待用户确认，不应该被覆盖为 loading
+          // 如果消息已经完成（success、error 或 editing），需要根据任务类型判断是否需要恢复
           if (existingMsg && (existingMsg.status === "success" || existingMsg.status === "error" || existingMsg.status === "editing")) {
-            // 但如果任务还在运行，说明可能是任务状态不同步，继续轮询以获取最新状态
             if (existingMsg.status === "editing" && task.task_type === "poetry_analysis") {
               // 分析任务已完成，消息已经是editing状态，不需要恢复
               continue;
@@ -363,6 +361,15 @@ const Index = () => {
                 continue;
               }
               // 如果没有 video_url，可能是状态不同步，继续处理以恢复轮询
+            }
+            // 重要：如果消息是 editing 状态但任务类型是 video_generation，说明提示词已生成但视频还未生成
+            // 这种情况下应该继续恢复轮询，而不是跳过
+            if (existingMsg.status === "editing" && task.task_type === "video_generation") {
+              // 提示词已生成（editing状态），但视频还未生成，需要继续轮询
+              // 不跳过，继续处理以恢复轮询
+            } else if (existingMsg.status === "editing") {
+              // 其他类型的 editing 状态，不需要恢复
+              continue;
             }
           }
           
@@ -415,10 +422,18 @@ const Index = () => {
             setCurrentHistoryId(historyId);
           }
           
+          // 判断是否需要更新消息
+          // 对于视频生成任务，如果消息是editing状态（提示词已生成），应该更新为loading以继续轮询
+          const isVideoGenerationEditing = task.task_type === "video_generation" && 
+            existingMsg?.status === "editing" && 
+            existingMsg?.type === "assistant" &&
+            existingMsg?.data?.generationType === "video";
+          
           // 只有当消息不存在、是loading状态但类型不对、或者状态不是loading/success/error/editing时，才更新
-          // 重要：不要覆盖 editing 状态的消息（分析已完成，等待用户确认）
+          // 重要：不要覆盖 editing 状态的消息（分析已完成，等待用户确认），但视频生成的editing状态需要更新为loading
           const needsUpdate = !existingMsg || 
             (existingMsg.status === "loading" && existingMsg.type !== loadingMsg.type) ||
+            isVideoGenerationEditing || // 视频生成的editing状态需要更新为loading
             (existingMsg.status !== "loading" && existingMsg.status !== "success" && existingMsg.status !== "error" && existingMsg.status !== "editing");
           
           if (needsUpdate) {
@@ -616,12 +631,34 @@ const Index = () => {
               // 对于 editing 状态的分析消息，确保数据完整性
               if (msg.type === "analysis" && msg.status === "editing") {
                 const { analysisData, params } = msg.data || {};
-                // 如果分析数据丢失，将状态改为 error
-                if (!analysisData || !analysisData.storyboards) {
+                const generationType = params?.generationType || "image";
+                
+                // 根据生成类型检查不同的数据字段
+                if (!analysisData) {
                   return {
                     ...msg,
                     status: "error" as const,
                   };
+                }
+                
+                // 图像模式：检查 storyboards
+                if (generationType === "image") {
+                  if (!analysisData.storyboards || analysisData.storyboards.length === 0) {
+                    return {
+                      ...msg,
+                      status: "error" as const,
+                    };
+                  }
+                }
+                
+                // 视频模式：检查 video_prompt_data
+                if (generationType === "video") {
+                  if (!analysisData.video_prompt_data || !analysisData.video_prompt_data.video_prompt) {
+                    return {
+                      ...msg,
+                      status: "error" as const,
+                    };
+                  }
                 }
               }
               // 对于 success 状态的 assistant 消息，确保数据完整性
@@ -984,12 +1021,13 @@ const Index = () => {
             throw new Error("视频提示词数据不完整");
           }
           
-          // doubao-seedance-1-5-pro 支持 duration: [4,12] 范围内的整数，或 -1（自动选择）
+          // 默认720p 12秒（基于定价策略）
           const videoResult = await generateVideo({
             video_prompt: analysisData.video_prompt_data.video_prompt,
-            duration: params.videoDuration ?? -1, // 默认自动选择
-            fps: params.videoFps || 24,
+            duration: params.videoDuration ?? 12, // 默认12秒
+            fps: 24, // 固定帧率24 FPS
             aspect_ratio: params.videoAspectRatio || "16:9",
+            resolution: params.videoResolution || "720p", // 分辨率
             history_id: historyId,
             message_id: resId,
           });
@@ -1332,7 +1370,89 @@ const Index = () => {
               />
             );
           case "error":
-            return <ErrorMessage className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto" />;
+            // 视频生成失败，显示错误信息并提供重新生成按钮
+            return (
+              <MessageCard className="mb-4 sm:mb-6 md:mb-9 w-full max-w-[800px] mr-auto">
+                <div className="relative w-full aspect-video overflow-hidden rounded-[12px] bg-[#DADADA]">
+                  <div className="h-full flex items-center justify-center flex-col text-white font-medium relative z-20">
+                    <IconImageClose fontSize={30} />
+                    <div className="text-[13px] leading-[20px] mb-4">
+                      {message.data?.error || "视频生成失败"}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        // 重新生成视频
+                        try {
+                          // 获取分析数据
+                          let analysisData: PoetryAnalysisData | undefined = message.data?.analysisData;
+                          if (!analysisData && message.parentId && currentHistoryIdRef.current) {
+                            const history = getChatHistoryById(currentHistoryIdRef.current);
+                            if (history?.messages) {
+                              const parentMsg = history.messages.find((msg) => msg.id === message.parentId);
+                              if (parentMsg?.type === "analysis" && parentMsg.data?.analysisData) {
+                                analysisData = parentMsg.data.analysisData;
+                              }
+                            }
+                          }
+                          
+                          if (!analysisData || !analysisData.video_prompt_data?.video_prompt) {
+                            ArcoMessage.error("无法获取视频提示词，请重新分析");
+                            return;
+                          }
+                          
+                          // 获取参数（默认720p 12秒）
+                          const params: PromptData = message.data?.params || {
+                            videoDuration: 12,
+                            videoFps: 24,
+                            videoAspectRatio: "16:9",
+                            videoResolution: "720p",
+                          };
+                          
+                          // 创建新的消息用于重新生成
+                          const newMessageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                          const assistantMsg: Message = {
+                            id: newMessageId,
+                            type: "assistant",
+                            status: "loading",
+                            data: {
+                              params,
+                              generationType: "video",
+                              startTime: Date.now(),
+                              progress: 0,
+                              status: "pending",
+                            },
+                            timestamp: Date.now(),
+                            parentId: message.parentId,
+                          };
+                          
+                          appendMessages([assistantMsg]);
+                          
+                          // 调用生成接口（默认720p 12秒）
+                          const videoResult = await generateVideo({
+                            video_prompt: analysisData.video_prompt_data.video_prompt,
+                            duration: params.videoDuration ?? 12,
+                            fps: 24, // 固定帧率24 FPS
+                            aspect_ratio: params.videoAspectRatio || "16:9",
+                            resolution: params.videoResolution || "720p",
+                            history_id: currentHistoryIdRef.current,
+                            message_id: newMessageId,
+                          });
+                          
+                          // 开始轮询
+                          pollVideoTaskStatus(videoResult.task_id, newMessageId, currentHistoryIdRef.current, params, analysisData);
+                        } catch (error: any) {
+                          console.error("重新生成视频失败:", error);
+                          ArcoMessage.error(error?.message || "重新生成失败，请稍后重试");
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors cursor-pointer text-sm"
+                    >
+                      重新生成
+                    </button>
+                  </div>
+                </div>
+              </MessageCard>
+            );
           default:
             return null;
         }
@@ -1788,11 +1908,32 @@ const Index = () => {
 
         if (currentStatus === "failed") {
           pollingTasksRef.current.delete(videoPollingKey);
+          // 提取错误信息
+          const errorMessage = taskStatus.error || "视频生成失败";
+          // 尝试获取分析数据以便重新生成
+          let finalAnalysisData = analysisData;
+          if (!finalAnalysisData && historyId) {
+            const history = getChatHistoryById(historyId);
+            if (history && history.messages) {
+              const currentMessage = history.messages.find((msg) => msg.id === messageId);
+              if (currentMessage?.parentId) {
+                const parentMessage = history.messages.find((msg) => msg.id === currentMessage.parentId);
+                if (parentMessage?.type === "analysis" && parentMessage.data?.analysisData) {
+                  finalAnalysisData = parentMessage.data.analysisData;
+                }
+              }
+            }
+          }
           replaceMessage(messageId, {
             id: messageId,
             type: "assistant",
             status: "error",
-            data: { params, generationType: "video" },
+            data: { 
+              params, 
+              generationType: "video",
+              error: errorMessage,
+              analysisData: finalAnalysisData, // 保存分析数据以便重新生成
+            },
             timestamp: Date.now(),
           }, historyId);
           return;
@@ -1861,13 +2002,35 @@ const Index = () => {
       const validatedMessages = rawMessages.map((msg) => {
         // 对于 editing 状态的分析消息，确保数据完整性
         if (msg.type === "analysis" && msg.status === "editing") {
-          const { analysisData } = msg.data || {};
-          // 如果分析数据丢失，将状态改为 error
-          if (!analysisData || !analysisData.storyboards) {
+          const { analysisData, params } = msg.data || {};
+          const generationType = params?.generationType || "image";
+          
+          // 根据生成类型检查不同的数据字段
+          if (!analysisData) {
             return {
               ...msg,
               status: "error" as const,
             };
+          }
+          
+          // 图像模式：检查 storyboards
+          if (generationType === "image") {
+            if (!analysisData.storyboards || analysisData.storyboards.length === 0) {
+              return {
+                ...msg,
+                status: "error" as const,
+              };
+            }
+          }
+          
+          // 视频模式：检查 video_prompt_data
+          if (generationType === "video") {
+            if (!analysisData.video_prompt_data || !analysisData.video_prompt_data.video_prompt) {
+              return {
+                ...msg,
+                status: "error" as const,
+              };
+            }
           }
         }
         // 对于 assistant 消息，检查视频生成消息的数据完整性

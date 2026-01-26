@@ -264,6 +264,14 @@ div.arco-modal[role="dialog"] .arco-modal-close-icon {
   border-radius: 8px !important;
   transition: all 0.2s !important;
   background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+div.arco-modal[role="dialog"] .arco-modal-close-icon svg {
+  display: block !important;
+  margin: auto !important;
 }
 
 div.arco-modal[role="dialog"] .arco-modal-close-icon:hover {

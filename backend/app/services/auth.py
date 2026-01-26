@@ -73,7 +73,8 @@ def create_user(db: Session, username: str, email: str, password: str) -> User:
         username=username,
         email=email,
         hashed_password=hashed_password,
-        free_usage_count=20  # 登录用户默认20次免费体验
+        free_tokens=1250000,  # 注册用户默认1,250,000 tokens（图像6次 + 视频3次）
+        token_balance=0  # 统一付费token余额
     )
     db.add(db_user)
     db.commit()
@@ -101,7 +102,8 @@ def create_user_by_phone(db: Session, username: str, phone: str) -> User:
         phone=phone,
         email=virtual_email,  # 使用虚拟邮箱（数据库要求NOT NULL）
         hashed_password=get_password_hash(random_password),  # 设置随机密码
-        free_usage_count=20  # 登录用户默认20次免费体验
+        free_tokens=1250000,  # 注册用户默认1,250,000 tokens（图像6次 + 视频3次）
+        token_balance=0  # 统一付费token余额
     )
     db.add(db_user)
     db.commit()
@@ -296,7 +298,8 @@ def get_or_create_oauth_user(
         avatar=avatar,
         oauth_provider=provider,
         oauth_id=oauth_id,
-        free_usage_count=20  # 登录用户默认20次免费体验
+        free_tokens=1250000,  # 注册用户默认1,250,000 tokens（图像6次 + 视频3次）
+        token_balance=0  # 统一付费token余额
     )
     db.add(user)
     db.commit()

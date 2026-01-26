@@ -640,9 +640,10 @@ export const generateFromStoryboard = async (
 
 export interface VideoGenerateParams {
   video_prompt: string;  // 视频生成提示词（已由分析服务生成）
-  duration?: number;  // doubao-seedance-1-5-pro 支持 [4,12] 范围内的整数，或 -1（自动选择）
+  duration?: number;  // 只支持 5 或 12 秒
   fps?: number;  // 支持 24, 30, 60
   aspect_ratio?: string;  // 支持 "16:9", "9:16", "1:1"
+  resolution?: "720p" | "1080p";  // 分辨率：720p 或 1080p
   history_id?: string;
   message_id?: string;
 }
@@ -684,9 +685,10 @@ export const generateVideo = async (
     headers,
     body: JSON.stringify({
       video_prompt: params.video_prompt,
-      duration: params.duration || 15,
+      duration: params.duration || 12,
       fps: params.fps || 24,
       aspect_ratio: params.aspect_ratio || "16:9",
+      resolution: params.resolution || "720p",
       history_id: params.history_id || "",
       message_id: params.message_id || "",
     }),

@@ -10,7 +10,8 @@ export interface UserListItem {
   is_active: boolean;
   is_admin: boolean;
   is_vip: boolean;
-  free_usage_count: number;
+  free_tokens: number;  // 统一免费token
+  token_balance: number;  // 统一付费token余额
   total_usage_count: number;
   total_token_used: number;
   created_at: string;
@@ -426,6 +427,197 @@ export const updateUser = async (
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || "更新用户信息失败");
+  }
+
+  return response.json();
+};
+
+// ============ 成本监控 ============
+
+export interface CostOverview {
+  period: {
+    start_date: string;
+    end_date: string;
+  };
+  summary: {
+    total_records: number;
+    total_input_tokens: number;
+    total_output_tokens: number;
+    total_tokens: number;
+    total_cost: number;
+    total_sale: number;
+    total_profit: number;
+    profit_margin: number;
+  };
+  by_type: Record<string, {
+    count: number;
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+    cost: number;
+    sale: number;
+    profit: number;
+    profit_margin: number;
+    avg_cost_per_record: number;
+    avg_sale_per_record: number;
+  }>;
+}
+
+/**
+ * 获取成本概览
+ */
+export const getCostOverview = async (
+  startDate?: string,
+  endDate?: string,
+  usageType?: string
+): Promise<{
+  status: string;
+  data: CostOverview;
+}> => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("未登录");
+  }
+
+  let url = "/api/admin/cost/overview?";
+  if (startDate) url += `start_date=${encodeURIComponent(startDate)}&`;
+  if (endDate) url += `end_date=${encodeURIComponent(endDate)}&`;
+  if (usageType) url += `usage_type=${encodeURIComponent(usageType)}&`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "获取成本概览失败");
+  }
+
+  return response.json();
+};
+
+export interface CostByUser {
+  user_id: number;
+  username: string;
+  email?: string;
+  total_records: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_tokens: number;
+  total_cost: number;
+  total_sale: number;
+  total_profit: number;
+  profit_margin: number;
+  by_type: Record<string, {
+    count: number;
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+    cost: number;
+    sale: number;
+    profit: number;
+  }>;
+}
+
+/**
+ * 按用户获取成本统计
+ */
+export const getCostByUser = async (
+  startDate?: string,
+  endDate?: string,
+  userId?: number,
+  page: number = 1,
+  pageSize: number = 50
+): Promise<{
+  status: string;
+  data: CostByUser[];
+  total: number;
+  page: number;
+  page_size: number;
+}> => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("未登录");
+  }
+
+  let url = `/api/admin/cost/by-user?page=${page}&page_size=${pageSize}`;
+  if (startDate) url += `&start_date=${encodeURIComponent(startDate)}`;
+  if (endDate) url += `&end_date=${encodeURIComponent(endDate)}`;
+  if (userId) url += `&user_id=${userId}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "获取用户成本统计失败");
+  }
+
+  return response.json();
+};
+
+export interface CostDetailed {
+  id: number;
+  user_id?: number;
+  username?: string;
+  usage_type: string;
+  api_endpoint?: string;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cost: number;
+  sale: number;
+  profit: number;
+  profit_margin: number;
+  response_status?: number;
+  created_at: string;
+}
+
+/**
+ * 获取详细成本记录
+ */
+export const getCostDetailed = async (
+  startDate?: string,
+  endDate?: string,
+  userId?: number,
+  usageType?: string,
+  page: number = 1,
+  pageSize: number = 50
+): Promise<{
+  status: string;
+  data: CostDetailed[];
+  total: number;
+  page: number;
+  page_size: number;
+}> => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("未登录");
+  }
+
+  let url = `/api/admin/cost/detailed?page=${page}&page_size=${pageSize}`;
+  if (startDate) url += `&start_date=${encodeURIComponent(startDate)}`;
+  if (endDate) url += `&end_date=${encodeURIComponent(endDate)}`;
+  if (userId) url += `&user_id=${userId}`;
+  if (usageType) url += `&usage_type=${encodeURIComponent(usageType)}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "获取详细成本记录失败");
   }
 
   return response.json();

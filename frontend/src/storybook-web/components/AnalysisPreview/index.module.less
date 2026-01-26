@@ -469,10 +469,16 @@
   }
   
   h4 {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
     color: #00d4ff;
-    margin: 0 0 12px 0;
+    margin: 0 0 16px 0;
+    text-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+  }
+  
+  // 确保视频提示词预览样式优先级
+  .videoPromptPreview {
+    // 样式已在上面定义，这里确保不会被覆盖
   }
   
   .poetryText {
@@ -759,35 +765,61 @@
   }
 }
 
-// 视频Prompt预览样式
+// 视频Prompt预览样式 - 使用更高优先级确保样式生效
 .videoPromptPreview {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  background: rgba(0, 212, 255, 0.05);
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+  background: rgba(0, 212, 255, 0.1) !important;
+  border-radius: 12px !important;
+  padding: 24px !important;
+  border: 2px solid rgba(0, 212, 255, 0.4) !important;
   
   .promptItem {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
     
     .promptLabel {
-      font-size: 13px;
-      font-weight: 600;
-      color: #00d4ff;
+      font-size: 16px !important;
+      font-weight: 700 !important;
+      color: #00d4ff !important;
+      margin-bottom: 8px !important;
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.5) !important;
+      letter-spacing: 0.5px !important;
     }
     
     .promptContent {
-      font-size: 14px;
-      line-height: 1.7;
-      color: rgba(255, 255, 255, 0.8);
-      background: rgba(20, 20, 35, 0.6);
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid rgba(0, 212, 255, 0.15);
+      font-size: 17px !important;
+      line-height: 2.2 !important;
+      color: #ffffff !important;
+      background: rgba(5, 10, 20, 1) !important;
+      padding: 20px 24px !important;
+      border-radius: 10px !important;
+      border: 2px solid rgba(0, 212, 255, 0.5) !important;
+      word-break: break-word !important;
+      white-space: pre-wrap !important;
+      overflow-wrap: break-word !important;
+      max-height: none !important;
+      overflow: visible !important;
+      box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.5),
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 0 20px rgba(0, 212, 255, 0.2) !important;
+      font-weight: 400 !important;
+      
+      // 特别处理完整视频Prompt，因为内容较长
+      &:first-of-type {
+        font-size: 16px !important;
+        line-height: 2.3 !important;
+        padding: 24px !important;
+        background: rgba(0, 5, 15, 1) !important;
+        border: 2px solid rgba(0, 212, 255, 0.6) !important;
+        box-shadow: 
+          0 4px 16px rgba(0, 0, 0, 0.6),
+          inset 0 1px 2px rgba(255, 255, 255, 0.2),
+          0 0 25px rgba(0, 212, 255, 0.3) !important;
+      }
     }
   }
 }
@@ -796,17 +828,125 @@
 .videoPromptEditor {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   
   .promptItem {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     
     .promptLabel {
-      font-size: 13px;
-      font-weight: 600;
-      color: #00d4ff;
+      font-size: 16px !important;
+      font-weight: 700 !important;
+      color: #00d4ff !important;
+      margin-bottom: 8px !important;
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.5) !important;
+      letter-spacing: 0.5px !important;
+    }
+  }
+}
+
+// 视频提示词TextArea专用样式类
+.videoPromptTextarea {
+  font-size: 16px !important;
+  line-height: 1.8 !important;
+  color: #ffffff !important;
+  background: rgba(5, 10, 20, 1) !important;
+  border: 2px solid rgba(0, 212, 255, 0.5) !important;
+  border-radius: 10px !important;
+  padding: 16px 20px !important;
+  
+  &:focus,
+  &:focus-within {
+    border-color: rgba(0, 212, 255, 0.8) !important;
+    box-shadow: 
+      0 0 0 2px rgba(0, 212, 255, 0.2),
+      0 4px 12px rgba(0, 0, 0, 0.5),
+      inset 0 1px 2px rgba(255, 255, 255, 0.15) !important;
+  }
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+    opacity: 1 !important;
+  }
+  
+  // 针对 Arco Design TextArea 的全局样式覆盖
+  :global {
+    .arco-textarea,
+    .arco-textarea-wrapper {
+      font-size: 16px !important;
+      line-height: 1.8 !important;
+      color: #ffffff !important;
+      background: rgba(5, 10, 20, 1) !important;
+      border: 2px solid rgba(0, 212, 255, 0.5) !important;
+      border-radius: 10px !important;
+      padding: 16px 20px !important;
+      
+      &:focus,
+      &:focus-within {
+        border-color: rgba(0, 212, 255, 0.8) !important;
+        box-shadow: 
+          0 0 0 2px rgba(0, 212, 255, 0.2),
+          0 4px 12px rgba(0, 0, 0, 0.5),
+          inset 0 1px 2px rgba(255, 255, 255, 0.15) !important;
+      }
+      
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.4) !important;
+        opacity: 1 !important;
+      }
+      
+      textarea {
+        color: #ffffff !important;
+        font-size: 16px !important;
+        line-height: 1.8 !important;
+        background: transparent !important;
+        font-weight: 400 !important;
+        
+        &::placeholder {
+          color: rgba(255, 255, 255, 0.4) !important;
+          opacity: 1 !important;
+        }
+      }
+      
+      .arco-input {
+        color: #ffffff !important;
+        background: transparent !important;
+        font-size: 16px !important;
+        line-height: 1.8 !important;
+      }
+    }
+  }
+}
+
+// 完整视频Prompt的TextArea特殊样式
+.videoPromptEditor .promptItem:first-of-type {
+  .videoPromptTextarea {
+    font-size: 15px !important;
+    line-height: 2 !important;
+    padding: 20px 24px !important;
+    background: rgba(0, 5, 15, 1) !important;
+    border: 2px solid rgba(0, 212, 255, 0.6) !important;
+  }
+  
+  :global {
+    .arco-textarea,
+    .arco-textarea-wrapper {
+      font-size: 15px !important;
+      line-height: 2 !important;
+      padding: 20px 24px !important;
+      background: rgba(0, 5, 15, 1) !important;
+      border: 2px solid rgba(0, 212, 255, 0.6) !important;
+      
+      textarea {
+        font-size: 15px !important;
+        line-height: 2 !important;
+      }
+      
+      .arco-input {
+        font-size: 15px !important;
+        line-height: 2 !important;
+      }
     }
   }
 }

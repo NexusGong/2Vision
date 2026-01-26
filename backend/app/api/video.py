@@ -12,7 +12,7 @@ import httpx
 from app.database import get_db
 from app.models.user import User
 from app.services.auth import get_optional_user
-from app.services.usage_manager import check_usage_limit, record_usage
+from app.services.usage_manager import check_token_balance, record_usage
 from app.services.video_generator import (
     generate_video_from_prompt,
     get_video_generation_status
@@ -28,9 +28,10 @@ router = APIRouter(prefix="/api/video", tags=["video"])
 class VideoGenerateRequest(BaseModel):
     """视频生成请求模型"""
     video_prompt: str  # 视频生成提示词（已由分析服务生成）
-    duration: int = -1  # doubao-seedance-1-5-pro 支持 [4,12] 范围内的整数，或 -1（自动选择）
+    duration: int = 12  # 只支持 5 或 12 秒
     fps: int = 24
     aspect_ratio: str = "16:9"
+    resolution: Optional[str] = "720p"  # 分辨率：720p 或 1080p（用于token计算）
     history_id: Optional[str] = None
     message_id: Optional[str] = None
 
@@ -179,11 +180,22 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
         task_manager.start_task(task_id)
         
         video_prompt = params["video_prompt"]
-        duration = params.get("duration", -1)  # doubao-seedance-1-5-pro 默认自动选择
+        duration = params.get("duration", 12)  # 只支持 5 或 12 秒
         fps = params.get("fps", 24)
         aspect_ratio = params.get("aspect_ratio", "16:9")
+        resolution = params.get("resolution", "720p")  # 分辨率：720p 或 1080p
         
-        token_used = 0  # 可以根据实际消耗计算
+        # 计算视频生成所需的token数量（统一token系统）
+        from app.services.usage_manager import calculate_video_tokens
+        video_tokens = calculate_video_tokens(
+            duration=duration,
+            resolution=resolution,
+            aspect_ratio=aspect_ratio,
+            fps=fps
+        )
+        # 加上文本分析的token（约3,993 tokens）
+        text_analysis_tokens = 3993
+        token_used = video_tokens + text_analysis_tokens
         
         # 初始化 Ark 客户端
         try:
@@ -305,9 +317,10 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
                     logger.info(f"视频生成任务完成: {task_id}, 视频URL: {local_video_url}")
                     return
                 elif current_status == "failed":
-                    # 任务失败
-                    task_manager.fail_task(task_id, "视频生成失败")
-                    logger.error(f"视频生成任务失败: {task_id}")
+                    # 任务失败，提取错误信息
+                    error_message = status.get("error", "视频生成失败")
+                    task_manager.fail_task(task_id, error_message)
+                    logger.error(f"视频生成任务失败: {task_id}, 错误: {error_message}")
                     return
                 
                 # 等待后继续轮询
@@ -352,8 +365,20 @@ async def generate_video_async(
         # 获取session_id（非登录用户）
         session_id = http_request.headers.get("X-Session-Id")
         
-        # 检查使用次数限制
-        allowed, error_msg = check_usage_limit(db, current_user, session_id)
+        # 计算需要的token数量
+        from app.services.usage_manager import calculate_video_tokens
+        required_tokens = calculate_video_tokens(
+            duration=request.duration,
+            resolution=request.resolution or "720p",
+            aspect_ratio=request.aspect_ratio,
+            fps=request.fps
+        )
+        # 加上文本分析的token（约3,993 tokens）
+        text_analysis_tokens = 3993
+        required_tokens += text_analysis_tokens
+        
+        # 检查token余额
+        allowed, error_msg = check_token_balance(db, current_user, session_id, required_tokens)
         if not allowed:
             raise HTTPException(status_code=403, detail=error_msg)
         
@@ -363,6 +388,7 @@ async def generate_video_async(
             "duration": request.duration,
             "fps": request.fps,
             "aspect_ratio": request.aspect_ratio,
+            "resolution": request.resolution or "720p",  # 分辨率
             "user_id": current_user.id if current_user else None,
             "session_id": session_id
         }

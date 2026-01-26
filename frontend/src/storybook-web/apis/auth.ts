@@ -30,7 +30,8 @@ export interface UserResponse {
   is_active: boolean;
   is_admin: boolean;
   is_vip: boolean;
-  free_usage_count: number;
+  free_tokens: number;  // 统一免费token
+  token_balance: number;  // 统一付费token余额
   total_usage_count: number;
   password_set?: boolean;  // 是否已设置密码
 }
@@ -78,7 +79,48 @@ export interface PasswordStatusResponse {
 }
 
 /**
- * 用户注册
+ * 用户注册（短信验证码注册）
+ */
+export const registerBySms = async (data: SmsRegisterRequest): Promise<TokenResponse> => {
+  // 添加超时控制
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
+
+  try {
+    const response = await fetch("/api/auth/sms/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorMessage = "注册失败";
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || error.message || `注册失败 (${response.status})`;
+      } catch (e) {
+        errorMessage = `注册失败 (${response.status} ${response.statusText})`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error("请求超时，请检查网络连接");
+    }
+    throw error;
+  }
+};
+
+/**
+ * 用户注册（邮箱注册）
  */
 export const register = async (data: RegisterRequest): Promise<UserResponse> => {
   // 确保数据格式正确
@@ -90,30 +132,45 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
   
   console.log("发送注册请求:", requestData); // 调试用
   
-  const response = await fetch("/api/auth/register", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(requestData),
-  });
+  // 添加超时控制
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    // 处理 422 验证错误，显示详细的字段错误信息
-    if (response.status === 422 && errorData.detail) {
-      if (Array.isArray(errorData.detail)) {
-        const errorMessages = errorData.detail.map((err: any) => {
-          const field = err.loc ? err.loc.join('.') : '';
-          return `${field}: ${err.msg}`;
-        }).join(', ');
-        throw new Error(errorMessages || "注册信息格式不正确");
+  try {
+    const response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      // 处理 422 验证错误，显示详细的字段错误信息
+      if (response.status === 422 && errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          const errorMessages = errorData.detail.map((err: any) => {
+            const field = err.loc ? err.loc.join('.') : '';
+            return `${field}: ${err.msg}`;
+          }).join(', ');
+          throw new Error(errorMessages || "注册信息格式不正确");
+        }
       }
+      throw new Error(errorData.detail || "注册失败");
     }
-    throw new Error(errorData.detail || "注册失败");
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error("请求超时，请检查网络连接");
+    }
+    throw error;
+  }
 };
 
 /**
@@ -181,23 +238,38 @@ export const getCurrentUser = async (): Promise<UserResponse> => {
     throw new Error("未登录");
   }
 
-  const response = await fetch("/api/auth/me", {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  // 添加超时控制
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
 
-  if (!response.ok) {
-    if (response.status === 401) {
-      localStorage.removeItem("token");
-      throw new Error("登录已过期，请重新登录");
+  try {
+    const response = await fetch("/api/auth/me", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem("token");
+        throw new Error("登录已过期，请重新登录");
+      }
+      const error = await response.json().catch(() => ({ detail: "获取用户信息失败" }));
+      throw new Error(error.detail || "获取用户信息失败");
     }
-    const error = await response.json();
-    throw new Error(error.detail || "获取用户信息失败");
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error("请求超时，请检查网络连接");
+    }
+    throw error;
+  }
 };
 
 /**
@@ -253,72 +325,89 @@ export const sendSmsCode = async (data: SmsSendRequest): Promise<{ message: stri
   return response.json();
 };
 
-/**
- * 使用短信验证码注册（注册成功后自动登录）
- */
-export const registerBySms = async (data: SmsRegisterRequest): Promise<TokenResponse> => {
-  const response = await fetch("/api/auth/sms/register", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "注册失败");
-  }
-
-  return response.json();
-};
 
 /**
  * 使用短信验证码登录
  */
 export const loginBySms = async (data: SmsLoginRequest): Promise<TokenResponse> => {
-  const response = await fetch("/api/auth/sms/login", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+  // 添加超时控制
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "登录失败");
+  try {
+    const response = await fetch("/api/auth/sms/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorMessage = "登录失败";
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || error.message || `登录失败 (${response.status})`;
+      } catch (e) {
+        errorMessage = `登录失败 (${response.status} ${response.statusText})`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error("请求超时，请检查网络连接");
+    }
+    throw error;
   }
-
-  return response.json();
 };
 
 /**
  * 使用手机号和密码登录
  */
 export const loginByPassword = async (data: PasswordLoginRequest): Promise<TokenResponse> => {
-  const response = await fetch("/api/auth/password/login", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+  // 添加超时控制
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
 
-  if (!response.ok) {
-    let errorMessage = "登录失败";
-    try {
-      const error = await response.json();
-      errorMessage = error.detail || error.message || `登录失败 (${response.status})`;
-    } catch (e) {
-      // 如果响应不是JSON，使用状态码
-      errorMessage = `登录失败 (${response.status} ${response.statusText})`;
+  try {
+    const response = await fetch("/api/auth/password/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorMessage = "登录失败";
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || error.message || `登录失败 (${response.status})`;
+      } catch (e) {
+        // 如果响应不是JSON，使用状态码
+        errorMessage = `登录失败 (${response.status} ${response.statusText})`;
+      }
+      console.error("密码登录失败:", errorMessage, { status: response.status });
+      throw new Error(errorMessage);
     }
-    console.error("密码登录失败:", errorMessage, { status: response.status });
-    throw new Error(errorMessage);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error("请求超时，请检查网络连接");
+    }
+    throw error;
+  }
 };
 
 /**

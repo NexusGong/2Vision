@@ -81,6 +81,17 @@ class Config:
     SMS_PASSWORD = os.getenv("SMS_PASSWORD", "")  # APIKEY
     SMS_TEMPLATE_ID = os.getenv("SMS_TEMPLATE_ID", "1")  # 模板ID，默认使用模板1
     SMS_API_URL = os.getenv("SMS_API_URL", "https://api.ihuyi.com/sms/Submit.json")  # 短信API地址
+    
+    # 支付宝收款码配置（简单方案：使用现有收款码）
+    ALIPAY_QR_CODE_URL = os.getenv("ALIPAY_QR_CODE_URL", "")  # 支付宝收款码图片URL（可以是本地路径或网络URL）
+    ALIPAY_ACCOUNT_NAME = os.getenv("ALIPAY_ACCOUNT_NAME", "")  # 支付宝账号名称（用于显示）
+    
+    # 支付宝自动验证配置
+    ALIPAY_COOKIE = os.getenv("ALIPAY_COOKIE", "")  # 支付宝登录后的完整Cookie
+    ALIPAY_CTOKEN = os.getenv("ALIPAY_CTOKEN", "")  # 从Cookie中提取的ctoken（可选，如果提供则直接使用）
+    ALIPAY_BILL_USER_ID = os.getenv("ALIPAY_BILL_USER_ID", "")  # 从Cookie中提取的billUserId（可选，如果提供则直接使用）
+    ALIPAY_POLLING_INTERVAL = int(os.getenv("ALIPAY_POLLING_INTERVAL", "30"))  # 轮询间隔（秒），默认30秒
+    ALIPAY_POLLING_TIMEOUT = int(os.getenv("ALIPAY_POLLING_TIMEOUT", "300"))  # 轮询超时时间（秒），默认5分钟
 
 config = Config()
 

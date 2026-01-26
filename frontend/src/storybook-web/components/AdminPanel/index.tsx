@@ -35,6 +35,7 @@ import {
   IconEdit,
   IconCheck,
   IconClose,
+  IconCopy,
 } from "@arco-design/web-react/icon";
 import {
   getAllUsers,
@@ -48,6 +49,12 @@ import {
   getUserActivity,
   getUserStats,
   updateUser,
+  getCostOverview,
+  getCostByUser,
+  getCostDetailed,
+  type CostOverview,
+  type CostByUser,
+  type CostDetailed,
 } from "../../apis/admin";
 import {
   createPaymentOrder,
@@ -73,9 +80,42 @@ const AdminPanel: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [timeRange, setTimeRange] = useState("7d");
-  const [paymentTestForm, setPaymentTestForm] = useState({ payment_type: "times", quantity: 10 });
+  // 支付测试相关状态
+  const PAYMENT_TEST_PLANS = [
+    { quantity: 1, price: 0.01, label: "1 Token (测试)" },
+    { quantity: 800000, price: 15.20, label: "800K Tokens" },
+    { quantity: 1500000, price: 28.50, label: "1.5M Tokens" },
+    { quantity: 2500000, price: 47.50, label: "2.5M Tokens" },
+    { quantity: 4000000, price: 76.00, label: "4M Tokens" },
+    { quantity: 6000000, price: 114.00, label: "6M Tokens" },
+    { quantity: 10000000, price: 190.00, label: "10M Tokens" },
+  ];
+  
+  const [paymentTestForm, setPaymentTestForm] = useState({ 
+    selectedPlan: 0, // 默认选择第一个套餐（1 Token测试）
+    testMethod: "alipay" as "alipay" | "simulate" // 测试方式：支付宝或模拟
+  });
   const [paymentTestOrders, setPaymentTestOrders] = useState<PaymentOrder[]>([]);
   const [paymentTestLoading, setPaymentTestLoading] = useState(false);
+  const [selectedTestOrder, setSelectedTestOrder] = useState<PaymentOrder | null>(null);
+  const [showQRCodeModal, setShowQRCodeModal] = useState(false);
+  
+  // 成本监控相关状态
+  const [costOverview, setCostOverview] = useState<CostOverview | null>(null);
+  const [costByUser, setCostByUser] = useState<CostByUser[]>([]);
+  const [costDetailed, setCostDetailed] = useState<CostDetailed[]>([]);
+  const [costLoading, setCostLoading] = useState(false);
+  const [costFilters, setCostFilters] = useState({
+    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    usageType: "",
+    userId: undefined as number | undefined,
+  });
+  const [costPage, setCostPage] = useState(1);
+  const [costByUserPage, setCostByUserPage] = useState(1);
+  const [costDetailedPage, setCostDetailedPage] = useState(1);
+  const [costByUserTotal, setCostByUserTotal] = useState(0);
+  const [costDetailedTotal, setCostDetailedTotal] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -144,6 +184,43 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const loadCostData = async () => {
+    try {
+      setCostLoading(true);
+      const [overviewRes, byUserRes, detailedRes] = await Promise.all([
+        getCostOverview(
+          costFilters.startDate ? `${costFilters.startDate}T00:00:00Z` : undefined,
+          costFilters.endDate ? `${costFilters.endDate}T23:59:59Z` : undefined,
+          costFilters.usageType || undefined
+        ),
+        getCostByUser(
+          costFilters.startDate ? `${costFilters.startDate}T00:00:00Z` : undefined,
+          costFilters.endDate ? `${costFilters.endDate}T23:59:59Z` : undefined,
+          costFilters.userId,
+          costByUserPage,
+          50
+        ),
+        getCostDetailed(
+          costFilters.startDate ? `${costFilters.startDate}T00:00:00Z` : undefined,
+          costFilters.endDate ? `${costFilters.endDate}T23:59:59Z` : undefined,
+          costFilters.userId,
+          costFilters.usageType || undefined,
+          costDetailedPage,
+          50
+        ),
+      ]);
+      setCostOverview(overviewRes.data);
+      setCostByUser(byUserRes.data);
+      setCostByUserTotal(byUserRes.total);
+      setCostDetailed(detailedRes.data);
+      setCostDetailedTotal(detailedRes.total);
+    } catch (error) {
+      Message.error(error instanceof Error ? error.message : "加载成本数据失败");
+    } finally {
+      setCostLoading(false);
+    }
+  };
+
   const handleViewUser = async (userId: number) => {
     try {
       const [detailRes, activityRes, statsRes] = await Promise.all([
@@ -167,7 +244,8 @@ const AdminPanel: React.FC = () => {
         is_active: userData.is_active,
         is_admin: userData.is_admin,
         is_vip: userData.is_vip,
-        free_usage_count: userData.free_usage_count,
+        free_tokens: userData.free_tokens || 1250000,
+        token_balance: userData.token_balance || 0,
         total_usage_count: userData.total_usage_count,
         total_token_used: userData.total_token_used,
       });
@@ -191,7 +269,8 @@ const AdminPanel: React.FC = () => {
       if (editForm.is_active !== selectedUser.is_active) updateData.is_active = editForm.is_active;
       if (editForm.is_admin !== selectedUser.is_admin) updateData.is_admin = editForm.is_admin;
       if (editForm.is_vip !== selectedUser.is_vip) updateData.is_vip = editForm.is_vip;
-      if (editForm.free_usage_count !== selectedUser.free_usage_count) updateData.free_usage_count = editForm.free_usage_count;
+      if (editForm.free_tokens !== selectedUser.free_tokens) updateData.free_tokens = editForm.free_tokens;
+      if (editForm.token_balance !== selectedUser.token_balance) updateData.token_balance = editForm.token_balance;
       if (editForm.total_usage_count !== selectedUser.total_usage_count) updateData.total_usage_count = editForm.total_usage_count;
       if (editForm.total_token_used !== selectedUser.total_token_used) updateData.total_token_used = editForm.total_token_used;
 
@@ -208,32 +287,40 @@ const AdminPanel: React.FC = () => {
   };
 
   const handleCreateTestOrder = async () => {
-    if (!paymentTestForm.payment_type || !paymentTestForm.quantity || paymentTestForm.quantity <= 0) {
-      Message.error("请填写完整的订单信息");
+    const plan = PAYMENT_TEST_PLANS[paymentTestForm.selectedPlan];
+    if (!plan) {
+      Message.error("请选择套餐");
       return;
     }
 
     try {
       setPaymentTestLoading(true);
       const order = await createPaymentOrder({
-        payment_type: paymentTestForm.payment_type as "times" | "tokens",
-        quantity: paymentTestForm.quantity,
-        payment_method: "simulate",
+        quantity: plan.quantity,
+        payment_method: paymentTestForm.testMethod,
       });
       setPaymentTestOrders([order, ...paymentTestOrders]);
-      Message.success("测试订单创建成功");
+      
+      // 如果是支付宝订单且有收款码，自动显示收款码
+      if (paymentTestForm.testMethod === "alipay" && order.payment_info) {
+        setSelectedTestOrder(order);
+        setShowQRCodeModal(true);
+      }
+      
+      Message.success(`测试订单创建成功（${paymentTestForm.testMethod === "alipay" ? "支付宝" : "模拟"}支付）`);
     } catch (error) {
       Message.error(error instanceof Error ? error.message : "创建测试订单失败");
     } finally {
       setPaymentTestLoading(false);
     }
   };
-
-  const handleSimulatePayment = async (transactionId: string) => {
+  
+  const handleTestConfirmPayment = async (transactionId: string) => {
     try {
       setPaymentTestLoading(true);
       await simulatePayment(transactionId);
-      Message.success("支付成功");
+      Message.success("支付验证成功！");
+      
       // 更新订单状态
       setPaymentTestOrders(
         paymentTestOrders.map((order) =>
@@ -242,14 +329,43 @@ const AdminPanel: React.FC = () => {
             : order
         )
       );
+      
+      // 关闭收款码弹窗
+      if (selectedTestOrder?.transaction_id === transactionId) {
+        setShowQRCodeModal(false);
+        setSelectedTestOrder(null);
+      }
+      
       // 刷新支付记录
       await loadData();
     } catch (error) {
-      Message.error(error instanceof Error ? error.message : "支付失败");
+      Message.error(error instanceof Error ? error.message : "支付验证失败");
     } finally {
       setPaymentTestLoading(false);
     }
   };
+  
+  const handleCopyOrderId = async (transactionId: string) => {
+    try {
+      await navigator.clipboard.writeText(transactionId);
+      Message.success("订单号已复制到剪贴板");
+    } catch (error) {
+      const textArea = document.createElement("textarea");
+      textArea.value = transactionId;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        Message.success("订单号已复制到剪贴板");
+      } catch (err) {
+        Message.error("复制失败，请手动复制");
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
@@ -274,7 +390,7 @@ const AdminPanel: React.FC = () => {
     {
       title: "用户",
       render: (_: any, record: UserListItem) => (
-        <Space>
+        <Space key={`user-${record.id}`}>
           <div className="user-avatar">
             {record.username.charAt(0).toUpperCase()}
           </div>
@@ -288,24 +404,26 @@ const AdminPanel: React.FC = () => {
     {
       title: "状态",
       render: (_: any, record: UserListItem) => (
-        <Space>
+        <Space key={`status-${record.id}`}>
           {record.is_active ? (
-            <Tag color="green">活跃</Tag>
+            <Tag key="active" color="green">活跃</Tag>
           ) : (
-            <Tag color="red">禁用</Tag>
+            <Tag key="inactive" color="red">禁用</Tag>
           )}
-          {record.is_vip && <Tag color="gold">VIP</Tag>}
-          {record.is_admin && <Tag color="blue">管理员</Tag>}
+          {record.is_vip && <Tag key="vip" color="gold">VIP</Tag>}
+          {record.is_admin && <Tag key="admin" color="blue">管理员</Tag>}
         </Space>
       ),
     },
     {
-      title: "使用情况",
+      title: "Token余额",
       render: (_: any, record: UserListItem) => (
         <div>
-          <div style={{ color: "rgba(255, 255, 255, 0.9)" }}>剩余: {record.free_usage_count} 次</div>
+          <div style={{ color: "rgba(255, 255, 255, 0.9)" }}>
+            剩余: {((record.free_tokens || 0) + (record.token_balance || 0)).toLocaleString()} tokens
+          </div>
           <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.4)" }}>
-            总计: {record.total_usage_count} 次
+            免费: {record.free_tokens?.toLocaleString() || 0} / 付费: {record.token_balance?.toLocaleString() || 0}
           </div>
         </div>
       ),
@@ -344,13 +462,6 @@ const AdminPanel: React.FC = () => {
           <div style={{ color: "rgba(255, 255, 255, 0.9)" }}>{record.username}</div>
           <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.4)" }}>{record.email}</div>
         </div>
-      ),
-    },
-    {
-      title: "类型",
-      dataIndex: "payment_type",
-      render: (val: string) => (
-        <Tag color={val === "times" ? "blue" : "purple"}>{val}</Tag>
       ),
     },
     { title: "金额", dataIndex: "amount", render: (val: number) => `¥${val}` },
@@ -452,7 +563,15 @@ const AdminPanel: React.FC = () => {
           <p>实时监控系统使用情况、用户行为和系统健康状态</p>
         </div>
 
-        <Tabs defaultActiveTab="dashboard" className="tabs-container">
+        <Tabs 
+          defaultActiveTab="dashboard" 
+          className="tabs-container"
+          onChange={(key) => {
+            if (key === "cost-monitoring" && !costOverview) {
+              loadCostData();
+            }
+          }}
+        >
         <Tabs.TabPane title="数据概览" key="dashboard">
           <div className="stats-grid">
             <div className="stat-card">
@@ -854,7 +973,7 @@ const AdminPanel: React.FC = () => {
             <div style={{ marginBottom: 24 }}>
               <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>支付测试工具</h3>
               <p style={{ margin: 0, fontSize: 13, color: "rgba(255, 255, 255, 0.4)" }}>
-                用于测试支付流程，创建模拟支付订单并完成支付
+                用于测试支付流程，支持支付宝收款码测试和模拟支付测试
               </p>
             </div>
             
@@ -869,26 +988,29 @@ const AdminPanel: React.FC = () => {
               <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>创建测试订单</h4>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>支付类型</label>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>选择套餐</label>
                   <Select
-                    placeholder="选择支付类型"
                     style={{ width: "100%" }}
-                    value={paymentTestForm.payment_type}
-                    onChange={(val) => setPaymentTestForm({ ...paymentTestForm, payment_type: val })}
+                    value={paymentTestForm.selectedPlan}
+                    onChange={(val) => setPaymentTestForm({ ...paymentTestForm, selectedPlan: val })}
                   >
-                    <Select.Option value="times">按次数</Select.Option>
-                    <Select.Option value="tokens">按Token</Select.Option>
+                    {PAYMENT_TEST_PLANS.map((plan, index) => (
+                      <Select.Option key={index} value={index}>
+                        {plan.label} - ¥{plan.price}
+                      </Select.Option>
+                    ))}
                   </Select>
                 </div>
                 <div>
-                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>购买数量</label>
-                  <InputNumber
-                    value={paymentTestForm.quantity}
-                    onChange={(val) => setPaymentTestForm({ ...paymentTestForm, quantity: val || 0 })}
-                    min={1}
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>测试方式</label>
+                  <Select
                     style={{ width: "100%" }}
-                    placeholder="输入购买数量"
-                  />
+                    value={paymentTestForm.testMethod}
+                    onChange={(val) => setPaymentTestForm({ ...paymentTestForm, testMethod: val })}
+                  >
+                    <Select.Option value="alipay">支付宝收款码测试</Select.Option>
+                    <Select.Option value="simulate">模拟支付测试</Select.Option>
+                  </Select>
                 </div>
                 <div style={{ display: "flex", alignItems: "flex-end" }}>
                   <Button
@@ -901,6 +1023,19 @@ const AdminPanel: React.FC = () => {
                   </Button>
                 </div>
               </div>
+              {paymentTestForm.testMethod === "alipay" && (
+                <div style={{ 
+                  marginTop: 16, 
+                  padding: 12, 
+                  background: "rgba(0, 212, 255, 0.1)", 
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "rgba(0, 212, 255, 0.8)",
+                  lineHeight: 1.6
+                }}>
+                  💡 支付宝测试：创建订单后会显示收款码，扫码支付后点击"确认支付"按钮测试自动验证功能
+                </div>
+              )}
             </div>
 
             {paymentTestOrders.length > 0 && (
@@ -909,18 +1044,48 @@ const AdminPanel: React.FC = () => {
                 <Table
                   rowKey="transaction_id"
                   columns={[
-                    { title: "订单ID", dataIndex: "order_id", width: 100 },
-                    { title: "交易ID", dataIndex: "transaction_id", width: 200, ellipsis: true },
-                    {
-                      title: "类型",
-                      dataIndex: "payment_type",
-                      width: 100,
+                    { title: "订单ID", dataIndex: "order_id", width: 80 },
+                    { 
+                      title: "交易ID", 
+                      dataIndex: "transaction_id", 
+                      width: 200, 
+                      ellipsis: true,
                       render: (val: string) => (
-                        <Tag color={val === "times" ? "blue" : "purple"}>{val}</Tag>
-                      ),
+                        <Space>
+                          <span style={{ fontFamily: "monospace", fontSize: 12 }}>{val}</span>
+                          <Button
+                            type="text"
+                            size="mini"
+                            icon={<IconCopy />}
+                            onClick={() => handleCopyOrderId(val)}
+                            style={{ padding: "0 4px", minWidth: "auto" }}
+                          />
+                        </Space>
+                      )
                     },
-                    { title: "数量", dataIndex: "quantity", width: 100 },
+                    {
+                      title: "套餐",
+                      dataIndex: "quantity",
+                      width: 120,
+                      render: (val: number) => {
+                        const plan = PAYMENT_TEST_PLANS.find(p => p.quantity === val);
+                        return plan ? plan.label : `${(val / 1000).toFixed(0)}K tokens`;
+                      },
+                    },
                     { title: "金额", dataIndex: "amount", width: 100, render: (val: number) => `¥${val}` },
+                    {
+                      title: "支付方式",
+                      dataIndex: "payment_method",
+                      width: 100,
+                      render: (val: string) => {
+                        const methods: any = {
+                          alipay: { text: "支付宝", color: "blue" },
+                          simulate: { text: "模拟", color: "gray" },
+                        };
+                        const method = methods[val] || { text: val, color: "gray" };
+                        return <Tag color={method.color}>{method.text}</Tag>;
+                      },
+                    },
                     {
                       title: "状态",
                       dataIndex: "status",
@@ -937,14 +1102,39 @@ const AdminPanel: React.FC = () => {
                     { title: "创建时间", dataIndex: "created_at", width: 180, render: formatDate },
                     {
                       title: "操作",
-                      width: 120,
+                      width: 200,
                       render: (_: any, record: any) => (
                         <Space>
-                          {record.status === "pending" && (
+                          {record.status === "pending" && record.payment_method === "alipay" && record.payment_info && (
                             <Button
+                              key="view-qr"
                               type="text"
                               size="small"
-                              onClick={() => handleSimulatePayment(record.transaction_id)}
+                              onClick={() => {
+                                setSelectedTestOrder(record);
+                                setShowQRCodeModal(true);
+                              }}
+                            >
+                              查看收款码
+                            </Button>
+                          )}
+                          {record.status === "pending" && record.payment_method === "alipay" && (
+                            <Button
+                              key="confirm"
+                              type="text"
+                              size="small"
+                              onClick={() => handleTestConfirmPayment(record.transaction_id)}
+                              loading={paymentTestLoading}
+                            >
+                              确认支付
+                            </Button>
+                          )}
+                          {record.status === "pending" && record.payment_method === "simulate" && (
+                            <Button
+                              key="simulate"
+                              type="text"
+                              size="small"
+                              onClick={() => handleTestConfirmPayment(record.transaction_id)}
                               loading={paymentTestLoading}
                             >
                               完成支付
@@ -960,6 +1150,323 @@ const AdminPanel: React.FC = () => {
                 />
               </div>
             )}
+          </div>
+          
+          {/* 收款码显示弹窗 */}
+          <Modal
+            title="支付宝收款码测试"
+            visible={showQRCodeModal}
+            onCancel={() => {
+              setShowQRCodeModal(false);
+              setSelectedTestOrder(null);
+            }}
+            footer={null}
+            style={{ width: 450 }}
+          >
+            {selectedTestOrder?.payment_info && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ marginBottom: 16, fontSize: 14, color: "rgba(0, 0, 0, 0.7)" }}>
+                  请使用支付宝扫码支付
+                </div>
+                <div style={{ 
+                  display: "inline-block", 
+                  padding: 20, 
+                  background: "#fff", 
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  border: "1px solid #e5e5e5"
+                }}>
+                  <img 
+                    key={`${selectedTestOrder.payment_info.transaction_id}-${selectedTestOrder.payment_info.qr_code_url}`}
+                    src={(() => {
+                      const paymentInfo = selectedTestOrder.payment_info!;
+                      const url = paymentInfo.qr_code_url;
+                      const separator = url.includes('?') ? '&' : '?';
+                      return `${url}${separator}t=${paymentInfo.transaction_id}&v=${Date.now()}`;
+                    })()}
+                    alt="支付宝收款码"
+                    style={{ display: "block", width: 250, height: 250, objectFit: "contain" }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3E收款码加载失败%3C/text%3E%3C/svg%3E";
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: 12, fontSize: 16, fontWeight: 600, color: "rgba(0, 0, 0, 0.9)" }}>
+                  支付金额：¥{selectedTestOrder.payment_info.amount}
+                </div>
+                <div style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  gap: 8,
+                  fontSize: 13, 
+                  color: "rgba(0, 0, 0, 0.6)", 
+                  marginBottom: 16 
+                }}>
+                  <span>订单号：{selectedTestOrder.payment_info.transaction_id}</span>
+                  <Button
+                    type="text"
+                    size="mini"
+                    icon={<IconCopy />}
+                    onClick={() => handleCopyOrderId(selectedTestOrder.payment_info!.transaction_id)}
+                    style={{ 
+                      color: "rgba(0, 0, 0, 0.6)",
+                      padding: "0 4px",
+                      minWidth: "auto",
+                      height: "20px"
+                    }}
+                  />
+                </div>
+                <div style={{ 
+                  padding: 12, 
+                  background: "rgba(255, 193, 7, 0.1)",
+                  border: "1px solid rgba(255, 193, 7, 0.3)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "rgba(255, 152, 0, 0.9)",
+                  fontWeight: 600,
+                  lineHeight: 1.6,
+                  marginBottom: 16,
+                  textAlign: "center"
+                }}>
+                  ⚠️ 重要：请在支付备注中填写订单号，支付完成后点击下方按钮测试自动验证
+                </div>
+                <Space>
+                  <Button
+                    type="primary"
+                    onClick={() => handleTestConfirmPayment(selectedTestOrder.payment_info!.transaction_id)}
+                    loading={paymentTestLoading}
+                  >
+                    我已支付，测试验证
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowQRCodeModal(false);
+                      setSelectedTestOrder(null);
+                    }}
+                  >
+                    关闭
+                  </Button>
+                </Space>
+              </div>
+            )}
+          </Modal>
+        </Tabs.TabPane>
+
+        <Tabs.TabPane title="成本监控" key="cost-monitoring">
+          <div className="table-container">
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>
+                成本监控与分析
+              </h3>
+              <p style={{ margin: 0, fontSize: 13, color: "rgba(255, 255, 255, 0.4)" }}>
+                查看每个模型的实际消耗量、成本、销售价和利润
+              </p>
+            </div>
+
+            {/* 筛选器 */}
+            <div style={{
+              background: "rgba(20, 20, 35, 0.8)",
+              backdropFilter: "blur(12px)",
+              borderRadius: 16,
+              padding: 24,
+              border: "1px solid rgba(0, 212, 255, 0.2)",
+              marginBottom: 24
+            }}>
+              <Space size="large" wrap>
+                <div>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>开始日期</label>
+                  <Input
+                    type="date"
+                    value={costFilters.startDate}
+                    onChange={(val) => setCostFilters({ ...costFilters, startDate: val })}
+                    style={{ width: 180 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>结束日期</label>
+                  <Input
+                    type="date"
+                    value={costFilters.endDate}
+                    onChange={(val) => setCostFilters({ ...costFilters, endDate: val })}
+                    style={{ width: 180 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>使用类型</label>
+                  <Select
+                    placeholder="全部"
+                    value={costFilters.usageType}
+                    onChange={(val) => setCostFilters({ ...costFilters, usageType: val })}
+                    style={{ width: 150 }}
+                    allowClear
+                  >
+                    <Select.Option value="image">分析+图像生成</Select.Option>
+                    <Select.Option value="video">分析+视频生成</Select.Option>
+                  </Select>
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <Button
+                    type="primary"
+                    onClick={() => {
+                      setCostByUserPage(1);
+                      setCostDetailedPage(1);
+                      loadCostData();
+                    }}
+                    loading={costLoading}
+                    icon={<IconRefresh />}
+                  >
+                    查询
+                  </Button>
+                </div>
+              </Space>
+            </div>
+
+            {/* 成本概览 */}
+            {costOverview && (
+              <div style={{ marginBottom: 24 }}>
+                <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>成本概览</h4>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: 16,
+                  marginBottom: 16
+                }}>
+                  <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(0, 212, 255, 0.2)", padding: 20 }}>
+                    <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>总调用次数</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: "#00d4ff" }}>
+                      {costOverview.summary.total_records.toLocaleString()}
+                    </div>
+                  </Card>
+                  <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(0, 212, 255, 0.2)", padding: 20 }}>
+                    <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>总Tokens</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: "#00d4ff" }}>
+                      {formatNumber(costOverview.summary.total_tokens)}
+                    </div>
+                  </Card>
+                  <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(255, 77, 79, 0.2)", padding: 20 }}>
+                    <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>总成本</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: "#ff4d4f" }}>
+                      ¥{costOverview.summary.total_cost.toFixed(4)}
+                    </div>
+                  </Card>
+                  <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(82, 196, 26, 0.2)", padding: 20 }}>
+                    <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>总收入</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: "#52c41a" }}>
+                      ¥{costOverview.summary.total_sale.toFixed(4)}
+                    </div>
+                  </Card>
+                  <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(250, 173, 20, 0.2)", padding: 20 }}>
+                    <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>总利润</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: "#faad14" }}>
+                      ¥{costOverview.summary.total_profit.toFixed(4)}
+                    </div>
+                  </Card>
+                  <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(250, 173, 20, 0.2)", padding: 20 }}>
+                    <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>利润率</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: "#faad14" }}>
+                      {costOverview.summary.profit_margin.toFixed(2)}%
+                    </div>
+                  </Card>
+                </div>
+
+                {/* 按类型统计 */}
+                <div style={{ marginTop: 24 }}>
+                  <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>按类型统计</h4>
+                  <Table
+                    rowKey="key"
+                    columns={[
+                      { title: "类型", dataIndex: "type", width: 150 },
+                      { title: "调用次数", dataIndex: "count", width: 120 },
+                      { title: "输入Tokens", dataIndex: "input_tokens", width: 150, render: (val) => formatNumber(val) },
+                      { title: "输出Tokens", dataIndex: "output_tokens", width: 150, render: (val) => formatNumber(val) },
+                      { title: "总Tokens", dataIndex: "total_tokens", width: 150, render: (val) => formatNumber(val) },
+                      { title: "成本", dataIndex: "cost", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                      { title: "收入", dataIndex: "sale", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                      { title: "利润", dataIndex: "profit", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                      { title: "利润率", dataIndex: "profit_margin", width: 100, render: (val) => `${val.toFixed(2)}%` },
+                      { title: "平均成本/次", dataIndex: "avg_cost", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                      { title: "平均收入/次", dataIndex: "avg_sale", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                    ]}
+                    data={Object.entries(costOverview.by_type).map(([type, data]) => ({
+                      key: type,
+                      type: type === "image" ? "分析+图像生成" : type === "video" ? "分析+视频生成" : type,
+                      ...data,
+                      avg_cost: data.avg_cost_per_record,
+                      avg_sale: data.avg_sale_per_record,
+                    }))}
+                    pagination={false}
+                    border={{ wrapper: true, cell: true }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 按用户统计 */}
+            <div style={{ marginTop: 24 }}>
+              <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>按用户统计</h4>
+              <Table
+                rowKey="user_id"
+                columns={[
+                  { title: "用户ID", dataIndex: "user_id", width: 100 },
+                  { title: "用户名", dataIndex: "username", width: 150 },
+                  { title: "邮箱", dataIndex: "email", width: 200 },
+                  { title: "调用次数", dataIndex: "total_records", width: 120 },
+                  { title: "总Tokens", dataIndex: "total_tokens", width: 150, render: (val) => formatNumber(val) },
+                  { title: "成本", dataIndex: "total_cost", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                  { title: "收入", dataIndex: "total_sale", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                  { title: "利润", dataIndex: "total_profit", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                  { title: "利润率", dataIndex: "profit_margin", width: 100, render: (val) => `${val.toFixed(2)}%` },
+                ]}
+                data={costByUser}
+                loading={costLoading}
+                pagination={{
+                  current: costByUserPage,
+                  pageSize: 50,
+                  total: costByUserTotal,
+                  onChange: (page) => {
+                    setCostByUserPage(page);
+                    loadCostData();
+                  },
+                }}
+                border={{ wrapper: true, cell: true }}
+              />
+            </div>
+
+            {/* 详细记录 */}
+            <div style={{ marginTop: 24 }}>
+              <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>详细成本记录</h4>
+              <Table
+                rowKey="id"
+                columns={[
+                  { title: "ID", dataIndex: "id", width: 80 },
+                  { title: "用户", dataIndex: "username", width: 120 },
+                  { title: "类型", dataIndex: "usage_type", width: 120, render: (val) => val === "image" ? "图像生成" : val === "video" ? "视频生成" : val || "-" },
+                  { title: "API端点", dataIndex: "api_endpoint", width: 200, ellipsis: true },
+                  { title: "输入Tokens", dataIndex: "input_tokens", width: 120, render: (val) => formatNumber(val || 0) },
+                  { title: "输出Tokens", dataIndex: "output_tokens", width: 120, render: (val) => formatNumber(val || 0) },
+                  { title: "总Tokens", dataIndex: "total_tokens", width: 120, render: (val) => formatNumber(val || 0) },
+                  { title: "成本", dataIndex: "cost", width: 100, render: (val) => `¥${(val || 0).toFixed(4)}` },
+                  { title: "收入", dataIndex: "sale", width: 100, render: (val) => `¥${(val || 0).toFixed(4)}` },
+                  { title: "利润", dataIndex: "profit", width: 100, render: (val) => `¥${(val || 0).toFixed(4)}` },
+                  { title: "利润率", dataIndex: "profit_margin", width: 100, render: (val) => `${(val || 0).toFixed(2)}%` },
+                  { title: "状态", dataIndex: "response_status", width: 80, render: (val) => val ? <Tag key={`status-${val}`} color={val >= 400 ? "red" : "green"}>{val}</Tag> : "-" },
+                  { title: "时间", dataIndex: "created_at", width: 180, render: formatDate },
+                ]}
+                data={costDetailed}
+                loading={costLoading}
+                pagination={{
+                  current: costDetailedPage,
+                  pageSize: 50,
+                  total: costDetailedTotal,
+                  onChange: (page) => {
+                    setCostDetailedPage(page);
+                    loadCostData();
+                  },
+                }}
+                border={{ wrapper: true, cell: true }}
+              />
+            </div>
           </div>
         </Tabs.TabPane>
         </Tabs>
@@ -1052,10 +1559,18 @@ const AdminPanel: React.FC = () => {
                     uncheckedText="否"
                   />
                 </Form.Item>
-                <Form.Item label="剩余使用次数">
+                <Form.Item label="免费Token">
                   <InputNumber
-                    value={editForm.free_usage_count}
-                    onChange={(val) => setEditForm({ ...editForm, free_usage_count: val })}
+                    value={editForm.free_tokens}
+                    onChange={(val) => setEditForm({ ...editForm, free_tokens: val })}
+                    min={0}
+                    style={{ width: "100%" }}
+                  />
+                </Form.Item>
+                <Form.Item label="付费Token余额">
+                  <InputNumber
+                    value={editForm.token_balance}
+                    onChange={(val) => setEditForm({ ...editForm, token_balance: val })}
                     min={0}
                     style={{ width: "100%" }}
                   />
@@ -1096,13 +1611,15 @@ const AdminPanel: React.FC = () => {
                   {
                     label: "角色",
                     value: (
-                      <Space>
-                        {selectedUser.is_admin && <Tag color="blue">管理员</Tag>}
-                        {selectedUser.is_vip && <Tag color="gold">VIP</Tag>}
+                      <Space key={`role-${selectedUser.id}`}>
+                        {selectedUser.is_admin && <Tag key="admin" color="blue">管理员</Tag>}
+                        {selectedUser.is_vip && <Tag key="vip" color="gold">VIP</Tag>}
                       </Space>
                     ),
                   },
-                  { label: "剩余次数", value: selectedUser.free_usage_count },
+                  { label: "免费Token", value: selectedUser.free_tokens?.toLocaleString() || 0 },
+                  { label: "付费Token余额", value: selectedUser.token_balance?.toLocaleString() || 0 },
+                  { label: "总Token余额", value: ((selectedUser.free_tokens || 0) + (selectedUser.token_balance || 0)).toLocaleString() },
                   { label: "总使用次数", value: selectedUser.total_usage_count },
                   {
                     label: "Token消耗",

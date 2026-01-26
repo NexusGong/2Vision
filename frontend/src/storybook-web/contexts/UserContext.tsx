@@ -44,19 +44,25 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
 
     try {
+      setLoading(true);
       const userData = await getCurrentUser();
       setUser(userData);
     } catch (error) {
       console.error("获取用户信息失败:", error);
       setUser(null);
-      localStorage.removeItem("token");
+      setUsageStats(null);
+      // 只有在401错误时才清除token，其他错误可能是网络问题
+      if (error instanceof Error && error.message.includes("登录已过期")) {
+        localStorage.removeItem("token");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const refreshUsage = async () => {
-    if (!user) {
+    const token = localStorage.getItem("token");
+    if (!token) {
       setUsageStats(null);
       return;
     }
@@ -66,11 +72,19 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setUsageStats(stats);
     } catch (error) {
       console.error("获取使用统计失败:", error);
+      setUsageStats(null);
     }
   };
 
   useEffect(() => {
-    refreshUser();
+    // 初始化时检查token，如果有token则刷新用户信息
+    const token = localStorage.getItem("token");
+    if (token) {
+      refreshUser();
+    } else {
+      // 没有token时直接设置loading为false
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

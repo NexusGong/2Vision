@@ -262,10 +262,24 @@ class ArkClient:
                     logger.info(f"创建视频生成任务，模型: {model}, prompt长度: {len(prompt)}")
                     logger.debug(f"请求参数: model={model}, content={content}")
                     
+                    # 检查prompt是否包含特殊字符或格式问题
+                    if len(prompt) > 2000:
+                        logger.warning(f"视频prompt较长 ({len(prompt)}字符)，可能影响生成效果")
+                    
                     response = self.client.content_generation.tasks.create(
                         model=model,
                         content=content
                     )
+                    
+                    # 记录响应信息以便调试
+                    if hasattr(response, '__dict__'):
+                        logger.debug(f"创建任务响应对象属性: {list(response.__dict__.keys())}")
+                    try:
+                        response_str = str(response)
+                        if len(response_str) < 500:
+                            logger.debug(f"创建任务响应内容: {response_str}")
+                    except:
+                        pass
                     
                     result = {"status": "success", "task_id": None}
                     
@@ -545,9 +559,56 @@ class ArkClient:
                             result.get("progress", 0)
                         )
                     
+                    # 提取错误信息（如果任务失败）
+                    if result.get("status") == "failed":
+                        error_message = None
+                        # 尝试从响应中提取错误信息
+                        if hasattr(response, 'error'):
+                            if isinstance(response.error, dict):
+                                error_message = response.error.get('message') or response.error.get('detail')
+                            elif hasattr(response.error, 'message'):
+                                error_message = response.error.message
+                        elif hasattr(response, 'message'):
+                            error_message = response.message
+                        elif isinstance(response, dict):
+                            error_data = response.get('error') or response.get('error_message') or response.get('message')
+                            if isinstance(error_data, dict):
+                                error_message = error_data.get('message') or error_data.get('detail')
+                            else:
+                                error_message = error_data
+                        
+                        if error_message:
+                            result["error"] = error_message
+                            logger.error(f"视频任务失败，错误信息: {error_message}")
+                        else:
+                            # 记录响应的详细信息以便调试
+                            logger.warning(f"视频任务失败，但未找到错误信息。响应对象类型: {type(response)}")
+                            if hasattr(response, '__dict__'):
+                                logger.debug(f"响应对象属性: {list(response.__dict__.keys())}")
+                            # 尝试将响应转换为字符串（如果可能）
+                            try:
+                                response_str = str(response)
+                                if len(response_str) < 500:  # 只记录较短的响应
+                                    logger.debug(f"响应内容: {response_str}")
+                            except:
+                                pass
+                    
                     # 只在状态变化或完成时输出日志，减少重复日志
                     if result.get("status") in ["completed", "failed"]:
-                        logger.info(f"查询视频任务完成，状态: {result['status']}, video_url: {'已提取' if result.get('video_url') else '未找到'}")
+                        if result.get("status") == "failed":
+                            error_info = f"，错误: {result.get('error')}" if result.get("error") else "，未找到错误信息"
+                            logger.error(f"查询视频任务失败，状态: {result['status']}{error_info}")
+                            # 如果失败但没有错误信息，记录完整响应以便调试
+                            if not result.get("error"):
+                                try:
+                                    import json
+                                    response_str = json.dumps(response_data, indent=2, ensure_ascii=False) if isinstance(response_data, dict) else str(response_data)
+                                    if len(response_str) < 1000:  # 只记录较短的响应
+                                        logger.warning(f"完整响应数据: {response_str}")
+                                except:
+                                    logger.warning(f"无法序列化响应数据，类型: {type(response_data)}")
+                        else:
+                            logger.info(f"查询视频任务完成，状态: {result['status']}, video_url: {'已提取' if result.get('video_url') else '未找到'}")
                     else:
                         logger.debug(f"查询视频任务，状态: {result['status']}, video_url: {'已提取' if result.get('video_url') else '未找到'}")
                     return result
@@ -660,12 +721,27 @@ class ArkClient:
                         result["status"] = "completed"
                     elif status_lower == "failed":
                         result["status"] = "failed"
+                        # 提取错误信息
+                        error_data = response_data.get("error") or response_data.get("error_message") or response_data.get("message")
+                        if isinstance(error_data, dict):
+                            result["error"] = error_data.get("message") or error_data.get("detail") or str(error_data)
+                        elif error_data:
+                            result["error"] = str(error_data)
+                        # 如果还没有错误信息，记录完整的响应以便调试
+                        if not result.get("error"):
+                            logger.warning(f"视频任务失败，但响应中未找到错误信息。响应数据: {response_data}")
                     elif status_lower in ["queued", "running", "processing"]:
                         result["status"] = "processing"
                     elif "complete" in status_lower or "success" in status_lower or "done" in status_lower:
                         result["status"] = "completed"
                     elif "fail" in status_lower or "error" in status_lower:
                         result["status"] = "failed"
+                        # 提取错误信息
+                        error_data = response_data.get("error") or response_data.get("error_message") or response_data.get("message")
+                        if isinstance(error_data, dict):
+                            result["error"] = error_data.get("message") or error_data.get("detail") or str(error_data)
+                        elif error_data:
+                            result["error"] = str(error_data)
                     elif "process" in status_lower or "running" in status_lower or "generating" in status_lower:
                         result["status"] = "processing"
                     else:
@@ -680,7 +756,13 @@ class ArkClient:
                 )
             
             # 只在完成或失败时输出日志，减少重复日志
-            if result.get("status") in ["completed", "failed"]:
+            if result.get("status") == "failed":
+                error_info = result.get("error")
+                if error_info:
+                    logger.error(f"视频任务失败，错误信息: {error_info}")
+                else:
+                    logger.error(f"视频任务失败，但未找到错误信息。完整响应: {response_data}")
+            elif result.get("status") in ["completed"]:
                 if result.get("video_url"):
                     logger.info(f"查询视频任务完成，状态: {result['status']}, 已提取视频URL")
                 else:

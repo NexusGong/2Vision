@@ -92,7 +92,8 @@ class UserResponse(BaseModel):
     is_active: bool
     is_admin: bool = False
     is_vip: bool = False
-    free_usage_count: int = 20
+    free_tokens: int = 1250000  # 统一免费token（默认1,250,000 tokens = 图像6次 + 视频3次）
+    token_balance: int = 0  # 统一付费token余额
     total_usage_count: int = 0
     password_set: bool = False  # 是否已设置密码
     

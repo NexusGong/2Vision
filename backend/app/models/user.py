@@ -22,9 +22,13 @@ class User(Base):
     is_admin = Column(Boolean, default=False)  # 是否为管理员
     is_vip = Column(Boolean, default=False)  # 是否为会员
     vip_expires_at = Column(DateTime, nullable=True)  # 会员到期时间
-    free_usage_count = Column(Integer, default=20)  # 剩余免费次数（登录用户默认20次）
     total_usage_count = Column(Integer, default=0)  # 总使用次数
     total_token_used = Column(Integer, default=0)  # 总token消耗
+    
+    # 统一token计费系统
+    free_tokens = Column(Integer, default=1250000)  # 统一免费token（注册用户默认1,250,000 tokens = 图像6次 + 视频3次）
+    token_balance = Column(Integer, default=0)  # 统一付费token余额
+    
     oauth_provider = Column(String(20), nullable=True)  # 第三方登录提供商（wechat/github/google）
     oauth_id = Column(String(100), nullable=True)  # 第三方登录ID
     created_at = Column(DateTime, default=datetime.utcnow)

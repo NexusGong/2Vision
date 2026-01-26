@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Radio, Input } from "@arco-design/web-react";
 import {
   Resolution,
@@ -38,14 +38,18 @@ const ImageConfigGroup: React.FC<{
   onChange?: (val: ImageSizeValue) => void;
   lockRatio?: Ratio;
 }> = ({ value, onChange, lockRatio }) => {
+  // 如果当前选择的是4K，回退到2K（因为已移除4K选项）
+  const currentResolution = value?.resolution && value.resolution !== Resolution.Resolution_4K
+    ? value.resolution
+    : Resolution.Resolution_2K;
+  
   const current: ImageSizeValue = {
-    resolution: value?.resolution ?? Resolution.Resolution_2K,
+    resolution: currentResolution,
     ratio: value?.ratio ?? Ratio.Ratio_9_16,
   };
 
   const resolutionOptions: Resolution[] = [
     Resolution.Resolution_2K,
-    Resolution.Resolution_4K,
   ];
 
   const ratioOptions: Ratio[] = [
@@ -62,6 +66,16 @@ const ImageConfigGroup: React.FC<{
   const wh =
     GenImageResolutionRatio2WHMap[current.resolution]?.[current.ratio] ||
     undefined;
+
+  // 计算token消耗（统一成token消耗，与视频使用相同的token定价）
+  // 图像生成总成本：1.21179元（文本分析0.01179元 + 图片生成1.2元）
+  // 按照视频的token成本（0.0158元/1000 tokens）转换成等价tokens
+  // 每个分镜等价tokens = 1.21179 / 0.0158 * 1000 = 76,685 tokens
+  const estimatedTokens = useMemo(() => {
+    // 图像生成等价tokens（与视频统一token定价）
+    const totalTokens = 76685;
+    return totalTokens;
+  }, []);
 
   const setResolution = (r: Resolution) => {
     onChange?.({ resolution: r, ratio: current.ratio });
@@ -122,6 +136,20 @@ const ImageConfigGroup: React.FC<{
             value={wh ? String(wh[1]) : ""}
             addBefore={<span className="px-2">H</span>}
           />
+        </div>
+      </div>
+
+      {/* Token消耗提示 */}
+      <div className="mt-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+        <div className="text-xs text-white/60 mb-1">预计消耗</div>
+        <div className="text-base font-semibold text-cyan-400">
+          {estimatedTokens.toLocaleString()} Tokens
+        </div>
+        <div className="text-xs text-white/50 mt-1">
+          根据当前参数：{current.resolution} {current.ratio}
+          {wh && ` (${wh[0]}×${wh[1]})`}
+          <br />
+          等价{estimatedTokens.toLocaleString()} tokens（统一token定价，与视频相同）
         </div>
       </div>
     </div>
