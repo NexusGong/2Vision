@@ -73,12 +73,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ===========================
+# 使用追踪中间件 & 业务路由
+# ===========================
+try:
+    # 使用追踪中间件（用于统计与监控）
+    from app.middleware.usage_tracker import UsageTrackerMiddleware
+
+    app.add_middleware(UsageTrackerMiddleware)
+    logger.info("已加载 UsageTrackerMiddleware")
+except Exception as e:
+    # 中间件加载失败不影响主流程，只记录日志
+    logger.warning(f"加载 UsageTrackerMiddleware 失败: {e}")
+
 # 注册 API 路由（必须在静态文件之前）
 app.include_router(auth.router)
 app.include_router(text.router)
 app.include_router(image.router)
 app.include_router(video.router)
 app.include_router(project.router)
+
+# 注册用户、支付、管理后台相关路由（生产环境也需要）
+try:
+    from app.api import user, payment, admin
+
+    app.include_router(user.router)
+    app.include_router(payment.router)
+    app.include_router(admin.router)
+    logger.info("已注册用户、支付、管理后台路由")
+except Exception as e:
+    logger.error(f"注册用户/支付/管理后台路由失败: {e}")
 
 @app.get("/api/health")
 async def health_check():

@@ -294,28 +294,19 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Optional[Se
         
         logger.info(f"图片生成完成，开始批量下载...")
         
-        # 第二阶段：批量下载所有图片
+        # 第二阶段：整理结果（不再下载到本地，直接使用远程URL）
         image_results = []
-        from app.services.file_storage import download_and_save_image, get_local_url
         
         for i, result in enumerate(generation_results):
             original_url = result.get("original_url", "")
+            # 不再进行本地下载，直接使用原始URL 作为展示用地址
             local_url = original_url
-            
-            if original_url:
-                # 下载并保存图片到本地
-                local_path = await download_and_save_image(original_url)
-                if local_path:
-                    local_url = get_local_url(local_path)
-                    logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
-                else:
-                    logger.warning(f"图片下载失败，使用原始URL: {original_url[:100]}...")
             
             result_item = {
                 "storyboard_index": result.get("storyboard_index"),
                 "storyboard_type": result.get("storyboard_type"),
                 "image_url": local_url,
-                "original_url": original_url,  # 保留原始URL作为备份
+                "original_url": original_url,  # 保留原始URL（与 image_url 一致，用于前端回退逻辑）
                 "text": result.get("text", ""),
                 "title": result.get("title", ""),
                 "is_cover": result.get("is_cover", False)
