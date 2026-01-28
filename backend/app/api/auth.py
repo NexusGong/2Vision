@@ -15,22 +15,16 @@ from app.services.auth import (
     create_user_by_phone,
     create_access_token,
     get_current_user,
-    get_or_create_oauth_user,
     get_user_by_phone,
     set_user_password,
     has_password,
-    verify_password
+    verify_password,
 )
 from app.services.sms import (
     send_verification_code,
     verify_code,
     get_remaining_time,
-    is_valid_phone
-)
-from app.services.oauth import (
-    get_oauth_authorize_url,
-    handle_oauth_callback,
-    generate_state
+    is_valid_phone,
 )
 from app.models.user import User
 import sys
@@ -95,6 +89,7 @@ class UserResponse(BaseModel):
     free_tokens: int = 1250000  # 统一免费token（默认1,250,000 tokens = 图像6次 + 视频3次）
     token_balance: int = 0  # 统一付费token余额
     total_usage_count: int = 0
+    total_token_used: int = 0  # 总已使用token数（用于计算总量）
     password_set: bool = False  # 是否已设置密码
     
     class Config:
@@ -159,106 +154,6 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 async def logout():
     """用户登出（前端删除token即可）"""
     return {"message": "登出成功"}
-
-@router.get("/oauth/{provider}/authorize")
-async def oauth_authorize(
-    provider: str,
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    """
-    生成OAuth授权URL并重定向
-    """
-    if provider not in ["wechat", "github", "google"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="不支持的登录方式"
-        )
-    
-    # 生成state参数，用于防止CSRF攻击
-    state = generate_state()
-    
-    # 将state存储在session或cookie中（这里简化处理，实际应该使用session）
-    # 为了安全，可以将state存储在redis中，并设置过期时间
-    
-    # 生成授权URL
-    try:
-        authorize_url = get_oauth_authorize_url(provider, state)
-        # 将state作为查询参数传递，回调时验证
-        # 注意：生产环境应该使用session存储state
-        return RedirectResponse(url=f"{authorize_url}&state={state}")
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-
-
-@router.get("/oauth/{provider}/callback")
-async def oauth_callback(
-    provider: str,
-    code: str,
-    state: str | None = None,
-    request: Request = None,
-    db: Session = Depends(get_db)
-):
-    """
-    OAuth回调处理端点
-    处理OAuth授权回调，获取用户信息并创建/登录用户
-    """
-    if provider not in ["wechat", "github", "google"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="不支持的登录方式"
-        )
-    
-    if not code:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="缺少授权码"
-        )
-    
-    try:
-        # 处理OAuth回调，获取用户信息
-        oauth_user_info = await handle_oauth_callback(provider, code)
-        
-        # 查找或创建用户
-        user = get_or_create_oauth_user(
-            db=db,
-            provider=provider,
-            oauth_id=oauth_user_info["oauth_id"],
-            email=oauth_user_info["email"],
-            username=oauth_user_info["username"],
-            nickname=oauth_user_info.get("nickname"),
-            avatar=oauth_user_info.get("avatar")
-        )
-        
-        # 生成token
-        access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
-        )
-        
-        # 重定向到前端，并携带token
-        # 前端URL从配置中获取
-        frontend_url = config.FRONTEND_URL
-        redirect_url = f"{frontend_url}/auth/callback?token={access_token}&provider={provider}"
-        
-        return RedirectResponse(url=redirect_url)
-        
-    except ValueError as e:
-        # 邮箱已被注册等业务错误
-        frontend_url = config.FRONTEND_URL
-        error_msg = str(e).replace(" ", "%20")
-        redirect_url = f"{frontend_url}/auth/callback?error={error_msg}"
-        return RedirectResponse(url=redirect_url)
-    except Exception as e:
-        # 其他错误
-        frontend_url = config.FRONTEND_URL
-        error_msg = f"OAuth登录失败: {str(e)}".replace(" ", "%20")
-        redirect_url = f"{frontend_url}/auth/callback?error={error_msg}"
-        return RedirectResponse(url=redirect_url)
-
 
 @router.post("/sms/send")
 async def send_sms_code(request: SmsSendRequest, db: Session = Depends(get_db)):

@@ -246,7 +246,20 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onClose, o
                 </div>
                 <div className={styles["stats-grid"]} style={{ gridTemplateColumns: "1fr" }}>
                   <div className={styles["stat-item"]}>
-                    <div className={styles["stat-value"]}>
+                    <div 
+                      className={styles["stat-value"]} 
+                      title={`${balance.used_tokens.toLocaleString()}/${balance.total_remaining.toLocaleString()}`}
+                      style={{
+                        fontSize: (() => {
+                          // 根据数字长度动态调整字体大小
+                          const text = `${balance.used_tokens.toLocaleString()}/${balance.total_remaining.toLocaleString()}`;
+                          const length = text.length;
+                          if (length > 20) return '16px';
+                          if (length > 15) return '18px';
+                          return '20px';
+                        })()
+                      }}
+                    >
                       {balance.used_tokens.toLocaleString()}/{balance.total_remaining.toLocaleString()}
                     </div>
                     <div className={styles["stat-label"]}>已使用/剩余</div>

@@ -11,7 +11,7 @@ import {
   Divider,
 } from "@arco-design/web-react";
 import { IconCheck, IconCopy } from "@arco-design/web-react/icon";
-import { createPaymentOrder, simulatePayment, type PaymentOrder } from "@/storybook-web/apis/payment";
+import { createPaymentOrder, confirmPayment, type PaymentOrder } from "@/storybook-web/apis/payment";
 import styles from "./index.module.less";
 
 interface PaymentModalProps {
@@ -22,13 +22,6 @@ interface PaymentModalProps {
 
 // 支付方式配置
 const PAYMENT_METHODS = [
-  {
-    id: "simulate",
-    name: "模拟支付",
-    icon: "💳",
-    description: "用于测试，无需真实支付",
-    color: "#576690",
-  },
   {
     id: "alipay",
     name: "支付宝",
@@ -89,10 +82,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     try {
       setLoading(true);
       const plan = PAYMENT_PLANS[selectedPlan];
-      // 先创建订单，支付方式在下一步选择（使用simulate作为占位符）
+      // 先创建订单，支付方式在下一步选择（使用alipay作为占位符）
       const order = await createPaymentOrder({
         quantity: plan.quantity,
-        payment_method: "simulate",
+        payment_method: "alipay",
       });
       setCurrentOrder(order);
       setShowPaymentMethods(true);
@@ -112,15 +105,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     try {
       setLoading(true);
 
-      // 如果是模拟支付，直接完成
-      if (methodId === "simulate") {
-        await simulatePayment(currentOrder.transaction_id);
-        Message.success("支付成功！");
-        setTimeout(() => {
-          onSuccess?.();
-          handleClose();
-        }, 1500);
-      } else if (methodId === "alipay") {
+      if (methodId === "alipay") {
         // 支付宝支付：重新创建订单获取收款码信息
         // 优先使用当前订单的套餐信息（更可靠），如果不存在则使用 selectedPlan
         let planQuantity: number | undefined;
@@ -205,7 +190,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     try {
       setLoading(true);
       // 用户确认已支付，完成订单
-      await simulatePayment(currentOrder.transaction_id);
+      await confirmPayment(currentOrder.transaction_id);
       Message.success("支付确认成功！Token已到账");
       setTimeout(() => {
         onSuccess?.();
@@ -448,7 +433,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   textAlign: "center",
                   boxShadow: "0 2px 8px rgba(255, 107, 107, 0.15)"
                 }}>
-                  ⚠️ 重要：请在支付备注中填写订单号，支付完成后点击下方按钮确认
+                  <div style={{ marginBottom: 8 }}>⚠️ 重要提示：请在支付备注中填写订单号</div>
+                  <div style={{ fontSize: 12, color: "#FF6B6B", fontWeight: 700 }}>
+                    如未正确填写订单号，系统将无法自动识别您的支付，可能导致Token无法到账！
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 12 }}>
+                    支付完成后，请点击下方按钮确认到账
+                  </div>
                 </div>
                 <Button
                   type="primary"

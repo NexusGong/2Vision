@@ -58,7 +58,7 @@ import {
 } from "../../apis/admin";
 import {
   createPaymentOrder,
-  simulatePayment,
+  confirmPayment,
   type PaymentOrder,
 } from "../../apis/payment";
 import type { UserListItem, UsageStats } from "../../apis/admin";
@@ -93,7 +93,7 @@ const AdminPanel: React.FC = () => {
   
   const [paymentTestForm, setPaymentTestForm] = useState({ 
     selectedPlan: 0, // 默认选择第一个套餐（1 Token测试）
-    testMethod: "alipay" as "alipay" | "simulate" // 测试方式：支付宝或模拟
+    testMethod: "alipay" as "alipay" // 测试方式：支付宝
   });
   const [paymentTestOrders, setPaymentTestOrders] = useState<PaymentOrder[]>([]);
   const [paymentTestLoading, setPaymentTestLoading] = useState(false);
@@ -302,12 +302,12 @@ const AdminPanel: React.FC = () => {
       setPaymentTestOrders([order, ...paymentTestOrders]);
       
       // 如果是支付宝订单且有收款码，自动显示收款码
-      if (paymentTestForm.testMethod === "alipay" && order.payment_info) {
+      if (order.payment_info) {
         setSelectedTestOrder(order);
         setShowQRCodeModal(true);
       }
       
-      Message.success(`测试订单创建成功（${paymentTestForm.testMethod === "alipay" ? "支付宝" : "模拟"}支付）`);
+      Message.success("测试订单创建成功（支付宝支付）");
     } catch (error) {
       Message.error(error instanceof Error ? error.message : "创建测试订单失败");
     } finally {
@@ -318,7 +318,7 @@ const AdminPanel: React.FC = () => {
   const handleTestConfirmPayment = async (transactionId: string) => {
     try {
       setPaymentTestLoading(true);
-      await simulatePayment(transactionId);
+      await confirmPayment(transactionId);
       Message.success("支付验证成功！");
       
       // 更新订单状态
@@ -973,7 +973,7 @@ const AdminPanel: React.FC = () => {
             <div style={{ marginBottom: 24 }}>
               <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)" }}>支付测试工具</h3>
               <p style={{ margin: 0, fontSize: 13, color: "rgba(255, 255, 255, 0.4)" }}>
-                用于测试支付流程，支持支付宝收款码测试和模拟支付测试
+                用于测试支付流程，支持支付宝收款码测试
               </p>
             </div>
             
@@ -1001,17 +1001,6 @@ const AdminPanel: React.FC = () => {
                     ))}
                   </Select>
                 </div>
-                <div>
-                  <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.6)" }}>测试方式</label>
-                  <Select
-                    style={{ width: "100%" }}
-                    value={paymentTestForm.testMethod}
-                    onChange={(val) => setPaymentTestForm({ ...paymentTestForm, testMethod: val })}
-                  >
-                    <Select.Option value="alipay">支付宝收款码测试</Select.Option>
-                    <Select.Option value="simulate">模拟支付测试</Select.Option>
-                  </Select>
-                </div>
                 <div style={{ display: "flex", alignItems: "flex-end" }}>
                   <Button
                     type="primary"
@@ -1023,19 +1012,17 @@ const AdminPanel: React.FC = () => {
                   </Button>
                 </div>
               </div>
-              {paymentTestForm.testMethod === "alipay" && (
-                <div style={{ 
-                  marginTop: 16, 
-                  padding: 12, 
-                  background: "rgba(0, 212, 255, 0.1)", 
-                  borderRadius: 8,
-                  fontSize: 12,
-                  color: "rgba(0, 212, 255, 0.8)",
-                  lineHeight: 1.6
-                }}>
-                  💡 支付宝测试：创建订单后会显示收款码，扫码支付后点击"确认支付"按钮测试自动验证功能
-                </div>
-              )}
+              <div style={{ 
+                marginTop: 16, 
+                padding: 12, 
+                background: "rgba(0, 212, 255, 0.1)", 
+                borderRadius: 8,
+                fontSize: 12,
+                color: "rgba(0, 212, 255, 0.8)",
+                lineHeight: 1.6
+              }}>
+                💡 支付宝测试：创建订单后会显示收款码，扫码支付后点击"确认支付"按钮测试自动验证功能
+              </div>
             </div>
 
             {paymentTestOrders.length > 0 && (
@@ -1080,7 +1067,6 @@ const AdminPanel: React.FC = () => {
                       render: (val: string) => {
                         const methods: any = {
                           alipay: { text: "支付宝", color: "blue" },
-                          simulate: { text: "模拟", color: "gray" },
                         };
                         const method = methods[val] || { text: val, color: "gray" };
                         return <Tag color={method.color}>{method.text}</Tag>;
@@ -1127,17 +1113,6 @@ const AdminPanel: React.FC = () => {
                               loading={paymentTestLoading}
                             >
                               确认支付
-                            </Button>
-                          )}
-                          {record.status === "pending" && record.payment_method === "simulate" && (
-                            <Button
-                              key="simulate"
-                              type="text"
-                              size="small"
-                              onClick={() => handleTestConfirmPayment(record.transaction_id)}
-                              loading={paymentTestLoading}
-                            >
-                              完成支付
                             </Button>
                           )}
                         </Space>
@@ -1229,7 +1204,13 @@ const AdminPanel: React.FC = () => {
                   marginBottom: 16,
                   textAlign: "center"
                 }}>
-                  ⚠️ 重要：请在支付备注中填写订单号，支付完成后点击下方按钮测试自动验证
+                  <div style={{ marginBottom: 8 }}>⚠️ 重要提示：请在支付备注中填写订单号</div>
+                  <div style={{ fontSize: 11, color: "#FF6B6B", fontWeight: 700 }}>
+                    如未正确填写订单号，系统将无法自动识别您的支付，可能导致Token无法到账！
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 11 }}>
+                    支付完成后，请点击下方按钮测试自动验证
+                  </div>
                 </div>
                 <Space>
                   <Button
@@ -1353,19 +1334,19 @@ const AdminPanel: React.FC = () => {
                   <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(82, 196, 26, 0.2)", padding: 20 }}>
                     <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>总收入</div>
                     <div style={{ fontSize: 24, fontWeight: 600, color: "#52c41a" }}>
-                      ¥{costOverview.summary.total_sale.toFixed(4)}
+                    ¥{(costOverview.summary.revenue || 0).toFixed(4)}
                     </div>
                   </Card>
                   <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(250, 173, 20, 0.2)", padding: 20 }}>
                     <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>总利润</div>
                     <div style={{ fontSize: 24, fontWeight: 600, color: "#faad14" }}>
-                      ¥{costOverview.summary.total_profit.toFixed(4)}
+                    ¥{(costOverview.summary.profit || 0).toFixed(4)}
                     </div>
                   </Card>
                   <Card style={{ background: "rgba(20, 20, 35, 0.8)", border: "1px solid rgba(250, 173, 20, 0.2)", padding: 20 }}>
                     <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8 }}>利润率</div>
                     <div style={{ fontSize: 24, fontWeight: 600, color: "#faad14" }}>
-                      {costOverview.summary.profit_margin.toFixed(2)}%
+                    {(costOverview.summary.profit_margin || 0).toFixed(2)}%
                     </div>
                   </Card>
                 </div>
@@ -1381,19 +1362,14 @@ const AdminPanel: React.FC = () => {
                       { title: "输入Tokens", dataIndex: "input_tokens", width: 150, render: (val) => formatNumber(val) },
                       { title: "输出Tokens", dataIndex: "output_tokens", width: 150, render: (val) => formatNumber(val) },
                       { title: "总Tokens", dataIndex: "total_tokens", width: 150, render: (val) => formatNumber(val) },
-                      { title: "成本", dataIndex: "cost", width: 120, render: (val) => `¥${val.toFixed(4)}` },
-                      { title: "收入", dataIndex: "sale", width: 120, render: (val) => `¥${val.toFixed(4)}` },
-                      { title: "利润", dataIndex: "profit", width: 120, render: (val) => `¥${val.toFixed(4)}` },
-                      { title: "利润率", dataIndex: "profit_margin", width: 100, render: (val) => `${val.toFixed(2)}%` },
-                      { title: "平均成本/次", dataIndex: "avg_cost", width: 120, render: (val) => `¥${val.toFixed(4)}` },
-                      { title: "平均收入/次", dataIndex: "avg_sale", width: 120, render: (val) => `¥${val.toFixed(4)}` },
+                      { title: "成本", dataIndex: "cost", width: 120, render: (val: number) => `¥${(val || 0).toFixed(4)}` },
+                      { title: "平均成本/次", dataIndex: "avg_cost", width: 140, render: (val: number) => `¥${(val || 0).toFixed(4)}` },
                     ]}
                     data={Object.entries(costOverview.by_type).map(([type, data]) => ({
                       key: type,
                       type: type === "image" ? "分析+图像生成" : type === "video" ? "分析+视频生成" : type,
                       ...data,
                       avg_cost: data.avg_cost_per_record,
-                      avg_sale: data.avg_sale_per_record,
                     }))}
                     pagination={false}
                     border={{ wrapper: true, cell: true }}
@@ -1413,10 +1389,10 @@ const AdminPanel: React.FC = () => {
                   { title: "邮箱", dataIndex: "email", width: 200 },
                   { title: "调用次数", dataIndex: "total_records", width: 120 },
                   { title: "总Tokens", dataIndex: "total_tokens", width: 150, render: (val) => formatNumber(val) },
-                  { title: "成本", dataIndex: "total_cost", width: 120, render: (val) => `¥${val.toFixed(4)}` },
-                  { title: "收入", dataIndex: "total_sale", width: 120, render: (val) => `¥${val.toFixed(4)}` },
-                  { title: "利润", dataIndex: "total_profit", width: 120, render: (val) => `¥${val.toFixed(4)}` },
-                  { title: "利润率", dataIndex: "profit_margin", width: 100, render: (val) => `${val.toFixed(2)}%` },
+                  { title: "成本", dataIndex: "total_cost", width: 120, render: (val: number) => `¥${(val || 0).toFixed(4)}` },
+                  { title: "收入", dataIndex: "revenue", width: 120, render: (val: number) => `¥${(val || 0).toFixed(4)}` },
+                  { title: "利润", dataIndex: "profit", width: 120, render: (val: number) => `¥${(val || 0).toFixed(4)}` },
+                  { title: "利润率", dataIndex: "profit_margin", width: 100, render: (val: number) => `${(val || 0).toFixed(2)}%` },
                 ]}
                 data={costByUser}
                 loading={costLoading}
@@ -1446,10 +1422,7 @@ const AdminPanel: React.FC = () => {
                   { title: "输入Tokens", dataIndex: "input_tokens", width: 120, render: (val) => formatNumber(val || 0) },
                   { title: "输出Tokens", dataIndex: "output_tokens", width: 120, render: (val) => formatNumber(val || 0) },
                   { title: "总Tokens", dataIndex: "total_tokens", width: 120, render: (val) => formatNumber(val || 0) },
-                  { title: "成本", dataIndex: "cost", width: 100, render: (val) => `¥${(val || 0).toFixed(4)}` },
-                  { title: "收入", dataIndex: "sale", width: 100, render: (val) => `¥${(val || 0).toFixed(4)}` },
-                  { title: "利润", dataIndex: "profit", width: 100, render: (val) => `¥${(val || 0).toFixed(4)}` },
-                  { title: "利润率", dataIndex: "profit_margin", width: 100, render: (val) => `${(val || 0).toFixed(2)}%` },
+                  { title: "成本", dataIndex: "cost", width: 100, render: (val: number) => `¥${(val || 0).toFixed(4)}` },
                   { title: "状态", dataIndex: "response_status", width: 80, render: (val) => val ? <Tag key={`status-${val}`} color={val >= 400 ? "red" : "green"}>{val}</Tag> : "-" },
                   { title: "时间", dataIndex: "created_at", width: 180, render: formatDate },
                 ]}

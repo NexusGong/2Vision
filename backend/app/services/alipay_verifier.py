@@ -12,6 +12,14 @@ from config import config
 
 logger = logging.getLogger(__name__)
 
+# 导入监控服务（延迟导入，避免循环依赖）
+try:
+    from app.services.monitor import alert_monitor
+    MONITOR_AVAILABLE = True
+except ImportError:
+    MONITOR_AVAILABLE = False
+    alert_monitor = None
+
 
 class AlipayVerifier:
     """支付宝收款验证器"""
@@ -106,13 +114,32 @@ class AlipayVerifier:
             result = self.query_trade_list(start_time, end_time, page_num=1, page_size=1)
             
             if result is None:
+                # Cookie无效，发送告警
+                if MONITOR_AVAILABLE and alert_monitor:
+                    try:
+                        alert_monitor.check_alipay_cookie(
+                            is_valid=False,
+                            error_message="查询订单列表返回None，Cookie可能已过期"
+                        )
+                    except Exception as monitor_error:
+                        logger.warning(f"发送告警失败: {str(monitor_error)}")
                 return False
             
             # 检查返回结果，如果包含错误信息，说明cookie可能已过期
             if isinstance(result, dict):
                 # 检查是否有错误码
                 if result.get('errorCode') or result.get('error'):
-                    logger.warning(f"Cookie验证失败: {result.get('errorCode')} - {result.get('error')}")
+                    error_msg = f"Cookie验证失败: {result.get('errorCode')} - {result.get('error')}"
+                    logger.warning(error_msg)
+                    # Cookie无效，发送告警
+                    if MONITOR_AVAILABLE and alert_monitor:
+                        try:
+                            alert_monitor.check_alipay_cookie(
+                                is_valid=False,
+                                error_message=error_msg
+                            )
+                        except Exception as monitor_error:
+                            logger.warning(f"发送告警失败: {str(monitor_error)}")
                     return False
                 
                 # 检查是否有权限错误
@@ -122,7 +149,17 @@ class AlipayVerifier:
             return True
             
         except Exception as e:
-            logger.error(f"Cookie有效性检查异常: {str(e)}")
+            error_msg = f"Cookie有效性检查异常: {str(e)}"
+            logger.error(error_msg)
+            # Cookie检查异常，发送告警
+            if MONITOR_AVAILABLE and alert_monitor:
+                try:
+                    alert_monitor.check_alipay_cookie(
+                        is_valid=False,
+                        error_message=error_msg
+                    )
+                except Exception as monitor_error:
+                    logger.warning(f"发送告警失败: {str(monitor_error)}")
             return False
     
     def query_trade_list(
@@ -218,28 +255,43 @@ class AlipayVerifier:
                         status = result.get('status', '')
                         if stat == 'deny' or status == 'deny':
                             target_url = result.get('target', '')
-                            logger.error(
-                                f"支付宝订单查询认证被拒绝: stat={stat}, status={status}"
-                            )
+                            error_msg = f"支付宝订单查询认证被拒绝: stat={stat}, status={status}"
+                            logger.error(error_msg)
                             if target_url:
                                 logger.error(f"需要重新登录，登录URL: {target_url}")
                             logger.error(
                                 "Cookie已过期或无效，请更新ALIPAY_COOKIE配置。"
                                 "请访问支付宝商家中心，登录后获取新的Cookie。"
                             )
+                            # Cookie过期，发送告警
+                            if MONITOR_AVAILABLE and alert_monitor:
+                                try:
+                                    alert_monitor.check_alipay_cookie(
+                                        is_valid=False,
+                                        error_message=f"{error_msg}，登录URL: {target_url if target_url else 'N/A'}"
+                                    )
+                                except Exception as monitor_error:
+                                    logger.warning(f"发送告警失败: {str(monitor_error)}")
                             return None
                         
                         error_code = result.get('errorCode') or result.get('errorCode')
                         error_msg = result.get('error') or result.get('errorMsg') or result.get('message')
                         
                         if error_code:
-                            logger.error(
-                                f"支付宝订单查询返回错误: code={error_code}, "
-                                f"message={error_msg}"
-                            )
-                            # 如果是认证错误，标记cookie可能已过期
+                            error_detail = f"支付宝订单查询返回错误: code={error_code}, message={error_msg}"
+                            logger.error(error_detail)
+                            # 如果是认证错误，标记cookie可能已过期并发送告警
                             if error_code in ['ILLEGAL_ACCESS', 'SESSION_TIMEOUT', 'AUTH_FAILED']:
                                 logger.warning("Cookie可能已过期，请更新ALIPAY_COOKIE配置")
+                                # Cookie过期，发送告警
+                                if MONITOR_AVAILABLE and alert_monitor:
+                                    try:
+                                        alert_monitor.check_alipay_cookie(
+                                            is_valid=False,
+                                            error_message=f"{error_detail} (错误代码: {error_code})"
+                                        )
+                                    except Exception as monitor_error:
+                                        logger.warning(f"发送告警失败: {str(monitor_error)}")
                             return None
                     
                     # 尝试多种可能的数据结构
@@ -339,7 +391,17 @@ class AlipayVerifier:
                     logger.error(f"支付宝订单查询响应解析失败: {str(e)}, 响应内容: {response.text[:200]}")
                     return None
             elif response.status_code == 401 or response.status_code == 403:
-                logger.error(f"支付宝订单查询认证失败: HTTP {response.status_code}, Cookie可能已过期")
+                error_msg = f"支付宝订单查询认证失败: HTTP {response.status_code}, Cookie可能已过期"
+                logger.error(error_msg)
+                # Cookie过期，发送告警
+                if MONITOR_AVAILABLE and alert_monitor:
+                    try:
+                        alert_monitor.check_alipay_cookie(
+                            is_valid=False,
+                            error_message=error_msg
+                        )
+                    except Exception as monitor_error:
+                        logger.warning(f"发送告警失败: {str(monitor_error)}")
                 return None
             else:
                 logger.error(

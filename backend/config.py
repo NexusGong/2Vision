@@ -30,6 +30,8 @@ class Config:
     VIDEO_MODEL_NAME = os.getenv("VIDEO_MODEL_NAME", "doubao-seedance-1-5-pro-251215")
     
     # JWT 配置
+    # 安全要求：生产环境必须通过环境变量设置强随机 SECRET_KEY
+    # 这里仍然提供一个默认值以避免开发环境无法启动，但会在使用默认值时记录警告日志
     SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7天
@@ -56,31 +58,13 @@ class Config:
     VIDEOS_DIR = os.path.join(STORAGE_DIR, "videos")  # 视频存储目录
     STATIC_URL_PREFIX = os.getenv("STATIC_URL_PREFIX", "/static/media")  # 静态文件URL前缀
     
-    # OAuth 配置
-    # GitHub OAuth
-    GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
-    GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
-    GITHUB_REDIRECT_URI = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:8000/api/auth/oauth/github/callback")
-    
-    # Google OAuth
-    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/oauth/google/callback")
-    
-    # 微信 OAuth
-    WECHAT_APP_ID = os.getenv("WECHAT_APP_ID", "")
-    WECHAT_APP_SECRET = os.getenv("WECHAT_APP_SECRET", "")
-    WECHAT_REDIRECT_URI = os.getenv("WECHAT_REDIRECT_URI", "http://localhost:8000/api/auth/oauth/wechat/callback")
-    
-    # 前端URL（用于OAuth回调重定向）
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    
     # 短信服务配置（互亿无线）
     SMS_ENABLED = os.getenv("SMS_ENABLED", "false").lower() == "true"  # 是否启用短信服务
     SMS_ACCOUNT = os.getenv("SMS_ACCOUNT", "")  # APIID
     SMS_PASSWORD = os.getenv("SMS_PASSWORD", "")  # APIKEY
     SMS_TEMPLATE_ID = os.getenv("SMS_TEMPLATE_ID", "1")  # 模板ID，默认使用模板1
     SMS_API_URL = os.getenv("SMS_API_URL", "https://api.ihuyi.com/sms/Submit.json")  # 短信API地址
+    SMS_BALANCE_THRESHOLD = float(os.getenv("SMS_BALANCE_THRESHOLD", "0")) if os.getenv("SMS_BALANCE_THRESHOLD") else None  # 短信余额阈值（条数），低于此值发送告警，0或未设置则不检查
     
     # 支付宝收款码配置（简单方案：使用现有收款码）
     ALIPAY_QR_CODE_URL = os.getenv("ALIPAY_QR_CODE_URL", "")  # 支付宝收款码图片URL（可以是本地路径或网络URL）
@@ -92,6 +76,19 @@ class Config:
     ALIPAY_BILL_USER_ID = os.getenv("ALIPAY_BILL_USER_ID", "")  # 从Cookie中提取的billUserId（可选，如果提供则直接使用）
     ALIPAY_POLLING_INTERVAL = int(os.getenv("ALIPAY_POLLING_INTERVAL", "30"))  # 轮询间隔（秒），默认30秒
     ALIPAY_POLLING_TIMEOUT = int(os.getenv("ALIPAY_POLLING_TIMEOUT", "300"))  # 轮询超时时间（秒），默认5分钟
+    
+    # 邮件告警配置
+    EMAIL_ENABLED = os.getenv("EMAIL_ENABLED", "false").lower() == "true"  # 是否启用邮件告警
+    EMAIL_SMTP_HOST = os.getenv("EMAIL_SMTP_HOST", "")  # SMTP服务器地址
+    EMAIL_SMTP_PORT = int(os.getenv("EMAIL_SMTP_PORT", "587"))  # SMTP端口（默认587，SSL使用465）
+    EMAIL_SMTP_USER = os.getenv("EMAIL_SMTP_USER", "")  # SMTP用户名（通常是邮箱地址）
+    EMAIL_SMTP_PASSWORD = os.getenv("EMAIL_SMTP_PASSWORD", "")  # SMTP密码（或授权码）
+    EMAIL_FROM = os.getenv("EMAIL_FROM", "")  # 发件人邮箱地址
+    EMAIL_TO = os.getenv("EMAIL_TO", "")  # 收件人邮箱地址（支持多个，用逗号分隔）
+    EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"  # 是否使用TLS加密（默认true）
+    
+    # 监控告警配置
+    ALERT_THROTTLE_HOURS = float(os.getenv("ALERT_THROTTLE_HOURS", "1.0"))  # 告警限流时间（小时），同一问题在此时间内最多发送1次告警
 
 config = Config()
 

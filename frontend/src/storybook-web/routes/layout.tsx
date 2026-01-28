@@ -13,7 +13,7 @@
 
 import { Outlet } from "@modern-js/runtime/router";
 import React, { useState, useEffect } from "react";
-import { Button, Dropdown, Avatar } from "@arco-design/web-react";
+import { Dropdown, Avatar } from "@arco-design/web-react";
 import { IconUser, IconSettings, IconPoweroff } from "@arco-design/web-react/icon";
 
 import DynamicBackground from "@/common/components/Background";
@@ -21,6 +21,7 @@ import AuthModal from "@/common/components/AuthModal";
 import UserProfileModal from "@/common/components/UserProfile";
 import PaymentModal from "@/common/components/Payment";
 import { useUser, UserProvider } from "../contexts/UserContext";
+import { ModalProvider, useModal } from "../contexts/ModalContext";
 import { logout, getOrCreateSessionId } from "../apis/auth";
 
 import "@arco-design/web-react/dist/css/arco.min.css";
@@ -29,11 +30,19 @@ import "../styles/global.css";
 import "../styles/cyber-theme.css";
 import "./index.css";
 
-function LayoutContent() {
-  const { user, usageStats, isAuthenticated, refreshUser, refreshUsage } = useUser();
-  const [authModalVisible, setAuthModalVisible] = useState(false);
+function LayoutContent({
+  authModalVisible,
+  setAuthModalVisible,
+  paymentModalVisible,
+  setPaymentModalVisible,
+}: {
+  authModalVisible: boolean;
+  setAuthModalVisible: (visible: boolean) => void;
+  paymentModalVisible: boolean;
+  setPaymentModalVisible: (visible: boolean) => void;
+}) {
+  const { user, isAuthenticated, refreshUser, refreshUsage } = useUser();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
 
   // 初始化session_id（非登录用户）
   useEffect(() => {
@@ -237,9 +246,22 @@ function LayoutContent() {
 }
 
 export default function Layout() {
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+
   return (
     <UserProvider>
-      <LayoutContent />
+      <ModalProvider
+        openAuthModal={() => setAuthModalVisible(true)}
+        openPaymentModal={() => setPaymentModalVisible(true)}
+      >
+        <LayoutContent
+          authModalVisible={authModalVisible}
+          setAuthModalVisible={setAuthModalVisible}
+          paymentModalVisible={paymentModalVisible}
+          setPaymentModalVisible={setPaymentModalVisible}
+        />
+      </ModalProvider>
     </UserProvider>
   );
 }

@@ -177,8 +177,10 @@ const Prompt: React.FC<PromptProps> = ({ data, onSubmit }) => {
   useEffect(() => {
     if (isAuthenticated && user) {
       // 登录用户：获取统一token余额（免费token + 付费token余额）
-      const totalTokens = (user.free_tokens || 0) + (user.token_balance || 0);
-      setRemainingCount(totalTokens);
+      const remainingTokens = (user.free_tokens || 0) + (user.token_balance || 0);
+      // 总量 = 剩余 + 已使用
+      const totalTokens = remainingTokens + (user.total_token_used || 0);
+      setRemainingCount(remainingTokens);
       setTotalCount(totalTokens);
     } else {
       // 匿名用户：计算已使用的token（从localStorage获取）

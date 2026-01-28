@@ -59,6 +59,18 @@
 - **支付系统**：支持支付宝收款码支付，自动验证支付状态
 - **管理面板**：管理员可查看用户统计、使用量统计、收入统计等
 
+### API监控告警系统
+
+- **自动监控**：实时监控API调用状态、Cookie有效性、服务余额等
+- **邮件告警**：当出现问题时自动发送邮件通知（支持QQ邮箱）
+- **监控内容**：
+  - 火山引擎API错误（文本分析、图像生成、视频生成）
+  - 短信服务API错误和余额不足告警
+  - 支付宝Cookie过期检测
+  - 其他关键错误
+- **告警限流**：同一问题在限流时间内最多发送1次告警，避免重复通知
+- **余额监控**：短信余额低于阈值时自动发送告警邮件
+
 ## 技术栈
 
 - **后端**：Python 3.10 + FastAPI + SQLAlchemy + SQLite
@@ -87,8 +99,11 @@
 │   │   ├── services/          # 业务逻辑
 │   │   │   ├── alipay_verifier.py  # 支付宝验证服务
 │   │   │   ├── auth.py             # 认证服务
+│   │   │   ├── email_notifier.py   # 邮件通知服务
 │   │   │   ├── image_generator.py  # 图像生成服务
+│   │   │   ├── monitor.py          # API监控告警服务
 │   │   │   ├── payment_poller.py  # 支付轮询服务
+│   │   │   ├── sms.py              # 短信服务（含余额监控）
 │   │   │   ├── text_analyzer.py    # 文本分析服务
 │   │   │   ├── usage_manager.py   # 使用量管理服务
 │   │   │   └── video_generator.py  # 视频生成服务
@@ -317,6 +332,10 @@ SMS_PASSWORD=your_sms_password
 SMS_TEMPLATE_ID=1
 # 短信API地址（默认互亿无线）
 SMS_API_URL=https://api.ihuyi.com/sms/Submit.json
+# 短信余额阈值（条数），低于此值会发送告警邮件
+# 例如：设置为100表示余额低于100条时发送告警
+# 设置为0或留空则不检查余额
+SMS_BALANCE_THRESHOLD=100
 ```
 
 #### 支付宝支付（可选）
@@ -345,6 +364,37 @@ ALIPAY_POLLING_INTERVAL=30
 # 轮询超时时间（秒），默认300秒（5分钟）
 ALIPAY_POLLING_TIMEOUT=300
 ```
+
+#### 邮件告警配置（可选）
+
+如需启用API监控告警邮件通知（使用QQ邮箱）：
+
+```env
+# 是否启用邮件告警（true/false），false时不会发送告警邮件
+EMAIL_ENABLED=false
+# SMTP服务器地址（QQ邮箱）
+EMAIL_SMTP_HOST=smtp.qq.com
+# SMTP端口（QQ邮箱推荐使用587，如果不可用可尝试465）
+EMAIL_SMTP_PORT=587
+# SMTP用户名（QQ邮箱地址，格式：QQ号@qq.com）
+EMAIL_SMTP_USER=your_qq_number@qq.com
+# SMTP授权码（不是QQ邮箱登录密码！）
+# 获取方法：登录QQ邮箱 -> 设置 -> 账户 -> 开启SMTP服务 -> 生成授权码
+EMAIL_SMTP_PASSWORD=your_qq_authorization_code
+# 发件人邮箱地址（通常与EMAIL_SMTP_USER相同）
+EMAIL_FROM=your_qq_number@qq.com
+# 收件人邮箱地址（支持多个，用逗号分隔）
+EMAIL_TO=your_email@example.com
+# 是否使用TLS加密（true/false）
+# 使用587端口时设置为true，使用465端口时设置为false
+EMAIL_USE_TLS=true
+
+# 监控告警配置
+# 告警限流时间（小时），同一问题在此时间内最多发送1次告警
+ALERT_THROTTLE_HOURS=1.0
+```
+
+**详细配置步骤**：请参考 `backend/MONITORING_SETUP.md`（如果存在）或查看 `.env.example` 文件中的注释说明。
 
 #### 其他配置
 
@@ -550,6 +600,31 @@ pnpm install
 - Cookie 会过期，建议每周更新一次
 - 查看后端日志中的支付宝查询错误信息
 - 确认收款码配置正确
+- 如果配置了邮件告警，Cookie过期时会自动收到告警邮件
+
+### 10. 邮件告警未收到
+
+**问题**：配置了邮件告警但没有收到告警邮件
+
+**解决方案**：
+- 确认 `EMAIL_ENABLED=true`
+- 检查QQ邮箱SMTP配置是否正确（服务器、端口、用户名、授权码）
+- **重要**：`EMAIL_SMTP_PASSWORD` 必须使用授权码，不是QQ邮箱登录密码
+- 确认已开启QQ邮箱的SMTP服务并获取了授权码
+- 检查收件人邮箱地址是否正确（`EMAIL_TO`）
+- 查看后端日志中的邮件发送相关错误信息
+- 检查邮箱的垃圾邮件文件夹
+- 确认防火墙和网络设置允许SMTP连接（587或465端口）
+
+### 11. 短信余额告警
+
+**问题**：如何设置短信余额告警
+
+**解决方案**：
+- 在 `.env` 文件中设置 `SMS_BALANCE_THRESHOLD=100`（或其他数值）
+- 系统会在每次发送短信前自动检查余额
+- 当余额低于阈值时，会自动发送告警邮件（如果已启用邮件告警）
+- 建议设置合理的阈值（如100条），以便及时充值
 
 ## 开发说明
 
@@ -568,8 +643,11 @@ pnpm install
 - `backend/app/services/` - 业务逻辑层，包含核心功能实现
   - `alipay_verifier.py` - 支付宝验证服务
   - `auth.py` - 认证服务（统一认证逻辑）
+  - `email_notifier.py` - 邮件通知服务（API监控告警）
   - `image_generator.py` - 图像生成服务
+  - `monitor.py` - API监控告警服务（错误监控、余额检查、告警限流）
   - `payment_poller.py` - 支付轮询服务
+  - `sms.py` - 短信服务（验证码发送、余额查询和监控）
   - `text_analyzer.py` - 文本分析服务（智能断句、分镜生成）
   - `usage_manager.py` - 使用量管理服务
   - `video_generator.py` - 视频生成服务
@@ -626,6 +704,8 @@ pnpm install
 5. **CORS 配置**：合理配置跨域策略
 6. **错误处理安全**：所有 API 错误返回通用错误消息，不泄露内部错误详情
 7. **数据安全**：localStorage 操作添加错误处理，防止配额溢出
+8. **监控告警**：API错误、Cookie过期、余额不足等问题自动监控并邮件告警
+9. **敏感信息保护**：告警邮件中敏感信息自动脱敏处理
 
 ## 部署
 
@@ -638,6 +718,8 @@ pnpm install
 5. **反向代理**：使用 Nginx 作为反向代理
 6. **进程管理**：使用 systemd 或 supervisor 管理进程
 7. **环境变量**：使用环境变量或密钥管理服务，不要硬编码
+8. **启用监控告警**：配置邮件告警系统，及时了解API错误、Cookie过期、余额不足等问题
+9. **设置合理阈值**：为短信余额等设置合理的告警阈值，避免服务中断
 
 ### 使用生产模式
 
@@ -668,6 +750,8 @@ python -m app.main_prod
 - ✅ **支付系统**：支持支付宝收款码支付，自动验证支付状态
 - ✅ **使用量管理**：基于 Token 的使用量统计和管理
 - ✅ **管理面板**：管理员可查看用户统计、使用量统计、收入统计等
+- ✅ **API监控告警系统**：自动监控API调用、Cookie状态、服务余额，问题发生时自动发送邮件告警
+- ✅ **短信余额监控**：自动查询短信余额，余额不足时自动发送告警邮件
 
 ### 性能优化
 - ✅ 实现指数退避轮询策略，减少服务器压力

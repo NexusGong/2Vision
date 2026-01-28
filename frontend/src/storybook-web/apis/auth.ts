@@ -33,13 +33,8 @@ export interface UserResponse {
   free_tokens: number;  // 统一免费token
   token_balance: number;  // 统一付费token余额
   total_usage_count: number;
+  total_token_used: number;  // 总已使用token数（用于计算总量）
   password_set?: boolean;  // 是否已设置密码
-}
-
-export interface OAuthLoginRequest {
-  provider: string; // github/google
-  code: string;
-  state?: string;
 }
 
 export interface SmsSendRequest {
@@ -192,38 +187,6 @@ export const login = async (data: LoginRequest): Promise<TokenResponse> => {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || "登录失败");
-  }
-
-  return response.json();
-};
-
-/**
- * 跳转到OAuth授权页面
- */
-export const oauthAuthorize = (provider: string): void => {
-  // 直接跳转到后端授权端点，后端会重定向到OAuth提供商
-  window.location.href = `/api/auth/oauth/${provider}/authorize`;
-};
-
-/**
- * 第三方登录（已废弃，使用oauthAuthorize代替）
- * @deprecated 使用 oauthAuthorize 代替
- */
-export const oauthLogin = async (
-  provider: string,
-  data: OAuthLoginRequest
-): Promise<TokenResponse> => {
-  const response = await fetch(`/api/auth/oauth/${provider}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "第三方登录失败");
   }
 
   return response.json();

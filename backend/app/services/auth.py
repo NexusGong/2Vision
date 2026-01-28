@@ -13,6 +13,7 @@ from app.database import get_db
 from app.models.user import User
 import sys
 import os
+import logging
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config import config
@@ -20,16 +21,83 @@ from config import config
 # OAuth2 方案
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
+logger = logging.getLogger(__name__)
+
+
+def _mask_phone(phone: str) -> str:
+    """脱敏手机号：显示前3位和后4位，中间用***代替"""
+    if not phone or len(phone) < 7:
+        return "****"
+    return f"{phone[:3]}***{phone[-4:]}"
+
+
+def _mask_email(email: str) -> str:
+    """脱敏邮箱：显示@前的前2个字符和@后的域名，中间用***代替"""
+    if not email or "@" not in email:
+        return "****"
+    parts = email.split("@", 1)
+    if len(parts) != 2:
+        return "****"
+    username, domain = parts
+    if len(username) <= 2:
+        return f"{username[0]}***@{domain}"
+    return f"{username[:2]}***@{domain}"
+
+
+def _mask_token(token: str, prefix_len: int = 8, suffix_len: int = 4) -> str:
+    """脱敏token：显示前N位和后N位，中间用***代替"""
+    if not token or len(token) <= prefix_len + suffix_len:
+        return "****"
+    return f"{token[:prefix_len]}***{token[-suffix_len:]}"
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         # bcrypt 限制密码长度最多 72 字节，需要截断（与哈希时保持一致）
         password_bytes = plain_password.encode('utf-8')
         if len(password_bytes) > 72:
             password_bytes = password_bytes[:72]
-        # 直接使用 bcrypt 库验证
-        return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
-    except Exception:
+        
+        # bcrypt 哈希值使用 latin-1 编码（ASCII 兼容），而不是 utf-8
+        # 因为 bcrypt 哈希值可能包含不在 UTF-8 范围内的字节
+        if isinstance(hashed_password, str):
+            # 优先使用 latin-1 编码（正确的方式）
+            try:
+                hashed_bytes = hashed_password.encode('latin-1')
+                result = bcrypt.checkpw(password_bytes, hashed_bytes)
+                if result:
+                    logger.debug("密码验证成功（使用 latin-1 编码）")
+                    return True
+                else:
+                    logger.debug("密码验证失败（latin-1 编码）")
+            except (UnicodeEncodeError, ValueError) as e:
+                logger.debug(f"latin-1 编码失败: {e}")
+            
+            # 如果 latin-1 失败，尝试 utf-8（兼容旧数据）
+            try:
+                hashed_bytes = hashed_password.encode('utf-8')
+                result = bcrypt.checkpw(password_bytes, hashed_bytes)
+                if result:
+                    logger.debug("密码验证成功（使用 utf-8 编码，兼容旧数据）")
+                    return True
+                else:
+                    logger.debug("密码验证失败（utf-8 编码）")
+            except (UnicodeEncodeError, ValueError) as e:
+                logger.debug(f"utf-8 编码失败: {e}")
+        else:
+            # 如果已经是字节串，直接使用
+            result = bcrypt.checkpw(password_bytes, hashed_password)
+            if result:
+                logger.debug("密码验证成功（直接使用字节串）")
+            return result
+        
+        logger.debug("所有编码方式都验证失败")
+        return False
+    except Exception as e:
+        logger.error(f"密码验证异常: {type(e).__name__}: {e}", exc_info=True)
         return False
 
 def get_password_hash(password: str) -> str:
@@ -41,7 +109,8 @@ def get_password_hash(password: str) -> str:
     # 直接使用 bcrypt 库生成哈希
     salt = bcrypt.gensalt(rounds=12)
     hashed = bcrypt.hashpw(password_bytes, salt)
-    return hashed.decode('utf-8')
+    # bcrypt 哈希值使用 latin-1 编码存储为字符串（ASCII 兼容）
+    return hashed.decode('latin-1')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """创建访问令牌"""
@@ -142,23 +211,28 @@ def authenticate_user_by_phone(db: Session, phone: str, password: str) -> Option
     logger = logging.getLogger(__name__)
     
     user = get_user_by_phone(db, phone)
+    masked_phone = _mask_phone(phone)
     
     if not user:
-        logger.debug(f"authenticate_user_by_phone: 用户不存在, 手机号={phone[:3]}***{phone[-4:]}")
+        logger.warning(f"authenticate_user_by_phone: 用户不存在, 手机号={masked_phone}")
         return None
     
     # 检查用户是否设置了密码
     if not user.hashed_password:
-        logger.debug(f"authenticate_user_by_phone: 用户未设置密码, 用户ID={user.id}")
+        logger.warning(f"authenticate_user_by_phone: 用户未设置密码, 用户ID={user.id}, 手机号={masked_phone}")
         return None
+    
+    # 记录哈希值的前几个字符用于调试（不记录完整哈希值）
+    hash_prefix = user.hashed_password[:20] if user.hashed_password else "None"
+    logger.info(f"authenticate_user_by_phone: 开始验证密码, 用户ID={user.id}, 哈希前缀={hash_prefix}...")
     
     # 验证密码
     password_valid = verify_password(password, user.hashed_password)
     if not password_valid:
-        logger.debug(f"authenticate_user_by_phone: 密码验证失败, 用户ID={user.id}")
+        logger.warning(f"authenticate_user_by_phone: 密码验证失败, 用户ID={user.id}, 手机号={masked_phone}, 密码长度={len(password)}")
         return None
     
-    logger.debug(f"authenticate_user_by_phone: 密码验证成功, 用户ID={user.id}")
+    logger.info(f"authenticate_user_by_phone: 密码验证成功, 用户ID={user.id}")
     return user
 
 
@@ -187,7 +261,7 @@ def has_password(user: User) -> bool:
     if not user.phone:
         return True
     
-    # 对于手机号注册或OAuth用户，检查password_set标记
+    # 对于手机号注册用户，检查 password_set 标记
     return bool(user.password_set)
 
 async def get_current_user(
@@ -228,80 +302,3 @@ async def get_optional_user(
         return user
     except JWTError:
         return None
-
-def get_user_by_oauth(db: Session, provider: str, oauth_id: str) -> Optional[User]:
-    """根据OAuth提供商和ID获取用户"""
-    return db.query(User).filter(
-        User.oauth_provider == provider,
-        User.oauth_id == oauth_id
-    ).first()
-
-def get_or_create_oauth_user(
-    db: Session,
-    provider: str,
-    oauth_id: str,
-    email: str,
-    username: str,
-    nickname: Optional[str] = None,
-    avatar: Optional[str] = None
-) -> User:
-    """
-    根据OAuth信息查找或创建用户
-    
-    Args:
-        db: 数据库会话
-        provider: OAuth提供商（github/google/wechat）
-        oauth_id: OAuth用户ID
-        email: 用户邮箱
-        username: 用户名
-        nickname: 昵称（可选）
-        avatar: 头像URL（可选）
-    
-    Returns:
-        User对象
-    """
-    # 首先尝试通过OAuth信息查找用户
-    user = get_user_by_oauth(db, provider, oauth_id)
-    
-    if user:
-        # 更新用户信息（昵称、头像等可能会变化）
-        if nickname and nickname != user.nickname:
-            user.nickname = nickname
-        if avatar and avatar != user.avatar:
-            user.avatar = avatar
-        db.commit()
-        db.refresh(user)
-        return user
-    
-    # 如果OAuth用户不存在，检查邮箱是否已被注册（非OAuth方式）
-    existing_user = get_user_by_email(db, email)
-    if existing_user:
-        # 如果邮箱已被注册，但用户想用OAuth登录，可以选择：
-        # 1. 抛出错误（当前实现）
-        # 2. 关联OAuth信息到现有账户（需要用户确认）
-        # 这里采用方案1，要求用户使用邮箱登录
-        raise ValueError(f"该邮箱已被注册，请使用邮箱登录")
-    
-    # 检查用户名是否已存在，如果存在则添加后缀
-    original_username = username
-    counter = 1
-    while get_user_by_username(db, username):
-        username = f"{original_username}_{counter}"
-        counter += 1
-    
-    # 创建新用户
-    user = User(
-        username=username,
-        email=email,
-        hashed_password=None,  # OAuth用户没有密码
-        nickname=nickname,
-        avatar=avatar,
-        oauth_provider=provider,
-        oauth_id=oauth_id,
-        free_tokens=1250000,  # 注册用户默认1,250,000 tokens（图像6次 + 视频3次）
-        token_balance=0  # 统一付费token余额
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user

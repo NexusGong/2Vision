@@ -49,9 +49,25 @@ app = FastAPI(
 )
 
 # 添加CORS中间件
+# 安全配置：从环境变量读取允许的来源，生产环境应限制为前端域名
+# 如果 CORS_ORIGINS 环境变量未设置或为 "*"，则允许所有来源（开发模式）
+# 生产环境建议设置为具体的前端域名，如：https://yourdomain.com,https://www.yourdomain.com
+allowed_origins = config.CORS_ORIGINS
+if allowed_origins == ["*"]:
+    # 如果配置为 "*"，检查是否有更具体的配置
+    cors_env = os.getenv("CORS_ORIGINS", "*")
+    if cors_env != "*":
+        allowed_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+    else:
+        # 保持 "*" 以兼容现有配置，但记录警告
+        logger.warning(
+            "CORS配置为允许所有来源（*），生产环境建议限制为具体的前端域名。"
+            "可通过设置 CORS_ORIGINS 环境变量来限制来源。"
+        )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产模式允许所有来源
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

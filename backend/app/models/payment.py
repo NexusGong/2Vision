@@ -17,7 +17,7 @@ class Payment(Base):
     amount = Column(Float, nullable=False)  # 支付金额
     quantity = Column(Integer, nullable=False)  # 购买数量（次数或token）
     status = Column(String(20), default="pending")  # 支付状态（pending/completed/failed）
-    payment_method = Column(String(20), default="simulate")  # 支付方式（simulate/alipay）
+    payment_method = Column(String(20), default="alipay")  # 支付方式（alipay）
     transaction_id = Column(String(100), nullable=True, unique=True, index=True)  # 交易ID
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     completed_at = Column(DateTime, nullable=True)  # 完成时间

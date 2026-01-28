@@ -164,22 +164,29 @@ def record_usage(
     db.add(usage_record)
     
     # 如果是登录用户，更新用户统计并扣除统一token（优先扣除免费token）
+    # 使用行锁防止并发问题
     if user:
-        user.total_usage_count = (user.total_usage_count or 0) + 1
-        user.total_token_used = (user.total_token_used or 0) + token_used
+        # 重新查询用户并加锁（防止并发扣除）
+        locked_user = db.query(User).filter(User.id == user.id).with_for_update().first()
+        if not locked_user:
+            db.rollback()
+            raise ValueError(f"用户不存在: {user.id}")
+        
+        locked_user.total_usage_count = (locked_user.total_usage_count or 0) + 1
+        locked_user.total_token_used = (locked_user.total_token_used or 0) + token_used
         
         # 优先扣除统一免费token，然后扣除统一付费token
-        free_tokens = user.free_tokens or 0
-        paid_tokens = user.token_balance or 0
+        free_tokens = locked_user.free_tokens or 0
+        paid_tokens = locked_user.token_balance or 0
         
         if free_tokens >= token_used:
             # 免费token足够
-            user.free_tokens = free_tokens - token_used
+            locked_user.free_tokens = free_tokens - token_used
         else:
             # 免费token不够，先用完免费token，再扣除付费token
             remaining = token_used - free_tokens
-            user.free_tokens = 0
-            user.token_balance = max(0, paid_tokens - remaining)
+            locked_user.free_tokens = 0
+            locked_user.token_balance = max(0, paid_tokens - remaining)
     
     db.commit()
     db.refresh(usage_record)
@@ -201,7 +208,13 @@ def add_token_balance(db: Session, user: User, tokens: int) -> bool:
     Returns:
         是否成功
     """
-    user.token_balance = (user.token_balance or 0) + tokens
+    # 使用行锁防止并发问题
+    locked_user = db.query(User).filter(User.id == user.id).with_for_update().first()
+    if not locked_user:
+        db.rollback()
+        raise ValueError(f"用户不存在: {user.id}")
+    
+    locked_user.token_balance = (locked_user.token_balance or 0) + tokens
     db.commit()
     logger.info(f"为用户 {user.id} 增加 {tokens} tokens（统一token）")
     return True
@@ -316,22 +329,29 @@ def record_detailed_usage(
     db.add(usage_record)
     
     # 如果是登录用户，更新用户统计并扣除token（优先扣除免费token）
+    # 使用行锁防止并发问题
     if user:
-        user.total_usage_count = (user.total_usage_count or 0) + 1
-        user.total_token_used = (user.total_token_used or 0) + final_total_tokens
+        # 重新查询用户并加锁（防止并发扣除）
+        locked_user = db.query(User).filter(User.id == user.id).with_for_update().first()
+        if not locked_user:
+            db.rollback()
+            raise ValueError(f"用户不存在: {user.id}")
+        
+        locked_user.total_usage_count = (locked_user.total_usage_count or 0) + 1
+        locked_user.total_token_used = (locked_user.total_token_used or 0) + final_total_tokens
         
         # 优先扣除统一免费token，然后扣除统一付费token
-        free_tokens = user.free_tokens or 0
-        paid_tokens = user.token_balance or 0
+        free_tokens = locked_user.free_tokens or 0
+        paid_tokens = locked_user.token_balance or 0
         
         if free_tokens >= final_total_tokens:
             # 免费token足够
-            user.free_tokens = free_tokens - final_total_tokens
+            locked_user.free_tokens = free_tokens - final_total_tokens
         else:
             # 免费token不够，先用完免费token，再扣除付费token
             remaining = final_total_tokens - free_tokens
-            user.free_tokens = 0
-            user.token_balance = max(0, paid_tokens - remaining)
+            locked_user.free_tokens = 0
+            locked_user.token_balance = max(0, paid_tokens - remaining)
     
     db.commit()
     db.refresh(usage_record)

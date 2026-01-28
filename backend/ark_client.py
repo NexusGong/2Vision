@@ -25,6 +25,14 @@ logger = logging.getLogger(__name__)
 
 # 环境变量已在config.py中统一加载，这里不需要重复加载
 
+# 导入监控服务（延迟导入，避免循环依赖）
+try:
+    from app.services.monitor import alert_monitor
+    MONITOR_AVAILABLE = True
+except ImportError:
+    MONITOR_AVAILABLE = False
+    alert_monitor = None
+
 class ArkClient:
     def __init__(self):
         if not ARK_SDK_AVAILABLE:
@@ -111,8 +119,20 @@ class ArkClient:
             return result
             
         except Exception as e:
-            logger.error(f"聊天API失败: {str(e)}")
-            raise Exception(f"聊天API失败: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"聊天API失败: {error_msg}")
+            # 发送告警
+            if MONITOR_AVAILABLE and alert_monitor:
+                try:
+                    alert_monitor.record_api_error(
+                        api_name="火山引擎",
+                        endpoint="chat/completions",
+                        error_message=error_msg,
+                        additional_details={"model": model}
+                    )
+                except Exception as monitor_error:
+                    logger.warning(f"发送告警失败: {str(monitor_error)}")
+            raise Exception(f"聊天API失败: {error_msg}")
     
     def images_generate(
         self,
@@ -154,8 +174,20 @@ class ArkClient:
             return result
             
         except Exception as e:
-            logger.error(f"图片生成失败: {str(e)}")
-            raise Exception(f"图片生成失败: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"图片生成失败: {error_msg}")
+            # 发送告警
+            if MONITOR_AVAILABLE and alert_monitor:
+                try:
+                    alert_monitor.record_api_error(
+                        api_name="火山引擎",
+                        endpoint="images/generate",
+                        error_message=error_msg,
+                        additional_details={"model": model}
+                    )
+                except Exception as monitor_error:
+                    logger.warning(f"发送告警失败: {str(monitor_error)}")
+            raise Exception(f"图片生成失败: {error_msg}")
 
     def images_generate_stream(
         self,
@@ -191,8 +223,20 @@ class ArkClient:
                     yield event.url
                     
         except Exception as e:
-            logger.error(f"流式图片生成失败: {str(e)}")
-            raise Exception(f"流式图片生成失败: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"流式图片生成失败: {error_msg}")
+            # 发送告警
+            if MONITOR_AVAILABLE and alert_monitor:
+                try:
+                    alert_monitor.record_api_error(
+                        api_name="火山引擎",
+                        endpoint="images/generate_stream",
+                        error_message=error_msg,
+                        additional_details={"model": model}
+                    )
+                except Exception as monitor_error:
+                    logger.warning(f"发送告警失败: {str(monitor_error)}")
+            raise Exception(f"流式图片生成失败: {error_msg}")
     
     def videos_create(
         self,
@@ -372,8 +416,33 @@ class ArkClient:
                 try:
                     error_json = response.json()
                     error_msg = error_json.get("error", {}).get("message", error_text) or error_json.get("message", error_text)
+                    error_code = error_json.get("error", {}).get("code") or str(response.status_code)
+                    # 发送告警
+                    if MONITOR_AVAILABLE and alert_monitor:
+                        try:
+                            alert_monitor.record_api_error(
+                                api_name="火山引擎",
+                                endpoint="videos/create",
+                                error_message=f"HTTP {response.status_code}: {error_msg}",
+                                error_code=error_code,
+                                additional_details={"model": model, "url": url}
+                            )
+                        except Exception as monitor_error:
+                            logger.warning(f"发送告警失败: {str(monitor_error)}")
                     raise Exception(f"视频生成API错误 (HTTP {response.status_code}): {error_msg}")
                 except:
+                    # 发送告警
+                    if MONITOR_AVAILABLE and alert_monitor:
+                        try:
+                            alert_monitor.record_api_error(
+                                api_name="火山引擎",
+                                endpoint="videos/create",
+                                error_message=f"HTTP {response.status_code}: {error_text}",
+                                error_code=str(response.status_code),
+                                additional_details={"model": model, "url": url}
+                            )
+                        except Exception as monitor_error:
+                            logger.warning(f"发送告警失败: {str(monitor_error)}")
                     raise Exception(f"视频生成API错误: HTTP {response.status_code} - {error_text}")
             
             response_data = response.json()
@@ -398,17 +467,41 @@ class ArkClient:
             return result
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"创建视频生成任务失败（HTTP错误）: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"创建视频生成任务失败（HTTP错误）: {error_msg}")
             if hasattr(e, 'response') and e.response is not None:
                 try:
                     error_detail = e.response.json()
                     logger.error(f"错误详情: {error_detail}")
                 except:
                     logger.error(f"响应内容: {e.response.text}")
-            raise Exception(f"创建视频生成任务失败: {str(e)}")
+            # 发送告警
+            if MONITOR_AVAILABLE and alert_monitor:
+                try:
+                    alert_monitor.record_api_error(
+                        api_name="火山引擎",
+                        endpoint="videos/create",
+                        error_message=f"HTTP请求异常: {error_msg}",
+                        additional_details={"model": model}
+                    )
+                except Exception as monitor_error:
+                    logger.warning(f"发送告警失败: {str(monitor_error)}")
+            raise Exception(f"创建视频生成任务失败: {error_msg}")
         except Exception as e:
-            logger.error(f"创建视频生成任务失败: {str(e)}")
-            raise Exception(f"创建视频生成任务失败: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"创建视频生成任务失败: {error_msg}")
+            # 发送告警
+            if MONITOR_AVAILABLE and alert_monitor:
+                try:
+                    alert_monitor.record_api_error(
+                        api_name="火山引擎",
+                        endpoint="videos/create",
+                        error_message=error_msg,
+                        additional_details={"model": model}
+                    )
+                except Exception as monitor_error:
+                    logger.warning(f"发送告警失败: {str(monitor_error)}")
+            raise Exception(f"创建视频生成任务失败: {error_msg}")
     
     def videos_get(
         self,
@@ -651,8 +744,33 @@ class ArkClient:
                 try:
                     error_json = response.json()
                     error_msg = error_json.get("error", {}).get("message", error_text) or error_json.get("message", error_text)
+                    error_code = error_json.get("error", {}).get("code") or str(response.status_code)
+                    # 发送告警
+                    if MONITOR_AVAILABLE and alert_monitor:
+                        try:
+                            alert_monitor.record_api_error(
+                                api_name="火山引擎",
+                                endpoint="videos/get",
+                                error_message=f"HTTP {response.status_code}: {error_msg}",
+                                error_code=error_code,
+                                additional_details={"task_id": task_id, "url": url}
+                            )
+                        except Exception as monitor_error:
+                            logger.warning(f"发送告警失败: {str(monitor_error)}")
                     raise Exception(f"查询视频任务API错误 (HTTP {response.status_code}): {error_msg}")
                 except:
+                    # 发送告警
+                    if MONITOR_AVAILABLE and alert_monitor:
+                        try:
+                            alert_monitor.record_api_error(
+                                api_name="火山引擎",
+                                endpoint="videos/get",
+                                error_message=f"HTTP {response.status_code}: {error_text}",
+                                error_code=str(response.status_code),
+                                additional_details={"task_id": task_id, "url": url}
+                            )
+                        except Exception as monitor_error:
+                            logger.warning(f"发送告警失败: {str(monitor_error)}")
                     raise Exception(f"查询视频任务API错误: HTTP {response.status_code} - {error_text}")
             
             response_data = response.json()
@@ -771,15 +889,39 @@ class ArkClient:
             return result
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"查询视频生成任务失败（HTTP错误）: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"查询视频生成任务失败（HTTP错误）: {error_msg}")
             if hasattr(e, 'response') and e.response is not None:
                 try:
                     error_detail = e.response.json()
                     logger.error(f"错误详情: {error_detail}")
                 except:
                     logger.error(f"响应内容: {e.response.text}")
-            raise Exception(f"查询视频生成任务失败: {str(e)}")
+            # 发送告警
+            if MONITOR_AVAILABLE and alert_monitor:
+                try:
+                    alert_monitor.record_api_error(
+                        api_name="火山引擎",
+                        endpoint="videos/get",
+                        error_message=f"HTTP请求异常: {error_msg}",
+                        additional_details={"task_id": task_id}
+                    )
+                except Exception as monitor_error:
+                    logger.warning(f"发送告警失败: {str(monitor_error)}")
+            raise Exception(f"查询视频生成任务失败: {error_msg}")
         except Exception as e:
-            logger.error(f"查询视频生成任务失败: {str(e)}")
-            raise Exception(f"查询视频生成任务失败: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"查询视频生成任务失败: {error_msg}")
+            # 发送告警
+            if MONITOR_AVAILABLE and alert_monitor:
+                try:
+                    alert_monitor.record_api_error(
+                        api_name="火山引擎",
+                        endpoint="videos/get",
+                        error_message=error_msg,
+                        additional_details={"task_id": task_id}
+                    )
+                except Exception as monitor_error:
+                    logger.warning(f"发送告警失败: {str(monitor_error)}")
+            raise Exception(f"查询视频生成任务失败: {error_msg}")
 

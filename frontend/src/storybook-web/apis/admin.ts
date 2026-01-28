@@ -445,9 +445,9 @@ export interface CostOverview {
     total_output_tokens: number;
     total_tokens: number;
     total_cost: number;
-    total_sale: number;
-    total_profit: number;
-    profit_margin: number;
+    revenue: number;       // 实际收入（用户充值）
+    profit: number;        // 利润 = 收入 - 成本
+    profit_margin: number; // 利润率（%）
   };
   by_type: Record<string, {
     count: number;
@@ -455,11 +455,7 @@ export interface CostOverview {
     output_tokens: number;
     total_tokens: number;
     cost: number;
-    sale: number;
-    profit: number;
-    profit_margin: number;
     avg_cost_per_record: number;
-    avg_sale_per_record: number;
   }>;
 }
 
@@ -508,17 +504,15 @@ export interface CostByUser {
   total_output_tokens: number;
   total_tokens: number;
   total_cost: number;
-  total_sale: number;
-  total_profit: number;
-  profit_margin: number;
+  revenue: number;       // 用户实际充值
+  profit: number;        // 利润 = 收入 - 成本
+  profit_margin: number; // 利润率（%）
   by_type: Record<string, {
     count: number;
     input_tokens: number;
     output_tokens: number;
     total_tokens: number;
     cost: number;
-    sale: number;
-    profit: number;
   }>;
 }
 
@@ -573,9 +567,6 @@ export interface CostDetailed {
   output_tokens: number;
   total_tokens: number;
   cost: number;
-  sale: number;
-  profit: number;
-  profit_margin: number;
   response_status?: number;
   created_at: string;
 }

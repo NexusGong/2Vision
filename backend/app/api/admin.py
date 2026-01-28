@@ -69,70 +69,29 @@ def calculate_token_summary(db: Session, user_id: Optional[int] = None, usage_ty
         "count": int(result.count or 0)
     }
 
-# 成本配置（基于COST_ANALYSIS.md）
-# 使用分档定价：输入0.8元/百万，输出8元/百万
-COST_CONFIG = {
-    "input_price_per_million": 0.8,  # 输入tokens价格（元/百万tokens）
-    "output_price_per_million": 8.0,  # 输出tokens价格（元/百万tokens）
-    "unified_price_per_million": 2.6,  # 统一定价（元/百万tokens，如适用）
-    "use_unified_pricing": False,  # 是否使用统一定价
-}
+# 成本配置
+# 统一token成本：基于售价0.0190元/1000 tokens，利润17%，计算得出成本
+# 成本 = 售价 × (1 - 利润率) = 0.0190 × 0.83 = 0.01577元/1000 tokens
+# 换算：15.77元/百万tokens
+COST_PER_1000_TOKENS = 0.01577  # 成本（元/1000 tokens）
+COST_PER_MILLION_TOKENS = 15.77  # 成本（元/百万tokens）
 
-# 销售价格配置（从payment.py导入逻辑）
-def calculate_sale_price(quantity: int) -> float:
-    """计算销售价格（统一token定价）"""
-    from app.api.payment import calculate_price
-    try:
-        return calculate_price(quantity)
-    except:
-        return 0.0
-
-def calculate_cost(input_tokens: int, output_tokens: int) -> float:
+def calculate_cost_by_tokens(total_tokens: int) -> float:
     """
-    计算成本（基于tokens）
+    计算成本（统一基于total_tokens）
+    
+    所有向火山引擎的请求（文本分析、图像生成、视频生成）都是成本，
+    统一按 total_tokens × 成本单价计算
     
     Args:
-        input_tokens: 输入tokens
-        output_tokens: 输出tokens
+        total_tokens: 总token数
     
     Returns:
         成本（元）
     """
-    if COST_CONFIG["use_unified_pricing"]:
-        total_tokens = input_tokens + output_tokens
-        return total_tokens / 1_000_000 * COST_CONFIG["unified_price_per_million"]
-    else:
-        input_cost = input_tokens / 1_000_000 * COST_CONFIG["input_price_per_million"]
-        output_cost = output_tokens / 1_000_000 * COST_CONFIG["output_price_per_million"]
-        return input_cost + output_cost
-
-def calculate_sale_price_by_usage(mode: str, usage_count: int = 1, total_tokens: int = 0) -> float:
-    """
-    根据使用情况计算销售价格（统一token定价系统）
-    
-    Args:
-        mode: 模式（image/video）
-        usage_count: 使用次数
-        total_tokens: 总tokens
-    
-    Returns:
-        销售价格（元）
-    """
-    if total_tokens > 0:
-        # 统一token定价：0.0190元/1000 tokens（利润17%）
-        unit_price = 0.0190
-        return total_tokens / 1000 * unit_price
-    elif usage_count > 0:
-        # 根据模式估算token消耗
-        if mode == "image":
-            # 图像生成：约76,685 tokens/次
-            estimated_tokens = 76685 * usage_count
-        else:  # video
-            # 视频生成：约263,193 tokens/次（720p 12秒）
-            estimated_tokens = 263193 * usage_count
-        unit_price = 0.0190
-        return estimated_tokens / 1000 * unit_price
-    return 0.0
+    if total_tokens <= 0:
+        return 0.0
+    return total_tokens / 1000 * COST_PER_1000_TOKENS
 
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """要求管理员权限"""
@@ -1241,9 +1200,17 @@ async def get_cost_overview(
         end_dt = datetime.utcnow()
     
     # 构建查询
+    # 只统计“实际有token消耗”的记录：
+    # - total_tokens > 0，或者
+    # - input_tokens / output_tokens 任一大于 0
     query = db.query(UsageRecord).filter(
         UsageRecord.created_at >= start_dt,
-        UsageRecord.created_at <= end_dt
+        UsageRecord.created_at <= end_dt,
+        (
+            (UsageRecord.total_tokens.isnot(None) & (UsageRecord.total_tokens > 0)) |
+            (UsageRecord.input_tokens > 0) |
+            (UsageRecord.output_tokens > 0)
+        )
     )
     
     if usage_type:
@@ -1262,10 +1229,9 @@ async def get_cost_overview(
     actual_revenue_result = payment_query.first()
     actual_revenue = float(actual_revenue_result.total_revenue or 0) if actual_revenue_result else 0.0
     
-    # 按使用类型统计
+    # 按使用类型统计成本和token
     stats_by_type = {}
     total_cost = 0.0
-    total_sale = 0.0  # 理论收入（基于使用记录计算）
     total_input_tokens = 0
     total_output_tokens = 0
     total_tokens = 0
@@ -1279,7 +1245,6 @@ async def get_cost_overview(
                 "output_tokens": 0,
                 "total_tokens": 0,
                 "cost": 0.0,
-                "sale": 0.0,
             }
         
         input_tokens = record.input_tokens or 0
@@ -1287,48 +1252,23 @@ async def get_cost_overview(
         # 优先使用total_tokens，如果没有则计算
         total_record_tokens = record.total_tokens if record.total_tokens and record.total_tokens > 0 else (input_tokens + output_tokens)
         
-        # 计算成本（包含文本分析和生成成本）
-        text_analysis_cost = calculate_cost(input_tokens, output_tokens)
-        
-        # 根据使用类型添加生成成本
-        if usage_type_key == "image":
-            # 图像生成：每次生成6张图片，成本1.2元
-            generation_cost = 6 * 0.2  # 6张 × 0.2元/张
-            cost = text_analysis_cost + generation_cost
-        elif usage_type_key == "video":
-            # 视频生成：720p 12秒有声，token用量259,200，成本4.1472元
-            # token用量 = (1280 × 720 × 24 × 12) / 1024 = 259,200 tokens
-            video_tokens = 259200
-            generation_cost = video_tokens / 1_000_000 * 16.00  # 有声16元/百万token
-            cost = text_analysis_cost + generation_cost
-        else:
-            cost = text_analysis_cost
-        
-        # 计算销售价格（根据使用类型判断mode）
-        mode = "image" if usage_type_key == "image" else "video"
-        sale = calculate_sale_price_by_usage(mode, 1, total_record_tokens)
+        # 统一成本计算：所有向火山引擎的请求都是成本，按 total_tokens × 成本单价
+        cost = calculate_cost_by_tokens(total_record_tokens)
         
         stats_by_type[usage_type_key]["count"] += 1
         stats_by_type[usage_type_key]["input_tokens"] += input_tokens
         stats_by_type[usage_type_key]["output_tokens"] += output_tokens
         stats_by_type[usage_type_key]["total_tokens"] += total_record_tokens
         stats_by_type[usage_type_key]["cost"] += cost
-        stats_by_type[usage_type_key]["sale"] += sale
         
         total_cost += cost
-        total_sale += sale
         total_input_tokens += input_tokens
         total_output_tokens += output_tokens
         total_tokens += total_record_tokens
     
-    # 计算利润
-    # 理论利润（基于使用记录计算的理论收入）
-    theoretical_profit = total_sale - total_cost
-    theoretical_profit_margin = (theoretical_profit / total_sale * 100) if total_sale > 0 else 0
-    
-    # 实际利润（基于实际充值收入）
-    actual_profit = actual_revenue - total_cost
-    actual_profit_margin = (actual_profit / actual_revenue * 100) if actual_revenue > 0 else 0
+    # 计算利润：收入（实际充值）- 成本
+    profit = actual_revenue - total_cost
+    profit_margin = (profit / actual_revenue * 100) if actual_revenue > 0 else 0
     
     return {
         "status": "success",
@@ -1343,15 +1283,9 @@ async def get_cost_overview(
                 "total_output_tokens": total_output_tokens,
                 "total_tokens": total_tokens,
                 "total_cost": round(total_cost, 4),
-                "total_sale": round(total_sale, 4),  # 理论收入（基于使用记录计算）
-                "actual_revenue": round(actual_revenue, 4),  # 实际收入（用户实际充值）
-                "theoretical_profit": round(theoretical_profit, 4),  # 理论利润
-                "theoretical_profit_margin": round(theoretical_profit_margin, 2),  # 理论利润率
-                "actual_profit": round(actual_profit, 4),  # 实际利润
-                "actual_profit_margin": round(actual_profit_margin, 2),  # 实际利润率
-                # 兼容旧字段
-                "total_profit": round(actual_profit, 4),  # 使用实际利润
-                "profit_margin": round(actual_profit_margin, 2),  # 使用实际利润率
+                "revenue": round(actual_revenue, 4),  # 收入（用户实际充值）
+                "profit": round(profit, 4),  # 利润 = 收入 - 成本
+                "profit_margin": round(profit_margin, 2),  # 利润率
             },
             "by_type": {
                 k: {
@@ -1360,11 +1294,7 @@ async def get_cost_overview(
                     "output_tokens": v["output_tokens"],
                     "total_tokens": v["total_tokens"],
                     "cost": round(v["cost"], 4),
-                    "sale": round(v["sale"], 4),
-                    "profit": round(v["sale"] - v["cost"], 4),
-                    "profit_margin": round((v["sale"] - v["cost"]) / v["sale"] * 100, 2) if v["sale"] > 0 else 0,
                     "avg_cost_per_record": round(v["cost"] / v["count"], 4) if v["count"] > 0 else 0,
-                    "avg_sale_per_record": round(v["sale"] / v["count"], 4) if v["count"] > 0 else 0,
                 }
                 for k, v in stats_by_type.items()
             }
@@ -1396,6 +1326,7 @@ async def get_cost_by_user(
         end_dt = datetime.utcnow()
     
     # 构建查询
+    # 只统计有token消耗的记录
     query = db.query(
         UsageRecord.user_id,
         UsageRecord.usage_type,
@@ -1406,7 +1337,12 @@ async def get_cost_by_user(
     ).filter(
         UsageRecord.created_at >= start_dt,
         UsageRecord.created_at <= end_dt,
-        UsageRecord.user_id.isnot(None)
+        UsageRecord.user_id.isnot(None),
+        (
+            (UsageRecord.total_tokens.isnot(None) & (UsageRecord.total_tokens > 0)) |
+            (UsageRecord.input_tokens > 0) |
+            (UsageRecord.output_tokens > 0)
+        )
     )
     
     if user_id:
@@ -1446,7 +1382,6 @@ async def get_cost_by_user(
                 "total_output_tokens": 0,
                 "total_tokens": 0,
                 "total_cost": 0.0,
-                "total_sale": 0.0,
                 "by_type": {}
             }
         
@@ -1456,39 +1391,20 @@ async def get_cost_by_user(
         total_tokens = int(stat.total_tokens or 0)
         count = int(stat.count or 0)
         
-        # 计算成本（包含文本分析和生成成本）
-        text_analysis_cost = calculate_cost(input_tokens, output_tokens)
-        
-        # 根据使用类型添加生成成本
-        if usage_type == "image":
-            # 图像生成：每次生成6张图片，成本1.2元
-            generation_cost = 6 * 0.2 * count  # 6张 × 0.2元/张 × 次数
-            cost = text_analysis_cost + generation_cost
-        elif usage_type == "video":
-            # 视频生成：720p 12秒有声，token用量259,200，成本4.1472元
-            video_tokens = 259200
-            generation_cost = (video_tokens / 1_000_000 * 16.00) * count  # 有声16元/百万token × 次数
-            cost = text_analysis_cost + generation_cost
-        else:
-            cost = text_analysis_cost
-        
-        # 计算销售价格
-        mode = "image" if usage_type == "image" else "video"
-        sale = calculate_sale_price_by_usage(mode, count, total_tokens)
+        # 统一成本计算：所有向火山引擎的请求都是成本，按 total_tokens × 成本单价
+        cost = calculate_cost_by_tokens(total_tokens)
         
         user_data[user_id]["total_records"] += count
         user_data[user_id]["total_input_tokens"] += input_tokens
         user_data[user_id]["total_output_tokens"] += output_tokens
         user_data[user_id]["total_tokens"] += total_tokens
         user_data[user_id]["total_cost"] += cost
-        user_data[user_id]["total_sale"] += sale
         user_data[user_id]["by_type"][usage_type] = {
             "count": count,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "total_tokens": total_tokens,
             "cost": cost,
-            "sale": sale,
         }
     
     # 获取用户信息
@@ -1501,19 +1417,11 @@ async def get_cost_by_user(
     for user_id, data in user_data.items():
         user = user_map.get(user_id)
         # 获取该用户的实际充值收入
-        actual_revenue = user_payment_map.get(user_id, 0.0)
+        revenue = user_payment_map.get(user_id, 0.0)
         
-        # 理论利润（基于使用记录计算）
-        theoretical_profit = data["total_sale"] - data["total_cost"]
-        theoretical_profit_margin = (theoretical_profit / data["total_sale"] * 100) if data["total_sale"] > 0 else 0
-        
-        # 实际利润（基于实际充值收入）
-        actual_profit = actual_revenue - data["total_cost"]
-        actual_profit_margin = (actual_profit / actual_revenue * 100) if actual_revenue > 0 else 0
-        
-        # 兼容旧字段，使用实际利润
-        total_profit = actual_profit
-        profit_margin = actual_profit_margin
+        # 计算利润：收入 - 成本
+        profit = revenue - data["total_cost"]
+        profit_margin = (profit / revenue * 100) if revenue > 0 else 0
         
         result.append({
             "user_id": user_id,
@@ -1524,14 +1432,9 @@ async def get_cost_by_user(
             "total_output_tokens": data["total_output_tokens"],
             "total_tokens": data["total_tokens"],
             "total_cost": round(data["total_cost"], 4),
-            "total_sale": round(data["total_sale"], 4),  # 理论收入（基于使用记录计算）
-            "actual_revenue": round(actual_revenue, 4),  # 实际收入（用户实际充值）
-            "theoretical_profit": round(theoretical_profit, 4),  # 理论利润
-            "theoretical_profit_margin": round(theoretical_profit_margin, 2),  # 理论利润率
-            "actual_profit": round(actual_profit, 4),  # 实际利润
-            "actual_profit_margin": round(actual_profit_margin, 2),  # 实际利润率
-            "total_profit": round(total_profit, 4),  # 兼容旧字段，使用实际利润
-            "profit_margin": round(profit_margin, 2),  # 兼容旧字段，使用实际利润率
+            "revenue": round(revenue, 4),  # 收入（用户实际充值）
+            "profit": round(profit, 4),  # 利润 = 收入 - 成本
+            "profit_margin": round(profit_margin, 2),  # 利润率
             "by_type": {
                 k: {
                     "count": v["count"],
@@ -1539,8 +1442,6 @@ async def get_cost_by_user(
                     "output_tokens": v["output_tokens"],
                     "total_tokens": v["total_tokens"],
                     "cost": round(v["cost"], 4),
-                    "sale": round(v["sale"], 4),
-                    "profit": round(v["sale"] - v["cost"], 4),
                 }
                 for k, v in data["by_type"].items()
             }
@@ -1588,9 +1489,15 @@ async def get_cost_detailed(
         end_dt = datetime.utcnow()
     
     # 构建查询
+    # 只统计有token消耗的记录
     query = db.query(UsageRecord).filter(
         UsageRecord.created_at >= start_dt,
-        UsageRecord.created_at <= end_dt
+        UsageRecord.created_at <= end_dt,
+        (
+            (UsageRecord.total_tokens.isnot(None) & (UsageRecord.total_tokens > 0)) |
+            (UsageRecord.input_tokens > 0) |
+            (UsageRecord.output_tokens > 0)
+        )
     )
     
     if user_id:
@@ -1618,27 +1525,8 @@ async def get_cost_detailed(
         output_tokens = record.output_tokens or 0
         total_tokens = record.total_tokens or (input_tokens + output_tokens)
         
-        # 计算成本（包含文本分析和生成成本）
-        text_analysis_cost = calculate_cost(input_tokens, output_tokens)
-        
-        # 根据使用类型添加生成成本
-        if record.usage_type == "image":
-            # 图像生成：每次生成6张图片，成本1.2元
-            generation_cost = 6 * 0.2  # 6张 × 0.2元/张
-            cost = text_analysis_cost + generation_cost
-        elif record.usage_type == "video":
-            # 视频生成：720p 12秒有声，token用量259,200，成本4.1472元
-            video_tokens = 259200
-            generation_cost = video_tokens / 1_000_000 * 16.00  # 有声16元/百万token
-            cost = text_analysis_cost + generation_cost
-        else:
-            cost = text_analysis_cost
-        
-        # 计算销售价格
-        mode = "image" if record.usage_type == "image" else "video"
-        sale = calculate_sale_price_by_usage(mode, 1, total_tokens)
-        profit = sale - cost
-        profit_margin = (profit / sale * 100) if sale > 0 else 0
+        # 统一成本计算：所有向火山引擎的请求都是成本，按 total_tokens × 成本单价
+        cost = calculate_cost_by_tokens(total_tokens)
         
         user = user_map.get(record.user_id) if record.user_id else None
         
@@ -1651,10 +1539,7 @@ async def get_cost_detailed(
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "total_tokens": total_tokens,
-            "cost": round(cost, 4),
-            "sale": round(sale, 4),
-            "profit": round(profit, 4),
-            "profit_margin": round(profit_margin, 2),
+            "cost": round(cost, 4),  # 成本（基于token）
             "response_status": record.response_status,
             "created_at": record.created_at.isoformat() if record.created_at else None,
         })

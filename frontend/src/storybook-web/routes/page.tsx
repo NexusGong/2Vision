@@ -21,6 +21,8 @@ import React, {
 import { useIsMobile } from "@/common/components/StoryBook/hooks/useMobile";
 import classNames from "classnames";
 import { Layout, Message as ArcoMessage } from "@arco-design/web-react";
+import { useModal } from "../contexts/ModalContext";
+import { useUser } from "../contexts/UserContext";
 import styles from "./page.module.less";
 import Header from "@/common/components/ChatBox/Header";
 import {
@@ -95,6 +97,8 @@ const Index = () => {
   const storyPrintBoxRef = useRef<StoryPrintBoxRef>(null);
   const extraDataRef = useRef<TempData>({});
   const isMobile = useIsMobile(768); // 768px 作为移动端断点
+  const { openAuthModal, openPaymentModal } = useModal();
+  const { isAuthenticated } = useUser();
 
   const [comicsDetail, setComicsDetail] = useState<
     GenerateStoryBookResponse & { index: number; imageList: string[] }
@@ -1060,7 +1064,33 @@ const Index = () => {
           saveGenerationRecord(result, analysisData);
         }
       } catch (e) {
+        // 处理token不足的错误
+        let handled = false;
+        if (e instanceof Error) {
+          const errorMessage = e.message.toLowerCase();
+          // 检查是否是403错误或token不足
+          if (errorMessage.includes("403") || errorMessage.includes("余额不足") || errorMessage.includes("token") || errorMessage.includes("额度不足")) {
+            // 直接处理错误消息
+            if (errorMessage.includes("登录") || errorMessage.includes("免费token额度不足") || errorMessage.includes("请登录")) {
+              if (!isAuthenticated) {
+                openAuthModal();
+                handled = true;
+              }
+            } else if (errorMessage.includes("充值") || errorMessage.includes("token余额不足") || (errorMessage.includes("余额不足") && isAuthenticated)) {
+              if (isAuthenticated) {
+                openPaymentModal();
+                handled = true;
+              }
+            }
+          }
+        }
+        
         replaceMessage(resId, { ...assistantMsg, status: "error" }, historyId);
+        
+        // 如果已处理（弹窗已打开），不显示额外的错误提示
+        if (!handled && e instanceof Error) {
+          console.error("生成失败:", e);
+        }
       }
     },
     [appendMessages, replaceMessage]
@@ -1775,11 +1805,37 @@ const Index = () => {
         data: { analysisData: analysisResult, params: formData },
       }, historyId);
     } catch (e) {
+      // 处理token不足的错误
+      let handled = false;
+      if (e instanceof Error) {
+        const errorMessage = e.message.toLowerCase();
+        // 检查是否是403错误或token不足
+        if (errorMessage.includes("403") || errorMessage.includes("余额不足") || errorMessage.includes("token") || errorMessage.includes("额度不足")) {
+          // 直接处理错误消息
+          if (errorMessage.includes("登录") || errorMessage.includes("免费token额度不足") || errorMessage.includes("请登录")) {
+            if (!isAuthenticated) {
+              openAuthModal();
+              handled = true;
+            }
+          } else if (errorMessage.includes("充值") || errorMessage.includes("token余额不足") || (errorMessage.includes("余额不足") && isAuthenticated)) {
+            if (isAuthenticated) {
+              openPaymentModal();
+              handled = true;
+            }
+          }
+        }
+      }
+      
       replaceMessage(analysisId, {
         ...analysisMsg,
         status: "error",
         data: { params: formData },
       }, historyId);
+      
+      // 如果已处理（弹窗已打开），不显示额外的错误提示
+      if (!handled && e instanceof Error) {
+        console.error("分析失败:", e);
+      }
     }
   };
 

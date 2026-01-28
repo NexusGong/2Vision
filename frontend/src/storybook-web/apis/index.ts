@@ -304,7 +304,17 @@ export const startAsyncAnalysis = async (
   });
 
   if (!response.ok) {
-    throw new Error(`创建分析任务失败: ${response.status}`);
+    // 尝试解析错误详情
+    let errorMessage = `创建分析任务失败: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.detail || errorData.message || errorMessage;
+    } catch {
+      // 如果无法解析JSON，使用默认错误消息
+    }
+    const error = new Error(errorMessage);
+    (error as any).response = { status: response.status, data: { detail: errorMessage } };
+    throw error;
   }
 
   const result = await response.json();
@@ -444,7 +454,17 @@ export const startAsyncGeneration = async (
   });
 
   if (!response.ok) {
-    throw new Error(`创建任务失败: ${response.status}`);
+    // 尝试解析错误详情
+    let errorMessage = `创建任务失败: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.detail || errorData.message || errorMessage;
+    } catch {
+      // 如果无法解析JSON，使用默认错误消息
+    }
+    const error = new Error(errorMessage);
+    (error as any).response = { status: response.status, data: { detail: errorMessage } };
+    throw error;
   }
 
   const result = await response.json();
@@ -695,8 +715,17 @@ export const generateVideo = async (
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || `视频生成失败: ${response.status}`);
+    // 尝试解析错误详情
+    let errorMessage = `视频生成失败: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.detail || errorData.message || errorMessage;
+    } catch {
+      // 如果无法解析JSON，使用默认错误消息
+    }
+    const error = new Error(errorMessage);
+    (error as any).response = { status: response.status, data: { detail: errorMessage } };
+    throw error;
   }
 
   return response.json();

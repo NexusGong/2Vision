@@ -24,7 +24,7 @@ export interface PaymentOrder {
   };
 }
 
-export interface PaymentSimulateRequest {
+export interface PaymentConfirmRequest {
   transaction_id: string;
 }
 
@@ -47,7 +47,7 @@ export const createPaymentOrder = async (
     },
     body: JSON.stringify({
       ...data,
-      payment_method: data.payment_method || "simulate",
+      payment_method: data.payment_method || "alipay",
     }),
   });
 
@@ -60,9 +60,9 @@ export const createPaymentOrder = async (
 };
 
 /**
- * 模拟支付完成
+ * 确认支付完成
  */
-export const simulatePayment = async (
+export const confirmPayment = async (
   transactionId: string
 ): Promise<{ status: string; message: string; payment: PaymentOrder }> => {
   const token = localStorage.getItem("token");
@@ -70,7 +70,7 @@ export const simulatePayment = async (
     throw new Error("未登录");
   }
 
-  const response = await fetch("/api/payment/simulate", {
+  const response = await fetch("/api/payment/confirm", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
