@@ -67,12 +67,13 @@ PRICE_CONFIG = {
     10000000: 190.00,   # 10M tokens 190.00元（图像130次，视频37次）
 }
 
-# 每个套餐对应的收款码图片（相对于storage目录的路径）
+# 每个套餐对应的收款码图片（相对于后端 static 目录的路径）
+# 实际文件建议放在 backend/app/static/qrcode/ 下，并提交到仓库
 QR_CODE_CONFIG = {
-    1: "qrcode/alipay_1.jpg",              # 1 token 测试用
+    1: "qrcode/alipay_1.png",              # 1 token 测试用
     800000: "qrcode/alipay_800k.png",      # 800K tokens
-    1500000: "qrcode/alipay_1.5m.png",     # 1.5M tokens
-    2500000: "qrcode/alipay_2.5m.png",    # 2.5M tokens
+    1500000: "qrcode/alipay_1_5m.png",     # 1.5M tokens
+    2500000: "qrcode/alipay_2_5m.png",     # 2.5M tokens
     4000000: "qrcode/alipay_4m.png",       # 4M tokens
     6000000: "qrcode/alipay_6m.png",       # 6M tokens
     10000000: "qrcode/alipay_10m.png",     # 10M tokens
@@ -163,7 +164,6 @@ async def create_payment_order(
     if request.payment_method == "alipay":
         from config import config
         from pathlib import Path
-        from app.services.file_storage import get_local_url
         
         logger.info(
             f"查找收款码: 订单数量={request.quantity}, 订单金额={amount}, "
@@ -188,11 +188,12 @@ async def create_payment_order(
                 )
         
         if qr_code_path:
-            # 使用套餐对应的收款码
-            storage_dir = Path(__file__).parent.parent.parent / config.STORAGE_DIR
-            qr_path = storage_dir / qr_code_path
+            # 使用套餐对应的收款码（后端静态资源目录 backend/app/static）
+            static_dir = Path(__file__).parent.parent / "static"
+            qr_path = static_dir / qr_code_path
             if qr_path.exists():
-                qr_code_url = get_local_url(qr_code_path)
+                # 对外访问路径与 main_prod.py 中挂载的 /static/assets 保持一致
+                qr_code_url = f"/static/assets/{qr_code_path}"
                 
                 # 验证收款码对应的套餐金额是否匹配
                 expected_price = PRICE_CONFIG.get(request.quantity)

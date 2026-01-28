@@ -15,6 +15,7 @@ import React, { memo, ReactNode, useState } from "react";
 import classNames from "classnames";
 import { Button } from "@arco-design/web-react";
 import { IconEdit } from "@arco-design/web-react/icon";
+import { useUser } from "@/storybook-web/contexts/UserContext";
 
 export interface Message {
   type: "user" | "assistant" | "analysis";
@@ -55,6 +56,10 @@ export const MessageList: React.FC<MessageListProps> = ({
   emptyBox,
   onSuggestionClick,
 }) => {
+  const { user } = useUser();
+  // 简单判断：有付费 token 余额视为“充值过的用户”
+  const hasPaidTokens = !!user && (user.token_balance || 0) > 0;
+
   return (
     <div className={classNames(className, "flex flex-col w-full py-6")}>
       {messages?.length > 0 ? (
@@ -173,6 +178,13 @@ export const MessageList: React.FC<MessageListProps> = ({
                 </span>
               </div>
               
+              {/* 仅对充值过的用户显示的使用问题联系方式 */}
+              {hasPaidTokens && (
+                <div className="mt-4 text-xs text-white/50 text-center">
+                  如有使用问题 请发邮件至 nexusme777@gmail.com
+                </div>
+              )}
+
               {/* 底部空白区域 */}
               <div className="min-h-[32px] flex-1"></div>
             </>

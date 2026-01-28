@@ -93,14 +93,15 @@ app.include_router(image.router)
 app.include_router(video.router)
 app.include_router(project.router)
 
-# 注册用户、支付、管理后台相关路由（生产环境也需要）
+# 注册用户、支付、管理后台及自举路由（生产环境也需要）
 try:
-    from app.api import user, payment, admin
+    from app.api import user, payment, admin, admin_bootstrap
 
     app.include_router(user.router)
     app.include_router(payment.router)
     app.include_router(admin.router)
-    logger.info("已注册用户、支付、管理后台路由")
+    app.include_router(admin_bootstrap.router)
+    logger.info("已注册用户、支付、管理后台及自举路由")
 except Exception as e:
     logger.error(f"注册用户/支付/管理后台路由失败: {e}")
 
@@ -113,12 +114,19 @@ async def health_check():
         "mode": "production"
     }
 
-# 挂载静态资源目录
+# 挂载前端静态资源目录
 if FRONTEND_DIST_DIR.exists():
     static_dir = FRONTEND_DIST_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
         logger.info("已挂载静态资源目录")
+
+# 挂载后端静态资源目录（如收款码等）
+STATIC_ASSETS_DIR = Path(__file__).parent / "static"
+if STATIC_ASSETS_DIR.exists():
+    # 对外统一前缀，供支付等模块生成 URL，例如 /static/assets/qrcode/xxx.png
+    app.mount("/static/assets", StaticFiles(directory=str(STATIC_ASSETS_DIR)), name="assets")
+    logger.info(f"已挂载后端静态资源目录: {STATIC_ASSETS_DIR}")
 
 # 挂载媒体文件目录（图片和视频）
 storage_dir = Path(__file__).parent.parent / config.STORAGE_DIR

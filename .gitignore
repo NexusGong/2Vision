@@ -127,11 +127,6 @@ temp/
 storage/
 backend/storage/
 **/storage/
-# 收款码图片（包含个人信息）
-**/alipay*.jpg
-**/alipay*.png
-**/alipay*.jpeg
-
 # =========================
 # ngrok 本地配置（如果存在）
 # =========================
