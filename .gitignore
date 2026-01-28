@@ -128,8 +128,6 @@ storage/
 backend/storage/
 **/storage/
 # 收款码图片（包含个人信息）
-**/qrcode/
-**/*qrcode*
 **/alipay*.jpg
 **/alipay*.png
 **/alipay*.jpeg
