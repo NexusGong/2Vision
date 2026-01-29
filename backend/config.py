@@ -90,8 +90,15 @@ class Config:
     # 监控告警配置
     ALERT_THROTTLE_HOURS = float(os.getenv("ALERT_THROTTLE_HOURS", "1.0"))  # 告警限流时间（小时），同一问题在此时间内最多发送1次告警
 
-    # 管理员自举配置（用于线上首次创建管理员，使用后建议清空）
+    # 管理员相关配置
+    # 自举 Token：用于通过专门接口提权，使用后建议清空
     ADMIN_BOOTSTRAP_TOKEN = os.getenv("ADMIN_BOOTSTRAP_TOKEN", "")
+    # 初始管理员用户名：用于自动创建/提升管理员（用于用户名/邮箱登录）
+    INITIAL_ADMIN_USERNAME = os.getenv("INITIAL_ADMIN_USERNAME", "")
+    # 初始管理员手机号：用于自动创建/提升管理员（用于手机号登录）
+    INITIAL_ADMIN_PHONE = os.getenv("INITIAL_ADMIN_PHONE", "")
+    # 初始管理员密码：用于自动创建管理员账号或补充设置密码
+    INITIAL_ADMIN_PASSWORD = os.getenv("INITIAL_ADMIN_PASSWORD", "")
 
 config = Config()
 
