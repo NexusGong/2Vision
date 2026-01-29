@@ -479,6 +479,34 @@ html {
   }
 }
 
+/* 顶部用户菜单：固定位置（桌面端） */
+.layout-user-menu {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+}
+
+/* 移动端顶部用户菜单：安全区与下拉宽度 */
+@media (max-width: 768px) {
+  .layout-user-menu {
+    top: max(16px, env(safe-area-inset-top, 16px));
+    right: max(16px, env(safe-area-inset-right, 16px));
+  }
+  .layout-user-menu-droplist {
+    max-width: 90vw;
+    box-sizing: border-box;
+  }
+
+  /* 全局 Arco Modal 兜底：未单独适配的弹窗不超出屏幕 */
+  .arco-modal {
+    max-width: calc(100vw - 24px) !important;
+  }
+  .arco-modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+}
+
 /* 省略号动画 - 保留兼容 */
 @keyframes ellipsis {
   0% { opacity: 0.2; }

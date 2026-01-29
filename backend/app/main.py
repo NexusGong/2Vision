@@ -203,6 +203,12 @@ else:
     app.mount(config.STATIC_URL_PREFIX, StaticFiles(directory=str(storage_dir)), name="media")
     logger.info(f"已创建并挂载媒体文件目录: {storage_dir}")
 
+# 挂载后端静态资源目录（收款码等），开发环境也保持与生产一致
+STATIC_ASSETS_DIR = Path(__file__).parent / "static"
+if STATIC_ASSETS_DIR.exists():
+    app.mount("/static/assets", StaticFiles(directory=str(STATIC_ASSETS_DIR)), name="assets")
+    logger.info(f"已挂载后端静态资源目录: {STATIC_ASSETS_DIR}")
+
 if __name__ == "__main__":
     import uvicorn
     logger.info(f"启动服务，监听地址: {config.API_HOST}:{config.API_PORT}")

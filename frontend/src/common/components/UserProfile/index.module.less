@@ -385,3 +385,42 @@
     color: @cyber-text !important;
   }
 }
+
+// ============================================
+// 移动端适配
+// ============================================
+@media (max-width: 768px) {
+  .user-profile-modal {
+    :global(.arco-modal) {
+      max-width: calc(100vw - 32px) !important;
+      width: 100% !important;
+      max-height: 90vh !important;
+      margin: 16px auto !important;
+    }
+    :global(.arco-modal-body) {
+      overflow-y: auto !important;
+      max-height: calc(90vh - 140px) !important;
+    }
+  }
+  .usage-stats .stat-item {
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-profile-modal {
+    :global(.arco-modal) {
+      max-width: calc(100vw - 24px) !important;
+      margin: 12px auto !important;
+    }
+  }
+  .usage-stats {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+    .stat-item {
+      padding: 14px;
+    }
+  }
+}

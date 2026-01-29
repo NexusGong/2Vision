@@ -842,7 +842,14 @@
   }
 
   .contentArea {
+    flex: 1;
+    min-height: 0;
     border-radius: 12px;
+  }
+
+  .poetryListSection {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .contentHeader {
@@ -913,7 +920,7 @@
   
   // 移动端侧边导航优化
   .sideNav {
-    max-height: 160px;
+    max-height: 180px;
     padding: 4px 0;
   }
   
@@ -939,8 +946,10 @@
     }
   }
   
-  // 移动端内容区优化
+  // 移动端内容区优化：保证诗词列表可见且可滚动
   .contentArea {
+    flex: 1;
+    min-height: 0;
     padding: 12px 14px;
     border-radius: 12px;
   }
@@ -948,10 +957,19 @@
   .contentHeader {
     padding: 10px 12px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
   }
   
   .pathTitle {
     font-size: 13px;
+    flex-wrap: wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .poetryListSection {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   
   // 移动端诗词卡片优化
@@ -973,5 +991,23 @@
       background: rgba(255, 45, 149, 0.15);
       color: @cyber-pink;
     }
+  }
+}
+
+@media (max-width: 480px) {
+  .mainContent {
+    padding: 0 10px 16px;
+  }
+  
+  .poetryGrid {
+    gap: 12px;
+  }
+  
+  .contentArea {
+    padding: 10px 12px;
+  }
+  
+  .cardInner {
+    padding: 12px 14px;
   }
 }

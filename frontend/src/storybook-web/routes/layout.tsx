@@ -111,12 +111,10 @@ function LayoutContent({
       {/* 动态背景组件 */}
       <DynamicBackground />
       
-      {/* 用户菜单栏 - 科技风样式 */}
+      {/* 用户菜单栏 - 科技风样式，位置与安全区见 global.css .layout-user-menu */}
       <div
+        className="layout-user-menu"
         style={{
-          position: "fixed",
-          top: 16,
-          right: 16,
           zIndex: 1000,
           display: "flex",
           gap: 12,
@@ -127,7 +125,7 @@ function LayoutContent({
           <>
             <Dropdown
               droplist={
-                <div className="py-1" style={{ 
+                <div className="layout-user-menu-droplist py-1" style={{ 
                   background: 'rgba(15, 15, 25, 0.95)', 
                   border: '1px solid rgba(0, 212, 255, 0.2)',
                   borderRadius: '12px',

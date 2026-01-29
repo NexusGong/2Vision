@@ -14,8 +14,23 @@
 html,
 body,
 #root {
-  min-width: 500px;
+  min-width: 0;
   height: 100%;
+}
+
+/* 移动端防止横向溢出 */
+body,
+#root {
+  overflow-x: hidden;
+}
+
+/* 桌面端保持最小宽度，避免布局过窄 */
+@media (min-width: 769px) {
+  html,
+  body,
+  #root {
+    min-width: 500px;
+  }
 }
 
 /* 隐藏滚动条 */

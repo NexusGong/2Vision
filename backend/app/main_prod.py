@@ -227,19 +227,18 @@ async def health_check():
         "mode": "production"
     }
 
-# 挂载前端静态资源目录
+# 先挂载后端静态资源目录（收款码等），再挂载前端 /static，否则 /static/assets/* 会被前端吞掉导致 404
+STATIC_ASSETS_DIR = Path(__file__).parent / "static"
+if STATIC_ASSETS_DIR.exists():
+    app.mount("/static/assets", StaticFiles(directory=str(STATIC_ASSETS_DIR)), name="assets")
+    logger.info(f"已挂载后端静态资源目录: {STATIC_ASSETS_DIR}")
+
+# 挂载前端静态资源目录（必须在 /static/assets 之后，避免 /static 优先匹配）
 if FRONTEND_DIST_DIR.exists():
     static_dir = FRONTEND_DIST_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-        logger.info("已挂载静态资源目录")
-
-# 挂载后端静态资源目录（如收款码等）
-STATIC_ASSETS_DIR = Path(__file__).parent / "static"
-if STATIC_ASSETS_DIR.exists():
-    # 对外统一前缀，供支付等模块生成 URL，例如 /static/assets/qrcode/xxx.png
-    app.mount("/static/assets", StaticFiles(directory=str(STATIC_ASSETS_DIR)), name="assets")
-    logger.info(f"已挂载后端静态资源目录: {STATIC_ASSETS_DIR}")
+        logger.info("已挂载前端静态资源目录")
 
 # 挂载媒体文件目录（图片和视频）
 storage_dir = Path(__file__).parent.parent / config.STORAGE_DIR

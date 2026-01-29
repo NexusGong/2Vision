@@ -117,8 +117,12 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
   const handleSelect = useCallback(
     (history: ChatHistory) => {
       onSelectHistory(history);
+      // 移动端：选择后自动收起抽屉
+      if (isMobile) {
+        onCollapse(true);
+      }
     },
-    [onSelectHistory]
+    [onSelectHistory, onCollapse, isMobile]
   );
 
   // 处理新对话
@@ -129,6 +133,26 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
       messages: [],
       timestamp: Date.now(),
     });
+    // 移动端：选择后自动收起抽屉
+    if (isMobile) {
+      onCollapse(true);
+    }
+  };
+
+  // 查看诗词雅集
+  const handleViewPoetry = () => {
+    onViewPoetry?.();
+    if (isMobile) {
+      onCollapse(true);
+    }
+  };
+
+  // 查看墨迹留痕
+  const handleViewGenerations = () => {
+    onViewGenerations?.();
+    if (isMobile) {
+      onCollapse(true);
+    }
   };
 
   return (
@@ -175,7 +199,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
             
             <div 
               className={classNames(styles.navItem, { [styles.active]: isPoetryView })}
-              onClick={() => onViewPoetry?.()}
+              onClick={handleViewPoetry}
             >
               <IconBook className={styles.navIcon} />
               <span>诗词雅集</span>
@@ -183,7 +207,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
             
             <div 
               className={classNames(styles.navItem, { [styles.active]: isGenerationsView })} 
-              onClick={() => onViewGenerations?.()}
+              onClick={handleViewGenerations}
             >
               <IconImage className={styles.navIcon} />
               <span>墨迹留痕</span>

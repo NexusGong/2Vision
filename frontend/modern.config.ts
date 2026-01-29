@@ -20,6 +20,10 @@ export default defineConfig({
   runtime: {
     router: true,
   },
+  // dev.host 用于开发服务器监听地址，与 tools.devServer 不同
+  dev: {
+    host: "0.0.0.0",
+  },
   plugins: [
     appTools({
       bundler: "rspack", // Set to 'webpack' to enable webpack
@@ -34,6 +38,11 @@ export default defineConfig({
           changeOrigin: true,
         },
         "/static/media": {
+          target: "http://127.0.0.1:8000",
+          changeOrigin: true,
+        },
+        // 开发环境代理后端静态资源（含支付收款码）
+        "/static/assets": {
           target: "http://127.0.0.1:8000",
           changeOrigin: true,
         },

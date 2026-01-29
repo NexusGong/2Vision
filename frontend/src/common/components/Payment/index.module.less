@@ -524,3 +524,68 @@
     }
   }
 }
+
+// ============================================
+// 移动端适配
+// ============================================
+@media (max-width: 768px) {
+  .paymentModal {
+    :global(.arco-modal) {
+      max-width: calc(100vw - 32px) !important;
+      width: 100% !important;
+      max-height: 90vh !important;
+      margin: 16px auto !important;
+    }
+    :global(.arco-modal-body) {
+      overflow-y: auto !important;
+      max-height: calc(90vh - 120px) !important;
+    }
+  }
+  .paymentContent {
+    .packageList {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .packageItem {
+      min-width: 0;
+    }
+  }
+  .paymentMethodModal {
+    :global(.arco-modal) {
+      max-width: calc(100vw - 32px) !important;
+      width: 100% !important;
+      max-height: 90vh !important;
+      margin: 16px auto !important;
+    }
+    :global(.arco-modal-body) {
+      overflow-y: auto !important;
+      max-height: calc(90vh - 120px) !important;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .paymentModal {
+    :global(.arco-modal) {
+      max-width: calc(100vw - 24px) !important;
+      margin: 12px auto !important;
+    }
+  }
+  .paymentContent {
+    .packageList {
+      grid-template-columns: 1fr;
+    }
+    .paymentActions {
+      flex-direction: column;
+      :global(.arco-btn) {
+        width: 100%;
+      }
+    }
+  }
+  .paymentMethodModal {
+    :global(.arco-modal) {
+      max-width: calc(100vw - 24px) !important;
+      margin: 12px auto !important;
+    }
+  }
+}
