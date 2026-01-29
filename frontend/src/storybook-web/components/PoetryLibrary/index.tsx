@@ -267,20 +267,21 @@ const PoetryLibrary: React.FC<PoetryLibraryProps> = ({ onBack, onSelectPoetry })
         category = editions[0]?.types[0]?.stages[0]?.grades[0]?.categories[0] || null;
       }
 
+      // 展开状态不恢复：每次进入/返回诗词雅集均为「古诗词」展开、苏教版/部编版不展开，仅恢复选中项
       return {
         type,
         edition,
         stage,
         grade,
         category,
-        expandedType: savedState.expandedType || type?.name || null,
-        expandedEdition: savedState.expandedEdition || edition?.id || null,
+        expandedType: type?.name || null,
+        expandedEdition: null,
         expandedGrade: savedState.expandedGrade || grade?.id || null,
         showCustom: savedState.showCustom || false,
       };
     }
 
-    // 默认值
+    // 默认值：古诗词类型展开（可见苏教版、部编版），但两个版本菜单不展开
     return {
       type: editions[0]?.types[0] || null,
       edition: editions[0] || null,
@@ -288,7 +289,7 @@ const PoetryLibrary: React.FC<PoetryLibraryProps> = ({ onBack, onSelectPoetry })
       grade: editions[0]?.types[0]?.stages[0]?.grades[0] || null,
       category: editions[0]?.types[0]?.stages[0]?.grades[0]?.categories[0] || null,
       expandedType: editions[0]?.types[0]?.name || null,
-      expandedEdition: editions[0]?.id || null,
+      expandedEdition: null,
       expandedGrade: editions[0]?.types[0]?.stages[0]?.grades[0]?.id || null,
       showCustom: false,
     };
@@ -314,7 +315,7 @@ const PoetryLibrary: React.FC<PoetryLibraryProps> = ({ onBack, onSelectPoetry })
   const [expandedEdition, setExpandedEdition] = useState<string | null>(initialState.expandedEdition);
   const [expandedGrade, setExpandedGrade] = useState<string | null>(initialState.expandedGrade);
 
-  // 当选择状态改变时保存到localStorage
+  // 当选择状态改变时保存到 localStorage（不保存展开状态，避免切换页面回来时自动展开）
   useEffect(() => {
     savePoetryLibraryState({
       selectedTypeName: selectedType?.name,
@@ -322,12 +323,10 @@ const PoetryLibrary: React.FC<PoetryLibraryProps> = ({ onBack, onSelectPoetry })
       selectedStageName: selectedStage?.name,
       selectedGradeId: selectedGrade?.id,
       selectedCategoryId: selectedCategory?.id,
-      expandedType,
-      expandedEdition,
       expandedGrade,
       showCustom,
     });
-  }, [selectedType, selectedEdition, selectedStage, selectedGrade, selectedCategory, expandedType, expandedEdition, expandedGrade, showCustom]);
+  }, [selectedType, selectedEdition, selectedStage, selectedGrade, selectedCategory, expandedGrade, showCustom]);
 
   // 搜索结果
   const searchResults = useMemo(() => {

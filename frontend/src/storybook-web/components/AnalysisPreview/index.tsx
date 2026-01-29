@@ -807,8 +807,8 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
             )}
           </div>
 
-          {/* 逐句分析完整内容 - 仅图像模式显示 */}
-          {generationType === "image" && analysisData.line_analysis && analysisData.line_analysis.length > 0 && (
+          {/* 逐句分析完整内容 - 已确认时始终显示，保持生成图像/视频前后一致 */}
+          {analysisData.line_analysis && analysisData.line_analysis.length > 0 && (
             <div className={styles.readonlySection}>
               <h4>逐句分析</h4>
               <div className={styles.lineList}>
@@ -855,8 +855,8 @@ const AnalysisPreview: React.FC<AnalysisPreviewProps> = ({
             </div>
           )}
 
-          {/* 分镜完整内容 - 仅图像模式显示 */}
-          {generationType === "image" && analysisData.storyboards && analysisData.storyboards.length > 0 && (
+          {/* 分镜完整内容 - 已确认时始终显示，保持生成图像/视频前后一致 */}
+          {analysisData.storyboards && analysisData.storyboards.length > 0 && (
             <div className={styles.readonlySection}>
               <h4>分镜列表</h4>
               <div className={styles.storyboardSummary}>

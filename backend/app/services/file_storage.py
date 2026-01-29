@@ -38,12 +38,17 @@ def get_file_extension_from_url(url: str, default: str = "png") -> str:
     return default
 
 
-def generate_filename(url: str, prefix: str = "", suffix: str = "") -> str:
-    """生成文件名（基于URL的哈希值）"""
-    # 使用URL的哈希值作为文件名，避免重复下载
-    url_hash = hashlib.md5(url.encode()).hexdigest()
-    ext = get_file_extension_from_url(url)
+def generate_filename(url: str, prefix: str = "", suffix: str = "", default_ext: str = "png") -> str:
+    """生成文件名（基于URL的哈希值）
     
+    Args:
+        url: 原始URL（用于计算哈希）
+        prefix: 文件名前缀（如 img_、video_）
+        suffix: 文件名后缀
+        default_ext: 当URL中无法解析出扩展名时使用的默认扩展名（如图片用 png，视频用 mp4）
+    """
+    url_hash = hashlib.md5(url.encode()).hexdigest()
+    ext = get_file_extension_from_url(url, default=default_ext)
     filename = f"{prefix}{url_hash}{suffix}.{ext}" if prefix or suffix else f"{url_hash}.{ext}"
     return filename
 
@@ -127,7 +132,7 @@ async def download_and_save_video(video_url: str, project_id: Optional[int] = No
         ensure_storage_dirs()
         
         # 生成文件名
-        filename = generate_filename(video_url, prefix="video_", default="mp4")
+        filename = generate_filename(video_url, prefix="video_", default_ext="mp4")
         
         # 如果指定了项目ID，可以按项目组织文件（可选）
         if project_id:

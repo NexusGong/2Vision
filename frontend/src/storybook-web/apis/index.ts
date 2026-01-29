@@ -36,7 +36,7 @@ export interface EraVisualElements {
   nature: string;
 }
 
-// 诗词基本信息
+// 诗词基本信息（支持古诗、词、古文）
 export interface PoetryInfo {
   title: string;
   author: string;
@@ -45,10 +45,12 @@ export interface PoetryInfo {
   creation_background: string;
   era_background: string;
   poet_mood?: string;
+  /** 体裁：古诗 | 词 | 古文，用于词（上下阕）、古文（段落）等展示 */
+  genre?: "古诗" | "词" | "古文";
   era_visual_elements?: EraVisualElements;
 }
 
-// 逐句分析
+// 逐句分析（支持古诗按句、词按句/阕、古文按句/段）
 export interface LineAnalysis {
   line_number: number;
   line: string;
@@ -60,6 +62,8 @@ export interface LineAnalysis {
   visual_scene?: string;
   action?: string;  // 动作描述（用于视频）
   time_marker?: string;  // 时间标记（用于视频）
+  /** 词的结构标注，如「上阕」「下阕」；古文可为段落标注 */
+  stanza?: string;
 }
 
 // 分镜数据
