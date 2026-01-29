@@ -136,7 +136,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                       3
                     </div>
                     <div className="text-sm font-medium text-white/90 mb-1">生成内容</div>
-                    <div className="text-xs text-white/40 leading-tight">图像或视频，预览下载</div>
+                    <div className="text-xs text-white/40 leading-tight">图像或视频生成</div>
                   </div>
                 </div>
               </div>

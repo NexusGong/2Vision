@@ -3,6 +3,7 @@
 """
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.models.user import User
 from app.models.usage import UsageRecord
 from datetime import datetime
@@ -92,11 +93,14 @@ def get_remaining_tokens(
         return free_tokens + paid_tokens
     elif session_id:
         # 非登录用户：计算已使用的token（所有类型）
-        used_tokens = db.query(UsageRecord).filter(
-            UsageRecord.session_id == session_id
-        ).with_entities(
-            db.func.sum(UsageRecord.total_tokens).label('total')
-        ).scalar() or 0
+        # 注意：这里需要使用 SQLAlchemy 提供的 func，而不是 Session 对象上的属性
+        used_tokens = (
+            db.query(UsageRecord)
+            .filter(UsageRecord.session_id == session_id)
+            .with_entities(func.sum(UsageRecord.total_tokens).label("total"))
+            .scalar()
+            or 0
+        )
         
         # 非登录用户统一免费token额度
         free_tokens = ANONYMOUS_FREE_TOKENS
