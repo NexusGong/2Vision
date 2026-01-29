@@ -164,96 +164,6 @@
     inset 0 0 15px rgba(0, 212, 255, 0.1);
 }
 
-/* 进度数字 */
-.cyber-video-progress-number {
-  display: flex;
-  align-items: baseline;
-  font-family: 'SF Mono', 'Consolas', monospace;
-}
-
-.progress-value {
-  font-size: 48px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #00d4ff, #b14aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
-  line-height: 1;
-}
-
-.progress-percent {
-  font-size: 20px;
-  font-weight: 500;
-  color: rgba(0, 212, 255, 0.6);
-  margin-left: 4px;
-}
-
-/* 状态文字 */
-.cyber-video-status {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
-  font-family: 'SF Mono', 'Consolas', monospace;
-  letter-spacing: 1px;
-  animation: video-status-fade 2s ease-in-out;
-}
-
-.status-bracket {
-  color: #00d4ff;
-  margin: 0 6px;
-}
-
-@keyframes video-status-fade {
-  0% {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  20% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.8;
-  }
-}
-
-/* 波形进度条 */
-.cyber-video-wave-container {
-  width: 100%;
-  max-width: 280px;
-  padding: 0 10px;
-}
-
-.cyber-video-wave {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-  height: 32px;
-}
-
-.wave-bar {
-  width: 6px;
-  background: linear-gradient(180deg, #00d4ff, #b14aed);
-  border-radius: 3px;
-  animation: wave-bar-dance 1s ease-in-out infinite;
-  transition: opacity 0.3s ease;
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
-}
-
-@keyframes wave-bar-dance {
-  0%, 100% {
-    height: 8px;
-  }
-  50% {
-    height: 24px;
-  }
-}
-
 /* 时间和提示信息 */
 .cyber-video-info {
   display: flex;
@@ -287,12 +197,35 @@
   animation: video-tip-blink 3s ease-in-out infinite;
 }
 
+.cyber-video-waiting-text {
+  max-width: 90%;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.cyber-video-waiting-inner {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  animation: video-waiting-scroll 18s linear infinite;
+}
+
 @keyframes video-tip-blink {
   0%, 100% {
     opacity: 0.5;
   }
   50% {
     opacity: 1;
+  }
+}
+
+@keyframes video-waiting-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
   }
 }
 
@@ -349,25 +282,5 @@
   .cyber-video-icon {
     width: 40px;
     height: 40px;
-  }
-
-  .progress-value {
-    font-size: 36px;
-  }
-
-  .progress-percent {
-    font-size: 16px;
-  }
-
-  .cyber-video-status {
-    font-size: 12px;
-  }
-
-  .cyber-video-wave-container {
-    max-width: 220px;
-  }
-
-  .wave-bar {
-    width: 5px;
   }
 }

@@ -14,18 +14,11 @@ interface VideoLoadingProps {
   startTime?: number;
 }
 
-const videoSteps = [
-  "初始化渲染引擎",
-  "分析场景构图",
-  "合成动态帧",
-  "输出高清视频",
-];
-
 const cyberTips = [
-  "AI 正在为您创作中",
-  "精心渲染每一帧画面",
-  "即将完成，请稍候",
-  "最后的优化处理中",
+  "内容结构较为复杂，正在根据诗意精细生成视频画面，请耐心等待，期间请勿刷新或关闭页面",
+  "正在逐帧渲染古典人物与场景，保证人物形象和运镜前后一致，请耐心等待",
+  "为避免违和的现代元素，系统正在严格对齐时代背景和意境，生成时间可能稍长，请耐心等待",
+  "正在完成最后的细节优化与音画同步，稍后将为您呈现完整的视频效果",
 ];
 
 export const VideoLoading: React.FC<VideoLoadingProps> = ({
@@ -35,30 +28,7 @@ export const VideoLoading: React.FC<VideoLoadingProps> = ({
   startTime,
 }) => {
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [currentStep, setCurrentStep] = useState(0);
   const [currentTip, setCurrentTip] = useState(cyberTips[0]);
-  const [displayProgress, setDisplayProgress] = useState(0);
-
-  useEffect(() => {
-    const stepIndex = Math.min(
-      Math.floor((progress / 100) * videoSteps.length),
-      videoSteps.length - 1
-    );
-    setCurrentStep(stepIndex);
-  }, [progress]);
-
-  // 平滑进度动画
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setDisplayProgress(prev => {
-        if (prev < progress) {
-          return Math.min(prev + 1, progress);
-        }
-        return prev;
-      });
-    }, 50);
-    return () => clearInterval(timer);
-  }, [progress]);
 
   useEffect(() => {
     if (!startTime) return;
@@ -103,32 +73,10 @@ export const VideoLoading: React.FC<VideoLoadingProps> = ({
           </div>
         </div>
 
-        {/* 进度数字 */}
-        <div className="cyber-video-progress-number">
-          <span className="progress-value">{displayProgress}</span>
-          <span className="progress-percent">%</span>
-        </div>
-
-        {/* 状态文字 */}
-        <div className="cyber-video-status" key={currentStep}>
-          <span className="status-bracket">[</span>
-          {videoSteps[currentStep]}
-          <span className="status-bracket">]</span>
-        </div>
-
-        {/* 波形进度条 */}
-        <div className="cyber-video-wave-container">
-          <div className="cyber-video-wave">
-            {[...Array(20)].map((_, i) => (
-              <div 
-                key={i} 
-                className="wave-bar"
-                style={{ 
-                  animationDelay: `${i * 0.1}s`,
-                  opacity: i < (displayProgress / 100) * 20 ? 1 : 0.2,
-                }}
-              />
-            ))}
+        {/* 滚动提示文字 */}
+        <div className="cyber-video-waiting-text">
+          <div className="cyber-video-waiting-inner">
+            {currentTip}
           </div>
         </div>
 
@@ -138,9 +86,6 @@ export const VideoLoading: React.FC<VideoLoadingProps> = ({
             <span className="time-label">ELAPSED</span>
             <span className="time-value">{formatTime(elapsedTime)}</span>
           </span>
-          {elapsedTime > 5 && (
-            <span className="cyber-video-tip">{currentTip}</span>
-          )}
         </div>
       </div>
 

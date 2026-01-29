@@ -76,22 +76,16 @@ export const Loading: React.FC<LoadingProps> = ({ className, text }) => {
           </div>
         </div>
         
-        {/* 加载文字 */}
-        <div 
-          className="text-sm font-medium"
-          style={{ color: 'rgba(255, 255, 255, 0.9)' }}
-        >
-          {text || "图片生成中"}
-          <span className="cyber-dots">
-            <span>.</span>
-            <span>.</span>
-            <span>.</span>
-          </span>
-        </div>
-        
-        {/* 进度条 */}
-        <div className="cyber-progress-bar mt-4">
-          <div className="cyber-progress-fill" />
+        {/* 加载文字（滚动提示） */}
+        <div className="cyber-waiting-text mt-2">
+          <div className="cyber-waiting-text-inner text-sm font-medium">
+            {text || "图像内容较为复杂，生成过程可能需要一定时间，请耐心等待，期间请勿刷新或关闭页面"}
+            <span className="cyber-dots">
+              <span>.</span>
+              <span>.</span>
+              <span>.</span>
+            </span>
+          </div>
         </div>
       </div>
       

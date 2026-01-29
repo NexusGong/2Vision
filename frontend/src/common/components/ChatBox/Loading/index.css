@@ -100,27 +100,17 @@
   animation-delay: 0.4s;
 }
 
-/* 进度条 */
-.cyber-progress-bar {
-  width: 120px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+/* 滚动提示文字容器 */
+.cyber-waiting-text {
+  max-width: 80%;
   overflow: hidden;
-  position: relative;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.cyber-progress-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 30%;
-  background: linear-gradient(90deg, rgba(0, 212, 255, 0.3), rgba(0, 212, 255, 0.8), rgba(177, 74, 237, 0.8), rgba(0, 212, 255, 0.3));
-  background-size: 200% 100%;
-  animation: cyber-progress-flow 1.5s linear infinite;
-  border-radius: 2px;
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+.cyber-waiting-text-inner {
+  display: inline-block;
+  white-space: nowrap;
+  animation: cyber-waiting-scroll 14s linear infinite;
 }
 
 /* 边角装饰 */
@@ -206,14 +196,12 @@
   }
 }
 
-@keyframes cyber-progress-flow {
+@keyframes cyber-waiting-scroll {
   0% {
-    left: -30%;
-    background-position: 0% 0%;
+    transform: translateX(0);
   }
   100% {
-    left: 100%;
-    background-position: 200% 0%;
+    transform: translateX(-50%);
   }
 }
 

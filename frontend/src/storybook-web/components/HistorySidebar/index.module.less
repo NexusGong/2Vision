@@ -128,9 +128,13 @@
   height: 48px;
   padding: 0;
   margin: 0;
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(15, 15, 25, 0.95);
-  border: 1px solid rgba(0, 212, 255, 0.2);
+  color: #00d4ff;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 212, 255, 0.15),
+    rgba(177, 74, 237, 0.1)
+  );
+  border: 1px solid rgba(0, 212, 255, 0.35);
   border-left: none;
   border-radius: 0 8px 8px 0;
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.4);
@@ -139,13 +143,19 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   
   &:hover {
-    color: #00d4ff;
+    color: #00f0ff;
     width: 28px;
-    background: rgba(0, 212, 255, 0.1);
-    border-color: rgba(0, 212, 255, 0.4);
-    box-shadow: 2px 0 20px rgba(0, 212, 255, 0.2);
+    background: linear-gradient(
+      135deg,
+      rgba(0, 212, 255, 0.3),
+      rgba(177, 74, 237, 0.22)
+    );
+    border-color: rgba(0, 212, 255, 0.6);
+    box-shadow: 2px 0 22px rgba(0, 212, 255, 0.35);
   }
 }
 
