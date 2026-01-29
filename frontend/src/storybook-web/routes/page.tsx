@@ -71,7 +71,7 @@ import { ImageViewModal } from "../components/ImageViewBox";
 import { StoryPreviewBox } from "../components/StoryPreviewBox";
 import { StoryPrintBox, StoryPrintBoxRef } from "../components/StoryBookPrint";
 import AnalysisPreview from "../components/AnalysisPreview";
-import { MODEL, MODEL_VERSION } from "../consts";
+import { MODEL, DEMO_VERSION, DEMO_DISCLAIMER } from "../consts";
 import { IconDownload, IconFullscreen, IconImageClose } from "@arco-design/web-react/icon";
 import { ReactComponent as SeedComicsIcon } from "./assets/comics.svg";
 import HistorySidebar from "../components/HistorySidebar";
@@ -2271,7 +2271,8 @@ const Index = () => {
         <Layout.Header className="fixed top-0 left-0 right-0 z-[60] bg-[rgba(10,10,15,0.85)] backdrop-blur-xl border-b border-cyan-500/10 shadow-[0_4px_20px_rgba(0,0,0,0.3)] pt-safe">
           <Header
             title={MODEL}
-            subtitle={isMobile ? "" : MODEL_VERSION}
+            subtitle={isMobile ? undefined : DEMO_VERSION}
+            disclaimer={isMobile ? undefined : DEMO_DISCLAIMER}
             onMenuClick={isMobile ? () => setHistorySidebarCollapsed(false) : undefined}
           />
         </Layout.Header>

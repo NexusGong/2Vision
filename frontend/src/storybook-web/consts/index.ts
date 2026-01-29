@@ -12,4 +12,13 @@
  */
 
 export const MODEL = "2Vision古诗词古文图像化学习工具";
-export const MODEL_VERSION = "1.0.0";
+
+/** Demo 版本号，格式：Demo + 日期 + 版本 */
+export const DEMO_VERSION = "Demo20250129V1.0.1A";
+
+/** 版本号（兼容旧引用，与 DEMO_VERSION 一致） */
+export const MODEL_VERSION = DEMO_VERSION;
+
+/** 免责声明：展示在版本号旁，说明为演示版本 */
+export const DEMO_DISCLAIMER =
+  "本产品为演示版本（Demo），供体验与展示，使用默认知悉。";
