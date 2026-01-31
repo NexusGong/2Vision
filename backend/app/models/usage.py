@@ -32,6 +32,7 @@ class UsageRecord(Base):
     ip_address = Column(String(45), nullable=True, index=True)  # 客户端IP地址（支持IPv6）
     country = Column(String(100), nullable=True, index=True)  # 国家
     city = Column(String(100), nullable=True)  # 城市
+    timezone = Column(String(50), nullable=True)  # 用户时区（用于后台展示用户当地时间）
     
     # 设备信息
     user_agent = Column(String(500), nullable=True)  # 浏览器/客户端信息
@@ -55,6 +56,7 @@ class UsageRecord(Base):
     # 其他信息
     referer = Column(String(500), nullable=True)  # 来源页面
     session_duration = Column(Integer, nullable=True)  # 会话持续时间（秒）
-    
+    poem_title = Column(String(200), nullable=True, index=True)  # 诗词标题/标识（哪首是诗）
+
     # 关联关系
     user = relationship("User", back_populates="usage_records")

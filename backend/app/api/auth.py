@@ -304,7 +304,7 @@ async def login_by_password(request: PasswordLoginRequest, db: Session = Depends
     phone = request.phone.strip().replace(' ', '').replace('-', '')
     password = request.password
     
-    logger.info(f"密码登录请求: 手机号={phone[:3]}***{phone[-4:]}")
+    logger.debug(f"密码登录请求: 手机号={phone[:3]}***{phone[-4:]}")
     
     # 验证手机号格式
     if not is_valid_phone(phone):

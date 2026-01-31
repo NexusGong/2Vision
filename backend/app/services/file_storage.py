@@ -21,7 +21,7 @@ def ensure_storage_dirs():
     """确保存储目录存在"""
     os.makedirs(config.IMAGES_DIR, exist_ok=True)
     os.makedirs(config.VIDEOS_DIR, exist_ok=True)
-    logger.info(f"存储目录已创建: {config.IMAGES_DIR}, {config.VIDEOS_DIR}")
+    logger.debug(f"存储目录已创建: {config.IMAGES_DIR}, {config.VIDEOS_DIR}")
 
 
 def get_file_extension_from_url(url: str, default: str = "png") -> str:
@@ -86,11 +86,11 @@ async def download_and_save_image(image_url: str, project_id: Optional[int] = No
         
         # 如果文件已存在，直接返回
         if os.path.exists(file_path):
-            logger.info(f"图片已存在，跳过下载: {relative_path}")
+            logger.debug(f"图片已存在，跳过下载: {relative_path}")
             return relative_path
         
         # 下载图片
-        logger.info(f"开始下载图片: {image_url[:100]}...")
+        logger.debug(f"开始下载图片: {image_url[:100]}...")
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(image_url)
             response.raise_for_status()
@@ -99,7 +99,7 @@ async def download_and_save_image(image_url: str, project_id: Optional[int] = No
             with open(file_path, "wb") as f:
                 f.write(response.content)
             
-            logger.info(f"图片下载成功: {relative_path}")
+            logger.debug(f"图片下载成功: {relative_path}")
             return relative_path
             
     except httpx.TimeoutException:
@@ -146,11 +146,11 @@ async def download_and_save_video(video_url: str, project_id: Optional[int] = No
         
         # 如果文件已存在，直接返回
         if os.path.exists(file_path):
-            logger.info(f"视频已存在，跳过下载: {relative_path}")
+            logger.debug(f"视频已存在，跳过下载: {relative_path}")
             return relative_path
         
         # 下载视频（流式下载，因为视频文件可能很大）
-        logger.info(f"开始下载视频: {video_url[:100]}...")
+        logger.debug(f"开始下载视频: {video_url[:100]}...")
         async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream("GET", video_url) as response:
                 response.raise_for_status()
@@ -160,7 +160,7 @@ async def download_and_save_video(video_url: str, project_id: Optional[int] = No
                     async for chunk in response.aiter_bytes():
                         f.write(chunk)
             
-            logger.info(f"视频下载成功: {relative_path}")
+            logger.debug(f"视频下载成功: {relative_path}")
             return relative_path
             
     except httpx.TimeoutException:
@@ -274,7 +274,7 @@ def delete_image_file(url: str) -> bool:
         
         if os.path.exists(file_path):
             os.remove(file_path)
-            logger.info(f"图片文件已删除: {relative_path}")
+            logger.debug(f"图片文件已删除: {relative_path}")
             return True
         else:
             logger.warning(f"图片文件不存在: {relative_path}")
@@ -327,7 +327,7 @@ def delete_video_file(url: str) -> bool:
         
         if os.path.exists(file_path):
             os.remove(file_path)
-            logger.info(f"视频文件已删除: {relative_path}")
+            logger.debug(f"视频文件已删除: {relative_path}")
             return True
         else:
             logger.warning(f"视频文件不存在: {relative_path}")

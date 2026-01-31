@@ -128,18 +128,23 @@ export const getRemainingUsage = async (): Promise<{
 export const getUsageStats = async (): Promise<UsageStats> => {
   // 为了向后兼容，调用getUserBalance并转换格式
   const balance = await getUserBalance();
+  const data = balance?.data;
+  const image = data?.image;
+  const video = data?.video;
+  const imageRecent = image?.recent_usage ?? [];
+  const videoRecent = video?.recent_usage ?? [];
   return {
-    remaining_count: balance.data.total_remaining,
-    total_usage_count: balance.data.image.total_used + balance.data.video.total_used,
-    total_token_used: balance.data.used_tokens,
+    remaining_count: data?.total_remaining ?? 0,
+    total_usage_count: (image?.total_used ?? 0) + (video?.total_used ?? 0),
+    total_token_used: data?.used_tokens ?? 0,
     recent_usage: [
-      ...balance.data.image.recent_usage.map(r => ({
+      ...imageRecent.map((r: { id: number; usage_type: string; token_used: number; created_at: string }) => ({
         id: r.id,
         usage_type: r.usage_type,
         token_used: r.token_used,
         created_at: r.created_at
       })),
-      ...balance.data.video.recent_usage.map(r => ({
+      ...videoRecent.map((r: { id: number; usage_type: string; token_used: number; created_at: string }) => ({
         id: r.id,
         usage_type: r.usage_type,
         token_used: r.token_used,
@@ -194,8 +199,15 @@ export const getUserBalance = async (): Promise<{
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "获取余额失败");
+    let message = "获取余额失败";
+    try {
+      const body = await response.json();
+      message = body.detail || body.message || message;
+    } catch {
+      const text = await response.text();
+      if (text) message = text.slice(0, 200);
+    }
+    throw new Error(message);
   }
 
   return response.json();

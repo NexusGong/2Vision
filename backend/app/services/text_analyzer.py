@@ -366,7 +366,7 @@ async def analyze_ancient_text(
     Returns:
         结构化分析结果
     """
-    logger.info(f"开始分析文本，长度: {len(text)}")
+    logger.debug(f"开始分析文本，长度: {len(text)}")
     
     # 如果没有ark_client，使用基础断句
     if not ark_client:
@@ -419,7 +419,7 @@ async def analyze_ancient_text(
         content = result.get("content", "{}")
         analysis_result = json.loads(content)
         
-        logger.info("文本分析完成")
+        logger.debug("文本分析完成")
         return analysis_result
         
     except json.JSONDecodeError as e:
@@ -517,7 +517,7 @@ async def analyze_poetry_with_storyboard(
     """
     # 当生成类型是video时，模式应该显示为video
     display_mode = "video" if generation_type == "video" else mode
-    logger.info(f"开始深度分析诗词，模式: {display_mode}，文本长度: {len(text)}")
+    logger.debug(f"开始深度分析诗词，模式: {display_mode}，文本长度: {len(text)}")
     
     # 如果没有ark_client，返回基础结构
     if not ark_client:
@@ -591,7 +591,7 @@ async def analyze_poetry_with_storyboard(
         # 验证和补全结果结构
         analysis_result = _validate_and_complete_analysis(analysis_result, text, mode)
         
-        logger.info(f"诗词分析完成，生成 {len(analysis_result.get('storyboards', []))} 个分镜")
+        logger.debug(f"诗词分析完成，生成 {len(analysis_result.get('storyboards', []))} 个分镜")
         return analysis_result
         
     except json.JSONDecodeError as e:
@@ -852,7 +852,7 @@ def _validate_and_complete_analysis(result: Dict[str, Any], original_text: str, 
                         "weather": ""
                     }
                     result["storyboards"].append(new_storyboard)
-                    logger.info(f"补全缺失的分镜: {line_text[:20]}...")
+                    logger.debug(f"补全缺失的分镜: {line_text[:20]}...")
             
             # 重新排序和编号所有分镜：封面在前，内容分镜按原文顺序排列
             cover_sb = [sb for sb in result["storyboards"] if sb.get("type") == "cover"]
@@ -1015,7 +1015,7 @@ async def analyze_poetry_for_video(
         包含诗词信息和视频prompt数据的结构化结果
         （不包含 storyboards 和 line_analysis）
     """
-    logger.info(f"开始视频专用诗词分析，文本长度: {len(text)}")
+    logger.debug(f"开始视频专用诗词分析，文本长度: {len(text)}")
     
     # 如果没有ark_client，返回基础结构
     if not ark_client:
@@ -1060,7 +1060,7 @@ async def analyze_poetry_for_video(
         # 验证和补全结果结构
         analysis_result = _validate_and_complete_video_analysis(analysis_result, text)
         
-        logger.info(f"视频分析完成，video_prompt长度: {len(analysis_result.get('video_prompt_data', {}).get('video_prompt', ''))}")
+        logger.debug(f"视频分析完成，video_prompt长度: {len(analysis_result.get('video_prompt_data', {}).get('video_prompt', ''))}")
         return analysis_result
         
     except json.JSONDecodeError as e:

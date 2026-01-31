@@ -87,7 +87,7 @@ class TaskManager:
         task_id = str(uuid.uuid4())
         task = Task(task_id, task_type, params, history_id, message_id)
         self.tasks[task_id] = task
-        logger.info(f"创建任务: {task_id}, 类型: {task_type}, 历史记录: {history_id}")
+        logger.debug(f"创建任务: {task_id}, 类型: {task_type}, 历史记录: {history_id}")
         return task_id
     
     def get_task(self, task_id: str) -> Optional[Task]:
@@ -124,7 +124,7 @@ class TaskManager:
             task.result = result
             task.completed_at = datetime.now()
             task.updated_at = datetime.now()
-            logger.info(f"任务完成: {task_id}")
+            logger.debug(f"任务完成: {task_id}")
             # 清理运行中的任务引用
             if task_id in self.running_tasks:
                 del self.running_tasks[task_id]
@@ -159,7 +159,7 @@ class TaskManager:
             task.status = TaskStatus.FAILED
             task.error = "任务已取消"
             task.updated_at = datetime.now()
-            logger.info(f"任务已取消: {task_id}")
+            logger.debug(f"任务已取消: {task_id}")
             return True
         return False
     
@@ -181,7 +181,7 @@ class TaskManager:
         if expired_tasks:
             for task_id in expired_tasks:
                 del self.tasks[task_id]
-            logger.info(f"清理了 {len(expired_tasks)} 个过期任务")
+            logger.debug(f"清理了 {len(expired_tasks)} 个过期任务")
         
         # 重新启动清理定时器
         self._start_cleanup_timer()

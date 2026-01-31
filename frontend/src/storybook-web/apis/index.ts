@@ -125,6 +125,7 @@ export interface PoetryAnalysisParams {
   generation_type?: "image" | "video";
   history_id?: string;  // 前端历史记录 ID
   message_id?: string;  // 前端消息 ID
+  poem_title?: string;  // 诗词标题/标识（用于后台使用记录「哪首是诗」）
 }
 
 // 基于分镜生成图像的请求参数
@@ -293,6 +294,9 @@ export const startAsyncAnalysis = async (
     headers["Authorization"] = `Bearer ${token}`;
   } else {
     headers["X-Session-Id"] = sessionId;
+  }
+  if (params.poem_title) {
+    headers["X-Poem-Title"] = params.poem_title.slice(0, 200);
   }
 
   const response = await fetch("/api/text/analyze_poetry_async", {

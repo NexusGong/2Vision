@@ -42,7 +42,7 @@ def update_image_item(
     db.commit()
     db.refresh(image_item)
     
-    logger.info(f"图像项 {image_item_id} 更新成功")
+    logger.debug(f"图像项 {image_item_id} 更新成功")
     return image_item
 
 def update_segment_mapping(
@@ -82,7 +82,7 @@ def update_segment_mapping(
     db.commit()
     db.refresh(project)
     
-    logger.info(f"项目 {project_id} 的句段对应关系更新成功")
+    logger.debug(f"项目 {project_id} 的句段对应关系更新成功")
     return project
 
 def create_annotation(
@@ -118,7 +118,7 @@ def create_annotation(
     db.commit()
     db.refresh(annotation)
     
-    logger.info(f"标注创建成功: {annotation.id}")
+    logger.debug(f"标注创建成功: {annotation.id}")
     return annotation
 
 def update_annotation(
@@ -151,7 +151,7 @@ def update_annotation(
     db.commit()
     db.refresh(annotation)
     
-    logger.info(f"标注 {annotation_id} 更新成功")
+    logger.debug(f"标注 {annotation_id} 更新成功")
     return annotation
 
 def delete_annotation(db: Session, annotation_id: int) -> bool:
@@ -172,6 +172,6 @@ def delete_annotation(db: Session, annotation_id: int) -> bool:
     db.delete(annotation)
     db.commit()
     
-    logger.info(f"标注 {annotation_id} 删除成功")
+    logger.debug(f"标注 {annotation_id} 删除成功")
     return True
 

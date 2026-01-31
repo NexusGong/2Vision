@@ -1113,12 +1113,14 @@ const Index = () => {
 
       try {
         const data = formatPromptData2Params(params);
+        const poemTitle = (data.query || "").split("\n")[0]?.trim().slice(0, 200) || undefined;
         const analysisResult = await analyzePoetry({
           text: data.query,
           mode: params.mode || "storybook",
           generation_type: params.generationType || "image",
           history_id: historyId,
           message_id: analysisMessageId,
+          poem_title: poemTitle,
         });
 
         replaceMessage(analysisMessageId, {
@@ -1789,13 +1791,15 @@ const Index = () => {
     appendMessages([analysisMsg]);
 
     try {
-      // 第一步：调用诗词分析 API（传递 history_id 和 message_id）
+      // 第一步：调用诗词分析 API（传递 history_id、message_id、诗词标题供后台记录）
+      const poemTitle = (data.query || "").split("\n")[0]?.trim().slice(0, 200) || undefined;
       const analysisResult = await analyzePoetry({
         text: data.query,
         mode: formData.mode || "storybook",
         generation_type: generationType,
         history_id: historyId,
         message_id: analysisId,
+        poem_title: poemTitle,
       });
 
       // 更新分析消息为可编辑状态

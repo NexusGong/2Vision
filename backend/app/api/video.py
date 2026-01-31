@@ -12,7 +12,7 @@ import httpx
 from app.database import get_db
 from app.models.user import User
 from app.services.auth import get_optional_user
-from app.services.usage_manager import check_token_balance, record_usage
+from app.services.usage_manager import check_token_balance, record_detailed_usage
 from app.services.video_generator import (
     generate_video_from_prompt,
     get_video_generation_status
@@ -59,7 +59,7 @@ async def generate_video(
                 detail=f"视频prompt长度不能超过 {MAX_PROMPT_LENGTH} 个字符"
             )
         
-        logger.info(f"开始视频生成，prompt长度: {len(request.video_prompt)}...")
+        logger.debug(f"开始视频生成，prompt长度: {len(request.video_prompt)}...")
         
         # 初始化Ark客户端
         try:
@@ -77,7 +77,7 @@ async def generate_video(
             aspect_ratio=request.aspect_ratio
         )
         
-        logger.info(f"视频生成任务创建成功，task_id: {result.get('task_id')}")
+        logger.debug(f"视频生成任务创建成功，task_id: {result.get('task_id')}")
         
         return result
         
@@ -176,6 +176,11 @@ async def get_video_task_status(
 
 async def _run_video_generation(task_id: str, params: dict, db: Session, user: Optional[User], session_id: Optional[str]):
     """后台运行视频生成任务"""
+    import time
+    from app.database import SessionLocal
+    from app.services.geolocation import get_location
+    from user_agents import parse as parse_ua
+    task_start = time.time()
     try:
         task_manager.start_task(task_id)
         
@@ -222,7 +227,7 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
             if not video_task_id:
                 raise ValueError("视频生成任务创建失败")
             
-            logger.info(f"视频生成任务创建成功 - 系统任务ID: {task_id}, 火山引擎任务ID: {video_task_id}")
+            logger.debug(f"视频生成任务创建成功 - 系统任务ID: {task_id}, 火山引擎任务ID: {video_task_id}")
             
             # 保存 video_task_id 到任务结果中，以便后续查询
             task = task_manager.get_task(task_id)
@@ -230,7 +235,7 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
                 if task.result is None:
                     task.result = {}
                 task.result["video_task_id"] = video_task_id
-                logger.info(f"已保存video_task_id到任务结果中: {task.result}")
+                logger.debug(f"已保存video_task_id到任务结果中: {task.result}")
             else:
                 logger.error(f"无法找到任务 {task_id}，无法保存video_task_id")
             
@@ -243,7 +248,7 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
             import time
             start_time = time.time()
             
-            logger.info(f"开始轮询视频生成状态 - 系统任务ID: {task_id}, 火山引擎任务ID: {video_task_id}")
+            logger.debug(f"开始轮询视频生成状态 - 系统任务ID: {task_id}, 火山引擎任务ID: {video_task_id}")
             poll_count = 0
             last_logged_status = None
             last_logged_progress = -1
@@ -265,7 +270,7 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
                     
                     if should_log:
                         if current_status in ["completed", "failed"]:
-                            logger.info(f"视频任务状态 - 火山引擎任务ID: {video_task_id}, 状态: {current_status}, 进度: {progress}%")
+                            logger.debug(f"视频任务状态 - 火山引擎任务ID: {video_task_id}, 状态: {current_status}, 进度: {progress}%")
                         else:
                             logger.debug(f"视频任务状态 - 火山引擎任务ID: {video_task_id}, 状态: {current_status}, 进度: {progress}% (第 {poll_count} 次查询)")
                         last_logged_status = current_status
@@ -297,14 +302,60 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
                         local_path = await download_and_save_video(original_video_url)
                         if local_path:
                             local_video_url = get_local_url(local_path)
-                            logger.info(f"视频已保存到本地: {local_path}, URL: {local_video_url}")
+                            logger.debug(f"视频已保存到本地: {local_path}, URL: {local_video_url}")
                     except Exception as e:
                         logger.warning(f"视频下载失败，使用原始URL: {str(e)}")
                     
-                    # 视频生成成功，记录使用（只有在成功后才扣除次数）
+                    # 视频生成成功，记录使用（完整上下文：IP、端点、耗时、地理位置等）
                     try:
-                        record_usage(db, "video", token_used, user, session_id)
-                        logger.info(f"成功记录使用次数: 用户ID={user.id if user else None}, 视频URL: {local_video_url}")
+                        task_db = SessionLocal()
+                        task_user = user
+                        if not task_user and params.get("user_id"):
+                            task_user = task_db.query(User).filter(User.id == params["user_id"]).first()
+                        req_ctx = params.get("request_context") or {}
+                        duration_ms = int((time.time() - task_start) * 1000)
+                        ip_address = req_ctx.get("ip_address")
+                        location = {}
+                        if ip_address:
+                            try:
+                                location = get_location(ip_address)
+                            except Exception:
+                                pass
+                        ua_str = req_ctx.get("user_agent") or ""
+                        device_type = browser = os = None
+                        try:
+                            ua = parse_ua(ua_str)
+                            device_type = "mobile" if ua.is_mobile else ("tablet" if ua.is_tablet else "desktop")
+                            browser = f"{ua.browser.family} {ua.browser.version_string}".strip() if ua.browser else None
+                            os = f"{ua.os.family} {ua.os.version_string}".strip() if ua.os else None
+                        except Exception:
+                            pass
+                        record_detailed_usage(
+                            task_db,
+                            usage_type="video",
+                            user=task_user,
+                            session_id=params.get("session_id"),
+                            api_endpoint=req_ctx.get("api_endpoint"),
+                            api_method=req_ctx.get("api_method") or "POST",
+                            response_status=200,
+                            duration_ms=duration_ms,
+                            response_time_ms=duration_ms,
+                            ip_address=ip_address,
+                            country=location.get("country"),
+                            city=location.get("city"),
+                            timezone=location.get("timezone"),
+                            user_agent=ua_str or None,
+                            device_type=device_type,
+                            browser=browser,
+                            os=os,
+                            total_tokens=token_used,
+                            token_used=token_used,
+                            task_id=task_id,
+                            poem_title=req_ctx.get("poem_title"),
+                        )
+                        task_db.commit()
+                        task_db.close()
+                        logger.debug(f"成功记录使用次数: 用户ID={task_user.id if task_user else None}, 视频URL: {local_video_url}")
                     except Exception as e:
                         logger.error(f"记录使用失败: {str(e)}")
                     
@@ -314,7 +365,7 @@ async def _run_video_generation(task_id: str, params: dict, db: Session, user: O
                         "original_video_url": original_video_url,  # 保留原始URL作为备份
                         "video_prompt": video_prompt
                     })
-                    logger.info(f"视频生成任务完成: {task_id}, 视频URL: {local_video_url}")
+                    logger.debug(f"视频生成任务完成: {task_id}, 视频URL: {local_video_url}")
                     return
                 elif current_status == "failed":
                     # 任务失败，提取错误信息
@@ -364,7 +415,23 @@ async def generate_video_async(
         
         # 获取session_id（非登录用户）
         session_id = http_request.headers.get("X-Session-Id")
-        
+        # 捕获请求上下文，供后台任务写入完整使用记录
+        def _get_client_ip(r):
+            forwarded = r.headers.get("X-Forwarded-For")
+            if forwarded:
+                return forwarded.split(",")[0].strip()
+            if r.headers.get("X-Real-IP"):
+                return r.headers.get("X-Real-IP")
+            if r.client:
+                return r.client.host
+            return None
+        req_ctx = {
+            "ip_address": _get_client_ip(http_request),
+            "api_endpoint": str(http_request.url.path),
+            "api_method": http_request.method,
+            "user_agent": (http_request.headers.get("user-agent") or "")[:500],
+            "poem_title": (http_request.headers.get("X-Poem-Title") or "")[:200] or None,
+        }
         # 计算需要的token数量
         from app.services.usage_manager import calculate_video_tokens
         required_tokens = calculate_video_tokens(
@@ -390,7 +457,8 @@ async def generate_video_async(
             "aspect_ratio": request.aspect_ratio,
             "resolution": request.resolution or "720p",  # 分辨率
             "user_id": current_user.id if current_user else None,
-            "session_id": session_id
+            "session_id": session_id,
+            "request_context": req_ctx,
         }
         task_id = task_manager.create_task(
             "video_generation",
@@ -433,7 +501,7 @@ async def download_video(
         if not video_url.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail="无效的视频URL")
         
-        logger.info(f"开始代理下载视频: {video_url[:100]}...")
+        logger.debug(f"开始代理下载视频: {video_url[:100]}...")
         
         # 设置响应头
         # 对文件名进行 URL 编码，确保中文和特殊字符正确显示
@@ -460,7 +528,7 @@ async def download_video(
         if not final_filename.endswith('.mp4'):
             final_filename = f"{final_filename}.mp4"
         
-        logger.info(f"接收到的文件名参数（原始）: {filename}, 最终文件名: {final_filename}")
+        logger.debug(f"接收到的文件名参数（原始）: {filename}, 最终文件名: {final_filename}")
         
         # 检查文件名是否包含非 ASCII 字符
         has_non_ascii = bool(re.search(r'[^\x00-\x7F]', final_filename))
@@ -473,12 +541,12 @@ async def download_video(
             # 注意：现代浏览器会优先使用 filename*，旧版浏览器才会使用 filename
             ascii_filename = "video.mp4"
             content_disposition = f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
-            logger.info(f"文件名包含非ASCII字符，使用UTF-8编码: {encoded_filename}")
+            logger.debug(f"文件名包含非ASCII字符，使用UTF-8编码: {encoded_filename}")
         else:
             # 如果只包含 ASCII 字符，可以同时设置 filename 和 filename*
             encoded_filename = urllib.parse.quote(final_filename, safe='')
             content_disposition = f'attachment; filename="{final_filename}"; filename*=UTF-8\'\'{encoded_filename}'
-            logger.info(f"文件名只包含ASCII字符: {final_filename}")
+            logger.debug(f"文件名只包含ASCII字符: {final_filename}")
         
         # 流式返回视频数据
         async def generate():
@@ -558,7 +626,7 @@ async def delete_videos(
         results = delete_video_files(video_urls)
         deleted_count = sum(1 for success in results.values() if success)
         
-        logger.info(f"删除视频请求: 共 {len(video_urls)} 个，成功删除 {deleted_count} 个")
+        logger.debug(f"删除视频请求: 共 {len(video_urls)} 个，成功删除 {deleted_count} 个")
         
         return {
             "status": "success",

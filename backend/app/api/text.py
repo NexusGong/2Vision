@@ -169,7 +169,7 @@ async def analyze_poetry(
             if not is_valid:
                 raise HTTPException(status_code=400, detail=error_message)
         
-        logger.info(f"开始诗词分析，模式: {request.mode}，生成类型: {request.generation_type or 'image'}，文本: {cleaned_text[:50]}...")
+        logger.debug(f"开始诗词分析，模式: {request.mode}，生成类型: {request.generation_type or 'image'}，文本: {cleaned_text[:50]}...")
         
         # 初始化Ark客户端
         try:
@@ -189,7 +189,7 @@ async def analyze_poetry(
                 ark_client=ark_client
             )
             # 视频分析结果已经包含 video_prompt_data，不需要额外生成
-            logger.info(f"视频专用分析完成，生成 {len(analysis_result.get('line_analysis', []))} 个逐句分析")
+            logger.debug(f"视频专用分析完成，生成 {len(analysis_result.get('line_analysis', []))} 个逐句分析")
         else:
             # 图像模式使用原有的分析函数
             analysis_result = await analyze_poetry_with_storyboard(
@@ -198,7 +198,7 @@ async def analyze_poetry(
                 generation_type=generation_type,
                 ark_client=ark_client
             )
-            logger.info(f"诗词分析完成，生成 {len(analysis_result.get('storyboards', []))} 个分镜")
+            logger.debug(f"诗词分析完成，生成 {len(analysis_result.get('storyboards', []))} 个分镜")
         
         return {
             "status": "success",
@@ -243,7 +243,7 @@ async def _run_poetry_analysis(task_id: str, params: dict):
                 ark_client=ark_client
             )
             # 视频分析结果已经包含 video_prompt_data，不需要额外生成
-            logger.info("视频专用分析完成")
+            logger.debug("视频专用分析完成")
         else:
             # 图像模式使用原有的分析函数
             analysis_result = await analyze_poetry_with_storyboard(
@@ -262,7 +262,7 @@ async def _run_poetry_analysis(task_id: str, params: dict):
             "data": analysis_result
         })
         
-        logger.info(f"诗词分析任务完成: {task_id}")
+        logger.debug(f"诗词分析任务完成: {task_id}")
         
     except Exception as e:
         logger.error(f"诗词分析任务失败: {str(e)}")

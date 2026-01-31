@@ -157,15 +157,15 @@ async def send_verification_code(phone: str) -> bool:
             if success:
                 # 开发环境可以显示验证码，但生产环境应避免在日志中输出完整验证码
                 if config.SMS_ENABLED:
-                    logger.info(f"[SMS] 验证码已发送到 {masked_phone} (有效期{CODE_EXPIRE_MINUTES}分钟)")
+                    logger.debug(f"[SMS] 验证码已发送到 {masked_phone} (有效期{CODE_EXPIRE_MINUTES}分钟)")
                 else:
                     # 开发环境：显示验证码以便测试
-                    logger.info(f"[SMS] 模拟发送验证码到 {masked_phone}: {code} (有效期{CODE_EXPIRE_MINUTES}分钟)")
+                    logger.debug(f"[SMS] 模拟发送验证码到 {masked_phone}: {code} (有效期{CODE_EXPIRE_MINUTES}分钟)")
                 return True
             else:
                 # API发送失败，但验证码已生成，仍返回True（开发环境可以继续使用）
                 if not config.SMS_ENABLED:
-                    logger.info(f"[SMS] API发送失败，但验证码已生成: {code}")
+                    logger.debug(f"[SMS] API发送失败，但验证码已生成: {code}")
                 # 注意：这里不发送告警，因为_send_sms_via_api内部已经发送了
                 return True
         except Exception as e:
@@ -191,8 +191,8 @@ async def send_verification_code(phone: str) -> bool:
     else:
         # 未启用短信服务，使用模拟发送（开发环境）
         masked_phone = _mask_phone(phone)
-        logger.info(f"[SMS] 模拟发送验证码到 {masked_phone}: {code} (有效期{CODE_EXPIRE_MINUTES}分钟)")
-        logger.info(f"[SMS] 提示: 如需真实发送，请在.env中配置SMS_ENABLED=true、SMS_ACCOUNT和SMS_PASSWORD")
+        logger.debug(f"[SMS] 模拟发送验证码到 {masked_phone}: {code} (有效期{CODE_EXPIRE_MINUTES}分钟)")
+        logger.debug(f"[SMS] 提示: 如需真实发送，请在.env中配置SMS_ENABLED=true、SMS_ACCOUNT和SMS_PASSWORD")
         return True
 
 
@@ -233,7 +233,7 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
             
             if response.status_code != 200:
                 error_msg = f"API请求失败，状态码: {response.status_code}"
-                print(f"[SMS] {error_msg}")
+                logger.debug(f"[SMS] {error_msg}")
                 # 发送告警
                 if MONITOR_AVAILABLE and alert_monitor:
                     try:
@@ -245,7 +245,7 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
                             additional_details={"phone": phone[:3] + "****" + phone[-4:] if len(phone) > 7 else "****"}
                         )
                     except Exception as monitor_error:
-                        print(f"[SMS] 发送告警失败: {monitor_error}")
+                        logger.debug(f"[SMS] 发送告警失败: {monitor_error}")
                 return False
             
             # 解析响应（支持JSON和XML格式）
@@ -257,12 +257,12 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
                 if api_code == 2:
                     # 提交成功
                     smsid = result.get("smsid", "")
-                    print(f"[SMS] 短信发送成功，流水号: {smsid}")
+                    logger.debug(f"[SMS] 短信发送成功，流水号: {smsid}")
                     return True
                 else:
                     # 提交失败
                     error_msg = f"短信发送失败: {api_msg} (code: {api_code})"
-                    print(f"[SMS] {error_msg}")
+                    logger.debug(f"[SMS] {error_msg}")
                     # 发送告警
                     if MONITOR_AVAILABLE and alert_monitor:
                         try:
@@ -277,7 +277,7 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
                                 }
                             )
                         except Exception as monitor_error:
-                            print(f"[SMS] 发送告警失败: {monitor_error}")
+                            logger.debug(f"[SMS] 发送告警失败: {monitor_error}")
                     return False
             except Exception:
                 # 尝试解析XML格式
@@ -289,11 +289,11 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
                     
                     if api_code == 2:
                         smsid = root.find("smsid").text
-                        print(f"[SMS] 短信发送成功，流水号: {smsid}")
+                        logger.debug(f"[SMS] 短信发送成功，流水号: {smsid}")
                         return True
                     else:
                         error_msg = f"短信发送失败: {api_msg} (code: {api_code})"
-                        print(f"[SMS] {error_msg}")
+                        logger.debug(f"[SMS] {error_msg}")
                         # 发送告警
                         if MONITOR_AVAILABLE and alert_monitor:
                             try:
@@ -309,11 +309,11 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
                                     }
                                 )
                             except Exception as monitor_error:
-                                print(f"[SMS] 发送告警失败: {monitor_error}")
+                                logger.debug(f"[SMS] 发送告警失败: {monitor_error}")
                         return False
                 except Exception as e:
                     error_msg = f"解析响应失败: {e}, 响应内容: {response.text[:200]}"
-                    print(f"[SMS] {error_msg}")
+                    logger.debug(f"[SMS] {error_msg}")
                     # 发送告警
                     if MONITOR_AVAILABLE and alert_monitor:
                         try:
@@ -327,12 +327,12 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
                                 }
                             )
                         except Exception as monitor_error:
-                            print(f"[SMS] 发送告警失败: {monitor_error}")
+                            logger.debug(f"[SMS] 发送告警失败: {monitor_error}")
                     return False
                     
     except httpx.TimeoutException:
         error_msg = "请求超时（10秒）"
-        print(f"[SMS] {error_msg}")
+        logger.debug(f"[SMS] {error_msg}")
         # 发送告警
         if MONITOR_AVAILABLE and alert_monitor:
             try:
@@ -347,11 +347,11 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
                     }
                 )
             except Exception as monitor_error:
-                print(f"[SMS] 发送告警失败: {monitor_error}")
+                logger.debug(f"[SMS] 发送告警失败: {monitor_error}")
         return False
     except Exception as e:
         error_msg = f"发送短信异常: {e}"
-        print(f"[SMS] {error_msg}")
+        logger.debug(f"[SMS] {error_msg}")
         # 发送告警
         if MONITOR_AVAILABLE and alert_monitor:
             try:
@@ -359,13 +359,13 @@ async def _send_sms_via_api(phone: str, code: str) -> bool:
                     api_name="短信服务（互亿无线）",
                     endpoint=api_url,
                     error_message=error_msg,
-                        additional_details={
-                            "phone": _mask_phone(phone),
-                            "exception_type": type(e).__name__
-                        }
+                    additional_details={
+                        "phone": _mask_phone(phone),
+                        "exception_type": type(e).__name__
+                    }
                 )
             except Exception as monitor_error:
-                print(f"[SMS] 发送告警失败: {monitor_error}")
+                logger.debug(f"[SMS] 发送告警失败: {monitor_error}")
         return False
 
 

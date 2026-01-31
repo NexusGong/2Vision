@@ -72,7 +72,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setUsageStats(stats);
     } catch (error) {
       console.error("获取使用统计失败:", error);
-      setUsageStats(null);
+      setUsageStats((prev) => prev); // 保留原值，避免清空导致 UI 闪烁
     }
   };
 

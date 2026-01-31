@@ -62,7 +62,7 @@ async def promote_me(
     db.commit()
     db.refresh(current_user)
 
-    logger.info(
+    logger.debug(
         "管理员自举成功：user_id=%s, username=%s 被提升为管理员",
         current_user.id,
         current_user.username,

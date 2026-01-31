@@ -43,6 +43,22 @@ def get_db():
     finally:
         db.close()
 
+def _migrate_usage_records_columns():
+    """为已存在的 usage_records 表添加 poem_title、timezone 列（若缺失）"""
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        for col, spec in [("poem_title", "VARCHAR(200)"), ("timezone", "VARCHAR(50)")]:
+            try:
+                with conn.begin():
+                    conn.execute(text(f"ALTER TABLE usage_records ADD COLUMN {col} {spec}"))
+            except Exception as e:
+                err = str(e).lower()
+                if "duplicate column" in err or "already exists" in err or "no such table" in err:
+                    pass
+                else:
+                    raise
+
+
 def init_db():
     """初始化数据库表"""
     from app.models.user import User
@@ -52,4 +68,8 @@ def init_db():
     from app.models.activity import UserActivityLog
     from app.models.visit import PageVisit
     Base.metadata.create_all(bind=engine)
+    try:
+        _migrate_usage_records_columns()
+    except Exception:
+        pass
 

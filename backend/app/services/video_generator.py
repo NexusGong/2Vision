@@ -39,7 +39,7 @@ async def generate_video_from_prompt(
             raise ValueError("视频prompt不能为空")
         
         # 创建视频生成任务
-        logger.info("创建视频生成任务...")
+        logger.debug("创建视频生成任务...")
         video_task = ark_client.videos_create(
             model=config.VIDEO_MODEL_NAME,
             prompt=video_prompt,

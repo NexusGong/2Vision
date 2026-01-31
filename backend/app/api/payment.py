@@ -165,7 +165,7 @@ async def create_payment_order(
         from config import config
         from pathlib import Path
         
-        logger.info(
+        logger.debug(
             f"查找收款码: 订单数量={request.quantity}, 订单金额={amount}, "
             f"可用套餐={list(QR_CODE_CONFIG.keys())}"
         )
@@ -203,7 +203,7 @@ async def create_payment_order(
                         f"预期金额={expected_price}, 收款码={qr_code_path}"
                     )
                 
-                logger.info(
+                logger.debug(
                     f"✓ 成功加载收款码: {qr_code_path} "
                     f"(订单数量: {request.quantity}, 金额: {amount}, "
                     f"文件路径: {qr_path})"
@@ -303,7 +303,7 @@ async def confirm_payment(
     # 状态机检查：只允许从 pending 状态转换到 completed 或 failed
     if payment.status == "completed":
         # 幂等性：如果已经完成，直接返回成功（避免重复确认）
-        logger.info(
+        logger.debug(
             f"订单已确认过，直接返回成功: transaction_id={request.transaction_id}, "
             f"user_id={current_user.id}"
         )
@@ -340,7 +340,7 @@ async def confirm_payment(
     
     # 查询支付宝收款记录进行验证
     if payment.payment_method == "alipay":
-        logger.info(
+        logger.debug(
             f"用户点击确认支付，开始查询支付宝订单: "
             f"transaction_id={request.transaction_id}, "
             f"amount={payment.amount}"
@@ -378,7 +378,7 @@ async def confirm_payment(
                 )
             
             trade_no = matching_order.get('trade_no')
-            logger.info(
+            logger.debug(
                 f"找到匹配的支付宝订单: transaction_id={request.transaction_id}, "
                 f"支付宝交易号={trade_no}, "
                 f"金额={matching_order.get('amount')}"
@@ -423,7 +423,7 @@ async def confirm_payment(
         # 再次检查状态（双重检查，防止并发）
         if payment.status == "completed":
             # 幂等性：已经完成，直接返回
-            logger.info(
+            logger.debug(
                 f"订单已确认过（并发检查）: transaction_id={request.transaction_id}, "
                 f"user_id={current_user.id}"
             )

@@ -37,7 +37,7 @@ async def generate_images_for_segments(
     if not ark_client:
         raise ValueError("需要提供Ark客户端")
     
-    logger.info(f"开始生成 {len(segments)} 张图像")
+    logger.debug(f"开始生成 {len(segments)} 张图像")
     
     image_results = []
     
@@ -73,7 +73,7 @@ async def generate_images_for_segments(
                 if local_path:
                     # 使用本地URL
                     local_url = get_local_url(local_path)
-                    logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
+                    logger.debug(f"图片已保存到本地: {local_path}, URL: {local_url}")
                     image_results.append({
                         "segment_index": segment.get("index", i + 1),
                         "image_url": local_url,
@@ -110,7 +110,7 @@ async def generate_images_for_segments(
             })
     
     success_count = len([r for r in image_results if r.get('image_url')])
-    logger.info(f"完成: {success_count}/{len(segments)} 张")
+    logger.debug(f"完成: {success_count}/{len(segments)} 张")
     return image_results
 
 async def generate_storybook_images_stream(
@@ -187,12 +187,12 @@ async def generate_images_from_storyboards(
     if not ark_client:
         raise ValueError("需要提供Ark客户端")
     
-    logger.info(f"生成 {len(storyboards)} 个分镜 ({mode}模式)")
+    logger.debug(f"生成 {len(storyboards)} 个分镜 ({mode}模式)")
     
     # 第一阶段：生成所有图片（不下载）
     generation_results = []
     
-    logger.info(f"开始生成 {len(storyboards)} 张图片...")
+    logger.debug(f"开始生成 {len(storyboards)} 张图片...")
     for i, storyboard in enumerate(storyboards):
         try:
             # 使用分镜中的 image_prompt，或者生成新的
@@ -263,7 +263,7 @@ async def generate_images_from_storyboards(
                 "error": str(e)
             })
     
-    logger.info(f"图片生成完成，开始批量下载...")
+    logger.debug(f"图片生成完成，开始批量下载...")
     
     # 第二阶段：批量下载所有图片
     image_results = []
@@ -276,7 +276,7 @@ async def generate_images_from_storyboards(
             if local_path:
                 # 使用本地URL
                 local_url = get_local_url(local_path)
-                logger.info(f"图片已保存到本地: {local_path}, URL: {local_url}")
+                logger.debug(f"图片已保存到本地: {local_path}, URL: {local_url}")
                 image_results.append({
                     "storyboard_index": result.get("storyboard_index"),
                     "storyboard_type": result.get("storyboard_type"),
@@ -312,6 +312,6 @@ async def generate_images_from_storyboards(
             })
     
     success_count = len([r for r in image_results if r.get('image_url')])
-    logger.info(f"完成: 生成 {len(generation_results)} 张，成功下载 {success_count} 张")
+    logger.debug(f"完成: 生成 {len(generation_results)} 张，成功下载 {success_count} 张")
     return image_results
 

@@ -11,7 +11,7 @@ import asyncio
 from app.database import get_db
 from app.services.auth import get_current_user, get_optional_user
 from app.models.user import User
-from app.services.usage_manager import check_token_balance, record_usage
+from app.services.usage_manager import check_token_balance, record_detailed_usage
 from app.services.image_generator import (
     generate_images_for_segments,
     generate_storybook_images_stream,
@@ -161,7 +161,7 @@ async def generate_from_storyboard(
         if not request.storyboards:
             raise HTTPException(status_code=400, detail="分镜数据不能为空")
         
-        logger.info(f"开始基于分镜生成图像，共 {len(request.storyboards)} 个分镜")
+        logger.debug(f"开始基于分镜生成图像，共 {len(request.storyboards)} 个分镜")
         
         # 初始化Ark客户端
         try:
@@ -184,7 +184,7 @@ async def generate_from_storyboard(
             reference_images=request.reference_images
         )
         
-        logger.info(f"图像生成完成，成功生成 {len([r for r in image_results if r.get('image_url')])} 张图像")
+        logger.debug(f"图像生成完成，成功生成 {len([r for r in image_results if r.get('image_url')])} 张图像")
         
         return {
             "status": "success",
@@ -202,8 +202,11 @@ async def generate_from_storyboard(
 
 async def _run_storyboard_generation(task_id: str, params: dict, db: Optional[Session], user: Optional[User], session_id: Optional[str]):
     """后台运行分镜图像生成任务"""
-    # 在后台任务中创建新的数据库会话，避免使用传入的会话（可能已关闭）
+    import time
     from app.database import SessionLocal
+    from app.services.geolocation import get_location
+    from user_agents import parse as parse_ua
+    task_start = time.time()
     task_db = SessionLocal()
     
     try:
@@ -226,7 +229,7 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Optional[Se
         
         # 第一阶段：生成所有图片（不下载）
         generation_results = []
-        logger.info(f"开始生成 {total_steps} 张图片...")
+        logger.debug(f"开始生成 {total_steps} 张图片...")
         
         for i, storyboard in enumerate(storyboards):
             try:
@@ -292,7 +295,7 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Optional[Se
                 })
                 task_manager.update_task_progress(task_id, i + 1, total_steps)
         
-        logger.info(f"图片生成完成，开始批量下载...")
+        logger.debug(f"图片生成完成，开始批量下载...")
         
         # 第二阶段：整理结果（不再下载到本地，直接使用远程URL）
         image_results = []
@@ -328,17 +331,55 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Optional[Se
             task_manager.fail_task(task_id, "图片生成失败：没有成功生成任何图片")
             return
         
-        # 任务成功完成，记录使用（使用新的数据库会话）
-        # 只有在成功生成至少一张图片后才扣除次数
+        # 任务成功完成，记录使用（完整上下文：IP、端点、耗时、地理位置等）
         try:
-            # 如果传入了 user_id，需要从数据库重新获取用户对象
             task_user = None
             if params.get("user_id"):
                 from app.models.user import User
                 task_user = task_db.query(User).filter(User.id == params["user_id"]).first()
-            record_usage(task_db, "image", token_used, task_user, params.get("session_id"))
+            req_ctx = params.get("request_context") or {}
+            duration_ms = int((time.time() - task_start) * 1000)
+            ip_address = req_ctx.get("ip_address")
+            location = {}
+            if ip_address:
+                try:
+                    location = get_location(ip_address)
+                except Exception:
+                    pass
+            ua_str = req_ctx.get("user_agent") or ""
+            device_type = browser = os = None
+            try:
+                ua = parse_ua(ua_str)
+                device_type = "mobile" if ua.is_mobile else ("tablet" if ua.is_tablet else "desktop")
+                browser = f"{ua.browser.family} {ua.browser.version_string}".strip() if ua.browser else None
+                os = f"{ua.os.family} {ua.os.version_string}".strip() if ua.os else None
+            except Exception:
+                pass
+            record_detailed_usage(
+                task_db,
+                usage_type="image",
+                user=task_user,
+                session_id=params.get("session_id"),
+                api_endpoint=req_ctx.get("api_endpoint"),
+                api_method=req_ctx.get("api_method") or "POST",
+                response_status=200,
+                duration_ms=duration_ms,
+                response_time_ms=duration_ms,
+                ip_address=ip_address,
+                country=location.get("country"),
+                city=location.get("city"),
+                timezone=location.get("timezone"),
+                user_agent=ua_str or None,
+                device_type=device_type,
+                browser=browser,
+                os=os,
+                total_tokens=token_used,
+                token_used=token_used,
+                task_id=task_id,
+                poem_title=req_ctx.get("poem_title"),
+            )
             task_db.commit()
-            logger.info(f"成功记录使用次数: 用户ID={task_user.id if task_user else None}, 成功生成 {success_count}/{total_steps} 张图片")
+            logger.debug(f"成功记录使用次数: 用户ID={task_user.id if task_user else None}, 成功生成 {success_count}/{total_steps} 张图片")
         except Exception as e:
             logger.error(f"记录使用失败: {str(e)}")
             task_db.rollback()
@@ -354,7 +395,7 @@ async def _run_storyboard_generation(task_id: str, params: dict, db: Optional[Se
             "poetry_info": poetry_info
         })
         
-        logger.info(f"任务完成，返回 {len(image_results)} 个结果，其中包含文本的分镜数: {sum(1 for r in image_results if r.get('text'))}")
+        logger.debug(f"任务完成，返回 {len(image_results)} 个结果，其中包含文本的分镜数: {sum(1 for r in image_results if r.get('text'))}")
         
     except Exception as e:
         logger.error(f"后台任务失败: {str(e)}", exc_info=True)
@@ -401,6 +442,23 @@ async def generate_from_storyboard_async(
         if not task_manager.can_start_new_task():
             raise HTTPException(status_code=503, detail="当前任务队列已满，请稍后再试")
         
+        # 捕获请求上下文，供后台任务写入完整使用记录
+        def _get_client_ip(r):
+            forwarded = r.headers.get("X-Forwarded-For")
+            if forwarded:
+                return forwarded.split(",")[0].strip()
+            if r.headers.get("X-Real-IP"):
+                return r.headers.get("X-Real-IP")
+            if r.client:
+                return r.client.host
+            return None
+        req_ctx = {
+            "ip_address": _get_client_ip(http_request),
+            "api_endpoint": str(http_request.url.path),
+            "api_method": http_request.method,
+            "user_agent": (http_request.headers.get("user-agent") or "")[:500],
+            "poem_title": (http_request.headers.get("X-Poem-Title") or "")[:200] or None,
+        }
         # 创建任务
         params = {
             "storyboards": [sb.model_dump() for sb in request.storyboards],
@@ -409,7 +467,8 @@ async def generate_from_storyboard_async(
             "size": request.size,
             "reference_images": request.reference_images,
             "user_id": current_user.id if current_user else None,
-            "session_id": session_id
+            "session_id": session_id,
+            "request_context": req_ctx,
         }
         task_id = task_manager.create_task(
             "storyboard_generation", 
@@ -497,7 +556,7 @@ async def delete_images(
         results = delete_image_files(image_urls)
         deleted_count = sum(1 for success in results.values() if success)
         
-        logger.info(f"删除图片请求: 共 {len(image_urls)} 张，成功删除 {deleted_count} 张")
+        logger.debug(f"删除图片请求: 共 {len(image_urls)} 张，成功删除 {deleted_count} 张")
         
         return {
             "status": "success",

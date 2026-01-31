@@ -21,6 +21,10 @@ export interface UsageStats {
   total_users: number;
   active_users_today: number;
   active_users_week: number;
+  active_registered_today: number;
+  active_anonymous_today: number;
+  active_registered_week: number;
+  active_anonymous_week: number;
   total_usage_count: number;
   total_token_used: number;
   total_visits: number;
@@ -37,6 +41,7 @@ export interface VisitListItem {
   id: number;
   session_id: string | null;
   user_id: number | null;
+  had_usage: boolean;
   ip_address: string | null;
   user_agent: string | null;
   device_type: string;
@@ -49,13 +54,17 @@ export interface VisitListItem {
   created_at: string | null;
 }
 
+/** 访问记录筛选：仅访问未使用 | 已产生使用 | 全部 */
+export type VisitFilter = "only_visit" | "had_usage" | "all";
+
 /**
- * 获取访问记录列表（仅访问未使用或全部）
+ * 获取访问记录列表（支持仅访问未使用 / 已产生使用 / 全部）
  */
 export const getVisitsList = async (
   page: number = 1,
   pageSize: number = 20,
-  visitOnly: boolean = true
+  visitOnly: boolean = true,
+  visitFilter?: VisitFilter
 ): Promise<{
   status: string;
   data: VisitListItem[];
@@ -65,7 +74,8 @@ export const getVisitsList = async (
 }> => {
   const token = localStorage.getItem("token");
   if (!token) throw new Error("未登录");
-  const url = `/api/admin/visits/list?page=${page}&page_size=${pageSize}&visit_only=${visitOnly}`;
+  const filter = visitFilter ?? (visitOnly ? "only_visit" : "all");
+  const url = `/api/admin/visits/list?page=${page}&page_size=${pageSize}&visit_only=${visitOnly}&visit_filter=${filter}`;
   const response = await fetch(url, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
@@ -133,8 +143,15 @@ export const getUsageStats = async (): Promise<UsageStats> => {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "获取使用统计失败");
+    let message = "获取使用统计失败";
+    try {
+      const body = await response.json();
+      message = body.detail || body.message || message;
+    } catch {
+      const text = await response.text();
+      if (text) message = text.slice(0, 200);
+    }
+    throw new Error(message);
   }
 
   return response.json();

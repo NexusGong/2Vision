@@ -140,6 +140,10 @@ class UsageStatsResponse(BaseModel):
     total_users: int
     active_users_today: int
     active_users_week: int
+    active_registered_today: int
+    active_anonymous_today: int
+    active_registered_week: int
+    active_anonymous_week: int
     total_usage_count: int
     total_token_used: int
     total_visits: int  # 总访问数（进入网站即计，含仅访问未使用）
@@ -377,22 +381,34 @@ async def get_usage_stats(
     # 总用户数
     total_users = db.query(User).count()
     
-    # 今日活跃用户
+    # 今日活跃用户（注册 / 非注册）
     today = datetime.utcnow().date()
-    active_users_today = db.query(UsageRecord.user_id).filter(
+    active_registered_today = db.query(UsageRecord.user_id).filter(
         func.date(UsageRecord.created_at) == today,
         UsageRecord.user_id.isnot(None)
     ).distinct().count()
-    
-    # 本周活跃用户
+    active_anonymous_today = db.query(UsageRecord.session_id).filter(
+        func.date(UsageRecord.created_at) == today,
+        UsageRecord.user_id.is_(None),
+        UsageRecord.session_id.isnot(None)
+    ).distinct().count()
+    active_users_today = active_registered_today + active_anonymous_today
+
+    # 本周活跃用户（注册 / 非注册）
     week_ago = datetime.utcnow() - timedelta(days=7)
-    active_users_week = db.query(UsageRecord.user_id).filter(
+    active_registered_week = db.query(UsageRecord.user_id).filter(
         UsageRecord.created_at >= week_ago,
         UsageRecord.user_id.isnot(None)
     ).distinct().count()
+    active_anonymous_week = db.query(UsageRecord.session_id).filter(
+        UsageRecord.created_at >= week_ago,
+        UsageRecord.user_id.is_(None),
+        UsageRecord.session_id.isnot(None)
+    ).distinct().count()
+    active_users_week = active_registered_week + active_anonymous_week
     
-    # 总使用次数
-    total_usage_count = db.query(func.sum(User.total_usage_count)).scalar() or 0
+    # 总使用次数（所有使用记录条数，含匿名与注册）
+    total_usage_count = db.query(UsageRecord).count()
     
     # 总token消耗
     total_token_used = db.query(func.sum(User.total_token_used)).scalar() or 0
@@ -435,6 +451,10 @@ async def get_usage_stats(
         total_users=total_users,
         active_users_today=active_users_today,
         active_users_week=active_users_week,
+        active_registered_today=active_registered_today,
+        active_anonymous_today=active_anonymous_today,
+        active_registered_week=active_registered_week,
+        active_anonymous_week=active_anonymous_week,
         total_usage_count=int(total_usage_count),
         total_token_used=int(total_token_used),
         total_visits=total_visits,
@@ -452,25 +472,37 @@ async def get_visits_list(
     page: int = 1,
     page_size: int = 20,
     visit_only: bool = True,
+    visit_filter: Optional[str] = None,
 ):
     """
     获取访问记录列表。
-    visit_only=True 时仅返回「仅访问未使用」记录（有 session_id 且该 session 从未产生过使用记录）。
-    返回字段：ip、设备类型、地理位置、访问时间等。
+    visit_filter: only_visit（仅访问未使用）/ had_usage（已产生使用）/ all（全部）。
+    visit_only 保留兼容：True 等价于 only_visit，False 等价于 all。
+    返回字段含 had_usage（该次访问是否产生使用）、ip、设备、地理位置、访问时间等。
     """
     offset = (page - 1) * page_size
-    if visit_only:
-        # 有使用记录的 session_id 集合
-        used_sessions = {
-            r[0] for r in
-            db.query(UsageRecord.session_id).filter(UsageRecord.session_id.isnot(None)).distinct().all()
-        }
+    # 有使用记录的 session_id 集合（用于筛选与 had_usage 字段）
+    used_sessions = {
+        r[0] for r in
+        db.query(UsageRecord.session_id).filter(UsageRecord.session_id.isnot(None)).distinct().all()
+    }
+    filter_mode = visit_filter if visit_filter else ("only_visit" if visit_only else "all")
+    if filter_mode == "only_visit":
         query = (
             db.query(PageVisit)
             .filter(PageVisit.session_id.isnot(None))
             .filter(~PageVisit.session_id.in_(used_sessions))
             .order_by(desc(PageVisit.created_at))
         )
+    elif filter_mode == "had_usage":
+        if not used_sessions:
+            query = db.query(PageVisit).filter(PageVisit.id < 0).order_by(desc(PageVisit.created_at))
+        else:
+            query = (
+                db.query(PageVisit)
+                .filter(PageVisit.session_id.in_(used_sessions))
+                .order_by(desc(PageVisit.created_at))
+            )
     else:
         query = db.query(PageVisit).order_by(desc(PageVisit.created_at))
     total = query.count()
@@ -480,6 +512,7 @@ async def get_visits_list(
             "id": v.id,
             "session_id": v.session_id,
             "user_id": v.user_id,
+            "had_usage": (v.session_id in used_sessions) if v.session_id else False,
             "ip_address": v.ip_address,
             "user_agent": (v.user_agent[:80] + "…") if v.user_agent and len(v.user_agent) > 80 else v.user_agent,
             "device_type": v.device_type or "unknown",
@@ -627,6 +660,7 @@ async def get_usage_records(
             "ip_address": record.ip_address,
             "country": record.country,
             "city": record.city,
+            "timezone": record.timezone,
             "device_type": record.device_type,
             "browser": record.browser,
             "os": record.os,
@@ -638,6 +672,7 @@ async def get_usage_records(
             "task_id": record.task_id,
             "project_id": record.project_id,
             "referer": record.referer,
+            "poem_title": record.poem_title,
             "created_at": record.created_at.isoformat() if record.created_at else None,
         })
     
@@ -694,6 +729,7 @@ async def get_usage_record_detail(
             "ip_address": record.ip_address,
             "country": record.country,
             "city": record.city,
+            "timezone": record.timezone,
             "user_agent": record.user_agent,
             "device_type": record.device_type,
             "browser": record.browser,
@@ -707,6 +743,7 @@ async def get_usage_record_detail(
             "project_id": record.project_id,
             "referer": record.referer,
             "session_duration": record.session_duration,
+            "poem_title": record.poem_title,
             "created_at": record.created_at.isoformat() if record.created_at else None,
         }
     }
@@ -753,7 +790,7 @@ async def export_usage_records(
         writer.writerow([
             "ID", "用户ID", "用户名", "会话ID", "使用类型", "API端点", "HTTP方法",
             "响应状态", "IP地址", "国家", "城市", "设备类型", "浏览器", "操作系统",
-            "输入Token", "输出Token", "总Token", "耗时(ms)", "创建时间"
+            "输入Token", "输出Token", "总Token", "诗词(poem_title)", "耗时(ms)", "创建时间"
         ])
         
         # 写入数据
@@ -780,6 +817,7 @@ async def export_usage_records(
                 record.input_tokens or 0,
                 record.output_tokens or 0,
                 record.total_tokens or 0,
+                record.poem_title or "",
                 record.duration_ms or 0,
                 record.created_at.isoformat() if record.created_at else "",
             ])
@@ -820,6 +858,7 @@ async def export_usage_records(
                 "input_tokens": record.input_tokens,
                 "output_tokens": record.output_tokens,
                 "total_tokens": record.total_tokens,
+                "poem_title": record.poem_title,
                 "duration_ms": record.duration_ms,
                 "created_at": record.created_at.isoformat() if record.created_at else None,
             })
@@ -1165,6 +1204,7 @@ async def get_realtime_monitoring(
                     "api_endpoint": r.api_endpoint,
                     "created_at": r.created_at.isoformat(),
                     "response_status": r.response_status,
+                    "timezone": r.timezone,
                 }
                 for r in recent_records
             ]

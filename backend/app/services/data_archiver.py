@@ -40,7 +40,7 @@ def archive_old_records(db: Session = None) -> dict:
         # 计算归档截止日期（3个月前）
         archive_date = datetime.utcnow() - timedelta(days=ARCHIVE_RETENTION_DAYS)
         
-        logger.info(f"开始归档 {archive_date.isoformat()} 之前的使用记录...")
+        logger.debug(f"开始归档 {archive_date.isoformat()} 之前的使用记录...")
         
         # 查询需要归档的记录
         records_to_archive = db.query(UsageRecord).filter(
@@ -50,7 +50,7 @@ def archive_old_records(db: Session = None) -> dict:
         total_count = len(records_to_archive)
         
         if total_count == 0:
-            logger.info("没有需要归档的记录")
+            logger.debug("没有需要归档的记录")
             return {
                 "status": "success",
                 "archived_count": 0,
@@ -78,7 +78,7 @@ def archive_old_records(db: Session = None) -> dict:
                 # 每1000条提交一次，避免事务过大
                 if deleted_count % 1000 == 0:
                     db.commit()
-                    logger.info(f"已归档 {deleted_count}/{total_count} 条记录...")
+                    logger.debug(f"已归档 {deleted_count}/{total_count} 条记录...")
             
             db.commit()
             logger.info(f"归档完成，共归档 {deleted_count} 条记录")

@@ -31,7 +31,7 @@ class EmailNotifier:
         self.use_tls = config.EMAIL_USE_TLS
         
         if not self.enabled:
-            logger.info("邮件通知服务未启用")
+            logger.debug("邮件通知服务未启用")
             return
         
         # 验证配置
@@ -385,7 +385,7 @@ class EmailNotifier:
                 server.send_message(msg)
                 server.quit()
                 
-                logger.info(f"告警邮件发送成功: {msg['Subject']}")
+                logger.debug(f"告警邮件发送成功: {msg['Subject']}")
                 return True
                 
             except smtplib.SMTPAuthenticationError as e:

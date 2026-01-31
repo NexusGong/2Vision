@@ -28,9 +28,9 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
-    logger.info("初始化数据库...")
+    logger.debug("初始化数据库...")
     init_db()
-    logger.info("数据库初始化完成")
+    logger.debug("数据库初始化完成")
 
     # ==============================
     # 自动管理员初始化逻辑（开发环境）
@@ -197,18 +197,18 @@ async def health_check():
 storage_dir = Path(__file__).parent.parent / config.STORAGE_DIR
 if storage_dir.exists():
     app.mount(config.STATIC_URL_PREFIX, StaticFiles(directory=str(storage_dir)), name="media")
-    logger.info(f"已挂载媒体文件目录: {storage_dir}")
+    logger.debug(f"已挂载媒体文件目录: {storage_dir}")
 else:
     # 如果目录不存在，创建它
     storage_dir.mkdir(parents=True, exist_ok=True)
     app.mount(config.STATIC_URL_PREFIX, StaticFiles(directory=str(storage_dir)), name="media")
-    logger.info(f"已创建并挂载媒体文件目录: {storage_dir}")
+    logger.debug(f"已创建并挂载媒体文件目录: {storage_dir}")
 
 # 挂载后端静态资源目录（收款码等），开发环境也保持与生产一致
 STATIC_ASSETS_DIR = Path(__file__).parent / "static"
 if STATIC_ASSETS_DIR.exists():
     app.mount("/static/assets", StaticFiles(directory=str(STATIC_ASSETS_DIR)), name="assets")
-    logger.info(f"已挂载后端静态资源目录: {STATIC_ASSETS_DIR}")
+    logger.debug(f"已挂载后端静态资源目录: {STATIC_ASSETS_DIR}")
 
 if __name__ == "__main__":
     import uvicorn

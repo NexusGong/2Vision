@@ -57,6 +57,7 @@ import {
   type CostByUser,
   type CostDetailed,
   type VisitListItem,
+  type VisitFilter,
 } from "../../apis/admin";
 import {
   createPaymentOrder,
@@ -73,6 +74,7 @@ const AdminPanel: React.FC = () => {
   const [usageRecords, setUsageRecords] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [realtime, setRealtime] = useState<any>(null);
+  const [realtimeLoading, setRealtimeLoading] = useState(false);
   const [health, setHealth] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [recordPage, setRecordPage] = useState(1);
@@ -119,11 +121,11 @@ const AdminPanel: React.FC = () => {
   const [costByUserTotal, setCostByUserTotal] = useState(0);
   const [costDetailedTotal, setCostDetailedTotal] = useState(0);
 
-  // 仅访问未使用列表
+  // 访问记录列表
   const [visitList, setVisitList] = useState<VisitListItem[]>([]);
   const [visitPage, setVisitPage] = useState(1);
   const [visitTotal, setVisitTotal] = useState(0);
-  const [visitOnlyFilter, setVisitOnlyFilter] = useState<"true" | "false">("true");
+  const [visitFilter, setVisitFilter] = useState<VisitFilter>("only_visit");
   const [visitLoading, setVisitLoading] = useState(false);
 
   useEffect(() => {
@@ -177,17 +179,21 @@ const AdminPanel: React.FC = () => {
 
   const loadRealtimeData = async () => {
     try {
+      setRealtimeLoading(true);
       const res = await getRealtimeMonitoring();
       setRealtime(res.data);
     } catch (error) {
       console.error("加载实时数据失败:", error);
+      setRealtime(null);
+    } finally {
+      setRealtimeLoading(false);
     }
   };
 
   const loadVisitsList = async () => {
     try {
       setVisitLoading(true);
-      const res = await getVisitsList(visitPage, 20, visitOnlyFilter === "true");
+      const res = await getVisitsList(visitPage, 20, visitFilter === "only_visit", visitFilter);
       setVisitList(res.data);
       setVisitTotal(res.total);
     } catch (error) {
@@ -402,6 +408,37 @@ const AdminPanel: React.FC = () => {
     return date.toLocaleString("zh-CN");
   };
 
+  /** 管理员所在地区时区（浏览器时区） */
+  const adminTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  /** 展示「用户当地」与「管理员当地」时间（两行） */
+  const formatDateDual = (isoUtc: string | null, userTimezone?: string | null) => {
+    if (!isoUtc) return { userLocal: "—", adminLocal: "—" };
+    const date = new Date(isoUtc);
+    const adminLocal = date.toLocaleString("zh-CN", { timeZone: adminTimeZone });
+    let userLocal = "—";
+    if (userTimezone) {
+      try {
+        userLocal = date.toLocaleString("zh-CN", { timeZone: userTimezone });
+      } catch {
+        userLocal = date.toLocaleString("zh-CN");
+      }
+    } else {
+      userLocal = date.toLocaleString("zh-CN");
+    }
+    return { userLocal, adminLocal };
+  };
+
+  const renderTimeDual = (isoUtc: string | null, userTimezone?: string | null) => {
+    const { userLocal, adminLocal } = formatDateDual(isoUtc, userTimezone);
+    return (
+      <div style={{ fontSize: 12 }}>
+        <div style={{ color: "rgba(255, 255, 255, 0.85)" }}>用户当地: {userLocal}</div>
+        <div style={{ color: "rgba(255, 255, 255, 0.5)", marginTop: 2 }}>管理员当地: {adminLocal}</div>
+      </div>
+    );
+  };
+
   const getStatusColor = (status: number) => {
     if (status >= 200 && status < 300) return "green";
     if (status >= 400 && status < 500) return "orange";
@@ -501,7 +538,7 @@ const AdminPanel: React.FC = () => {
         return <Tag color={colors[val] || "gray"}>{val}</Tag>;
       },
     },
-    { title: "时间", dataIndex: "created_at", render: formatDate },
+    { title: "时间", dataIndex: "created_at", width: 220, render: (val: string) => renderTimeDual(val) },
   ];
 
   const usageRecordColumns = [
@@ -531,21 +568,27 @@ const AdminPanel: React.FC = () => {
         return <Tag color={colors[val] || "gray"}>{val}</Tag>;
       },
     },
+    { title: "诗词", dataIndex: "poem_title", width: 140, ellipsis: true, render: (v: string) => v || "—" },
     {
       title: "API端点",
       dataIndex: "api_endpoint",
       width: 250,
       ellipsis: true,
+      render: (v: string) => v || "—",
     },
     {
       title: "状态",
       dataIndex: "response_status",
       width: 100,
-      render: (val: number) => (
-        <Tag color={getStatusColor(val)}>{val}</Tag>
-      ),
+      render: (val: number) =>
+        val != null ? (
+          <Tag color={getStatusColor(val)}>{val}</Tag>
+        ) : (
+          "—"
+        ),
     },
-    { title: "国家", dataIndex: "country", width: 120 },
+    { title: "国家", dataIndex: "country", width: 120, render: (v: string) => v || "—" },
+    { title: "IP", dataIndex: "ip_address", width: 130, render: (v: string) => v || "—" },
     {
       title: "设备",
       dataIndex: "device_type",
@@ -567,15 +610,20 @@ const AdminPanel: React.FC = () => {
       title: "Token",
       dataIndex: "total_tokens",
       width: 100,
-      render: (val: number) => formatNumber(val),
+      render: (val: number) => (val != null ? formatNumber(val) : "—"),
     },
     {
       title: "耗时",
       dataIndex: "duration_ms",
       width: 100,
-      render: (val: number) => `${val}ms`,
+      render: (val: number) => (val != null && val !== undefined ? `${val}ms` : "—"),
     },
-    { title: "时间", dataIndex: "created_at", width: 180, render: formatDate },
+    {
+      title: "时间",
+      dataIndex: "created_at",
+      width: 220,
+      render: (val: string | null, r: any) => renderTimeDual(val, r?.timezone),
+    },
   ];
 
   return (
@@ -597,6 +645,9 @@ const AdminPanel: React.FC = () => {
               setVisitPage(1);
               loadVisitsList();
             }
+            if (key === "monitoring") {
+              loadRealtimeData();
+            }
           }}
         >
         <Tabs.TabPane title="数据概览" key="dashboard">
@@ -610,13 +661,19 @@ const AdminPanel: React.FC = () => {
             <div className="stat-card">
               <div className="stat-label">今日活跃用户</div>
               <div className="stat-value">
-                {usageStats?.active_users_today || 0}
+                {usageStats?.active_users_today ?? 0}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.5)", marginTop: 4 }}>
+                注册 {usageStats?.active_registered_today ?? 0} / 非注册 {usageStats?.active_anonymous_today ?? 0}
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-label">本周活跃用户</div>
               <div className="stat-value">
-                {usageStats?.active_users_week || 0}
+                {usageStats?.active_users_week ?? 0}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.5)", marginTop: 4 }}>
+                注册 {usageStats?.active_registered_week ?? 0} / 非注册 {usageStats?.active_anonymous_week ?? 0}
               </div>
             </div>
             <div className="stat-card">
@@ -756,15 +813,16 @@ const AdminPanel: React.FC = () => {
             <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
               <Space>
                 <Select
-                  value={visitOnlyFilter}
+                  value={visitFilter}
                   style={{ width: 200 }}
-                  onChange={(val) => {
-                    setVisitOnlyFilter(val === "false" ? "false" : "true");
+                  onChange={(val: VisitFilter) => {
+                    setVisitFilter(val);
                     setVisitPage(1);
                   }}
                 >
-                  <Select.Option value="true">仅访问未使用</Select.Option>
-                  <Select.Option value="false">全部访问</Select.Option>
+                  <Select.Option value="only_visit">仅访问未使用</Select.Option>
+                  <Select.Option value="had_usage">已产生使用</Select.Option>
+                  <Select.Option value="all">全部访问</Select.Option>
                 </Select>
                 <Button type="primary" onClick={() => { setVisitPage(1); loadVisitsList(); }} loading={visitLoading}>
                   查询
@@ -786,7 +844,7 @@ const AdminPanel: React.FC = () => {
                 showTotal: (t) => `共 ${t} 条`,
                 onChange: (p) => {
                   setVisitPage(p);
-                  getVisitsList(p, 20, visitOnlyFilter === "true").then((res) => {
+                  getVisitsList(p, 20, visitFilter === "only_visit", visitFilter).then((res) => {
                     setVisitList(res.data);
                     setVisitTotal(res.total);
                   });
@@ -795,6 +853,12 @@ const AdminPanel: React.FC = () => {
               columns={[
                 { title: "ID", dataIndex: "id", width: 70 },
                 { title: "IP", dataIndex: "ip_address", width: 130 },
+                {
+                  title: "是否产生使用",
+                  dataIndex: "had_usage",
+                  width: 110,
+                  render: (val: boolean) => (val ? <Tag color="green">是</Tag> : <Tag color="gray">否</Tag>),
+                },
                 {
                   title: "设备",
                   dataIndex: "device_type",
@@ -818,8 +882,8 @@ const AdminPanel: React.FC = () => {
                 {
                   title: "访问时间",
                   dataIndex: "created_at",
-                  width: 180,
-                  render: (val: string | null) => (val ? formatDate(val) : "—"),
+                  width: 220,
+                  render: (val: string | null, r: VisitListItem) => renderTimeDual(val, r.timezone),
                 },
               ]}
             />
@@ -953,7 +1017,20 @@ const AdminPanel: React.FC = () => {
         </Tabs.TabPane>
 
         <Tabs.TabPane title="实时监控" key="monitoring">
-          {realtime && (
+          {realtimeLoading && (
+            <div style={{ padding: 40, textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
+              加载中…
+            </div>
+          )}
+          {!realtimeLoading && !realtime && (
+            <div style={{ padding: 40, textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
+              <p style={{ marginBottom: 16 }}>暂无数据</p>
+              <Button type="primary" icon={<IconRefresh />} onClick={loadRealtimeData}>
+                刷新
+              </Button>
+            </div>
+          )}
+          {!realtimeLoading && realtime && (
             <div className="stats-grid" style={{ marginBottom: 24 }}>
               <div className="stat-card">
                 <div className="stat-label">最近1小时</div>
@@ -1009,7 +1086,7 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
           )}
-          {realtime && (
+          {!realtimeLoading && realtime && (
             <div className="table-container">
               <div className="chart-title" style={{ marginBottom: 24 }}>
                 最近使用记录
@@ -1041,7 +1118,7 @@ const AdminPanel: React.FC = () => {
                       <Tag color={getStatusColor(val)}>{val}</Tag>
                     ),
                   },
-                  { title: "时间", dataIndex: "created_at", width: 180, render: formatDate },
+                  { title: "时间", dataIndex: "created_at", width: 220, render: (val: string, r: any) => renderTimeDual(val, r?.timezone) },
                 ]}
                 data={realtime.recent_records}
                 pagination={false}

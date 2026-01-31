@@ -79,7 +79,7 @@ class AlertMonitor:
             if success:
                 # 记录发送时间
                 self._alert_history[alert_key] = time.time()
-                logger.info(f"告警邮件已发送: {alert_type} - {title}")
+                logger.debug(f"告警邮件已发送: {alert_type} - {title}")
                 return True
             else:
                 logger.warning(f"告警邮件发送失败: {alert_type} - {title}")

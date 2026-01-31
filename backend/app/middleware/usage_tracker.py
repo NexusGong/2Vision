@@ -44,12 +44,14 @@ class UsageTrackerMiddleware(BaseHTTPMiddleware):
         "/redoc",
     ]
     
-    # 排除的路径模式（查询类API，不产生实际成本）
+    # 排除的路径模式（查询类API，不产生实际成本；或由后台任务自行记录使用）
     EXCLUDED_PATTERNS = [
         "/api/image/tasks/active",  # 查询活跃任务（轮询用）
         "/api/image/tasks/",  # 查询任务状态（轮询用）
         "/api/video/tasks/active",  # 查询活跃任务（轮询用）
         "/api/video/tasks/",  # 查询任务状态（轮询用）
+        "/api/image/generate_from_storyboard_async",  # 由后台任务 record_detailed_usage 记录
+        "/api/video/generate_async",  # 由后台任务 record_detailed_usage 记录
     ]
     
     def __init__(self, app: ASGIApp):
@@ -77,12 +79,13 @@ class UsageTrackerMiddleware(BaseHTTPMiddleware):
         # 解析User-Agent
         device_info = self._parse_user_agent(user_agent_str)
         
-        # 获取地理位置（异步，不阻塞）
+        # 获取地理位置与用户时区（异步，不阻塞）
         location_info = {}
         try:
             location_info = get_location(ip_address)
         except Exception as e:
             logger.warning(f"地理位置解析失败: {str(e)}")
+        user_timezone = request.headers.get("X-User-Timezone") or location_info.get("timezone")
         
         # 获取用户信息（如果已登录）
         user = None
@@ -105,8 +108,11 @@ class UsageTrackerMiddleware(BaseHTTPMiddleware):
         except Exception:
             pass
         
-        # 获取session_id
+        # 获取session_id 与诗词标识（哪首是诗）
         session_id = request.headers.get("X-Session-Id")
+        poem_title = request.headers.get("X-Poem-Title")
+        if poem_title and len(poem_title) > 200:
+            poem_title = poem_title[:200]
         
         # 准备请求参数（只记录关键参数，避免存储过大）
         # 注意：读取请求体会消耗body，所以这里不读取，改为从URL参数获取
@@ -158,12 +164,14 @@ class UsageTrackerMiddleware(BaseHTTPMiddleware):
                     ip_address=ip_address,
                     country=location_info.get("country"),
                     city=location_info.get("city"),
+                    timezone=user_timezone,
                     user_agent=user_agent_str[:500],  # 限制长度
                     device_type=device_info.get("device_type"),
                     browser=device_info.get("browser"),
                     os=device_info.get("os"),
                     referer=referer[:500] if referer else None,
                     error_message=error_message[:1000] if error_message else None,
+                    poem_title=poem_title,
                 )
             except Exception as e:
                 # 只在出错时记录日志
@@ -266,6 +274,8 @@ class UsageTrackerMiddleware(BaseHTTPMiddleware):
                 os=kwargs.get("os"),
                 referer=kwargs.get("referer"),
                 error_message=kwargs.get("error_message"),
+                poem_title=kwargs.get("poem_title"),
+                timezone=kwargs.get("timezone"),
             )
             db.add(usage_record)
             db.commit()

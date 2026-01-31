@@ -195,7 +195,7 @@ def record_usage(
     db.commit()
     db.refresh(usage_record)
     
-    logger.info(f"记录使用: user_id={user.id if user else None}, session_id={session_id}, type={usage_type}, tokens={token_used}")
+    logger.debug(f"记录使用: user_id={user.id if user else None}, session_id={session_id}, type={usage_type}, tokens={token_used}")
     
     return usage_record
 
@@ -220,7 +220,7 @@ def add_token_balance(db: Session, user: User, tokens: int) -> bool:
     
     locked_user.token_balance = (locked_user.token_balance or 0) + tokens
     db.commit()
-    logger.info(f"为用户 {user.id} 增加 {tokens} tokens（统一token）")
+    logger.debug(f"为用户 {user.id} 增加 {tokens} tokens（统一token）")
     return True
 
 def record_detailed_usage(
@@ -252,6 +252,8 @@ def record_detailed_usage(
     project_id: Optional[int] = None,
     referer: Optional[str] = None,
     session_duration: Optional[int] = None,
+    poem_title: Optional[str] = None,
+    timezone: Optional[str] = None,
 ) -> UsageRecord:
     """
     记录详细的使用情况
@@ -329,6 +331,8 @@ def record_detailed_usage(
         project_id=project_id,
         referer=referer[:500] if referer else None,  # 限制长度
         session_duration=session_duration,
+        poem_title=poem_title[:200] if poem_title else None,
+        timezone=timezone,
     )
     db.add(usage_record)
     
@@ -360,7 +364,7 @@ def record_detailed_usage(
     db.commit()
     db.refresh(usage_record)
     
-    logger.info(
+    logger.debug(
         f"记录详细使用: user_id={user.id if user else None}, "
         f"session_id={session_id}, type={usage_type}, "
         f"endpoint={api_endpoint}, tokens={final_total_tokens}"

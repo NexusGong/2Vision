@@ -224,7 +224,7 @@ def authenticate_user_by_phone(db: Session, phone: str, password: str) -> Option
     
     # 记录哈希值的前几个字符用于调试（不记录完整哈希值）
     hash_prefix = user.hashed_password[:20] if user.hashed_password else "None"
-    logger.info(f"authenticate_user_by_phone: 开始验证密码, 用户ID={user.id}, 哈希前缀={hash_prefix}...")
+    logger.debug(f"authenticate_user_by_phone: 开始验证密码, 用户ID={user.id}, 哈希前缀={hash_prefix}...")
     
     # 验证密码
     password_valid = verify_password(password, user.hashed_password)
@@ -232,7 +232,7 @@ def authenticate_user_by_phone(db: Session, phone: str, password: str) -> Option
         logger.warning(f"authenticate_user_by_phone: 密码验证失败, 用户ID={user.id}, 手机号={masked_phone}, 密码长度={len(password)}")
         return None
     
-    logger.info(f"authenticate_user_by_phone: 密码验证成功, 用户ID={user.id}")
+    logger.debug(f"authenticate_user_by_phone: 密码验证成功, 用户ID={user.id}")
     return user
 
 

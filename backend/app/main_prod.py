@@ -27,9 +27,9 @@ FRONTEND_DIST_DIR = Path(__file__).parent.parent.parent / "frontend" / "dist"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    logger.info("初始化数据库...")
+    logger.debug("初始化数据库...")
     init_db()
-    logger.info("数据库初始化完成")
+    logger.debug("数据库初始化完成")
 
     # ==============================
     # 自动管理员初始化逻辑（生产）
@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
             if target_user and not target_user.is_admin:
                 target_user.is_admin = True
                 db.commit()
-                logger.info(
+                logger.debug(
                     f"已根据 INITIAL_ADMIN_PHONE/USERNAME 将用户 {target_user.username} 提升为管理员"
                 )
             # 已有管理员就不再自动创建新用户
@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
                             admin_user.is_admin = True
                             db.commit()
                             db.refresh(admin_user)
-                        logger.info(
+                        logger.debug(
                             f"当前无管理员，已将手机号为 {config.INITIAL_ADMIN_PHONE} 的用户 {admin_user.username} 提升为管理员"
                         )
                     else:
@@ -101,7 +101,7 @@ async def lifespan(app: FastAPI):
                         admin_user.is_admin = True
                         db.commit()
                         db.refresh(admin_user)
-                        logger.info(
+                        logger.debug(
                             f"当前无管理员，已自动创建手机号为 {config.INITIAL_ADMIN_PHONE} 的初始管理员用户：{admin_user.username}"
                         )
                 # 如果没有配置手机号，但配置了用户名，也支持按用户名创建/提升（备用路径）
@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
                             admin_user.is_admin = True
                             db.commit()
                             db.refresh(admin_user)
-                        logger.info(
+                        logger.debug(
                             f"当前无管理员，已将用户名为 {config.INITIAL_ADMIN_USERNAME} 的用户提升为管理员"
                         )
                     else:
@@ -131,7 +131,7 @@ async def lifespan(app: FastAPI):
                         admin_user.is_admin = True
                         db.commit()
                         db.refresh(admin_user)
-                        logger.info(
+                        logger.debug(
                             f"当前无管理员，已自动创建初始管理员用户：{admin_user.username}（邮箱：{email}）"
                         )
             else:
@@ -146,7 +146,7 @@ async def lifespan(app: FastAPI):
     
     # 检查前端静态文件
     if FRONTEND_DIST_DIR.exists():
-        logger.info(f"前端静态文件目录: {FRONTEND_DIST_DIR}")
+        logger.debug(f"前端静态文件目录: {FRONTEND_DIST_DIR}")
     else:
         logger.warning(f"前端静态文件目录不存在: {FRONTEND_DIST_DIR}")
         logger.warning("请先运行 'cd frontend && pnpm build' 构建前端")
@@ -194,7 +194,7 @@ try:
     from app.middleware.usage_tracker import UsageTrackerMiddleware
 
     app.add_middleware(UsageTrackerMiddleware)
-    logger.info("已加载 UsageTrackerMiddleware")
+    logger.debug("已加载 UsageTrackerMiddleware")
 except Exception as e:
     # 中间件加载失败不影响主流程，只记录日志
     logger.warning(f"加载 UsageTrackerMiddleware 失败: {e}")
@@ -215,7 +215,7 @@ try:
     app.include_router(admin.router)
     app.include_router(visit.router)
     app.include_router(admin_bootstrap.router)
-    logger.info("已注册用户、支付、管理后台及自举路由")
+    logger.debug("已注册用户、支付、管理后台及自举路由")
 except Exception as e:
     logger.error(f"注册用户/支付/管理后台路由失败: {e}")
 
@@ -232,25 +232,25 @@ async def health_check():
 STATIC_ASSETS_DIR = Path(__file__).parent / "static"
 if STATIC_ASSETS_DIR.exists():
     app.mount("/static/assets", StaticFiles(directory=str(STATIC_ASSETS_DIR)), name="assets")
-    logger.info(f"已挂载后端静态资源目录: {STATIC_ASSETS_DIR}")
+    logger.debug(f"已挂载后端静态资源目录: {STATIC_ASSETS_DIR}")
 
 # 挂载前端静态资源目录（必须在 /static/assets 之后，避免 /static 优先匹配）
 if FRONTEND_DIST_DIR.exists():
     static_dir = FRONTEND_DIST_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-        logger.info("已挂载前端静态资源目录")
+        logger.debug("已挂载前端静态资源目录")
 
 # 挂载媒体文件目录（图片和视频）
 storage_dir = Path(__file__).parent.parent / config.STORAGE_DIR
 if storage_dir.exists():
     app.mount(config.STATIC_URL_PREFIX, StaticFiles(directory=str(storage_dir)), name="media")
-    logger.info(f"已挂载媒体文件目录: {storage_dir}")
+    logger.debug(f"已挂载媒体文件目录: {storage_dir}")
 else:
     # 如果目录不存在，创建它
     storage_dir.mkdir(parents=True, exist_ok=True)
     app.mount(config.STATIC_URL_PREFIX, StaticFiles(directory=str(storage_dir)), name="media")
-    logger.info(f"已创建并挂载媒体文件目录: {storage_dir}")
+    logger.debug(f"已创建并挂载媒体文件目录: {storage_dir}")
 
 # 处理前端路由 - 返回 index.html（SPA 支持）
 @app.get("/{full_path:path}")

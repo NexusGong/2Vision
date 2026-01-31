@@ -38,12 +38,12 @@ class AlipayVerifier:
         if not self.ctoken and self.cookie:
             self.ctoken = self._extract_ctoken_from_cookie(self.cookie)
             if self.ctoken:
-                logger.info(f"从cookie中提取到ctoken: {self.ctoken[:10]}...")
+                logger.debug(f"从cookie中提取到ctoken: {self.ctoken[:10]}...")
         
         if not self.bill_user_id and self.cookie:
             self.bill_user_id = self._extract_bill_user_id_from_cookie(self.cookie)
             if self.bill_user_id:
-                logger.info(f"从cookie中提取到billUserId: {self.bill_user_id}")
+                logger.debug(f"从cookie中提取到billUserId: {self.bill_user_id}")
         
         # 验证配置完整性
         if not self.cookie:
@@ -89,7 +89,7 @@ class AlipayVerifier:
         # 尝试提取 CLUB_ALIPAY_COM 作为备用
         match = re.search(r'(?:^|;\s*)CLUB_ALIPAY_COM=(\d+)', cookie)
         if match:
-            logger.info("使用CLUB_ALIPAY_COM作为billUserId")
+            logger.debug("使用CLUB_ALIPAY_COM作为billUserId")
             return match.group(1).strip()
         
         logger.warning("无法从cookie中提取billUserId")
@@ -312,7 +312,7 @@ class AlipayVerifier:
                                             # 检查是否是订单对象（包含金额、时间等字段）
                                             if any(field in sample for field in ['tradeAmount', 'amount', 'gmtCreate', 'tradeNo', 'tradeTime', 'createTime']):
                                                 trade_list = value
-                                                logger.info(f"从 result.{key} 字段找到订单列表，共 {len(trade_list)} 条")
+                                                logger.debug(f"从 result.{key} 字段找到订单列表，共 {len(trade_list)} 条")
                                                 break
                     
                     if not trade_list and 'target' in result:
@@ -352,7 +352,7 @@ class AlipayVerifier:
                         if isinstance(target, dict):
                             total_pages = target.get('totalPage', target.get('totalPages', 1))
                     
-                    logger.info(
+                    logger.debug(
                         f"支付宝订单查询成功: 时间范围 {start_time.strftime('%Y-%m-%d %H:%M:%S')} - "
                         f"{end_time.strftime('%Y-%m-%d %H:%M:%S')}, "
                         f"返回订单数={len(trade_list)}, 总记录数={total_count}, 总页数={total_pages}"
@@ -367,19 +367,19 @@ class AlipayVerifier:
                         # 详细检查 result 字段
                         if 'result' in result and isinstance(result['result'], dict):
                             result_data = result['result']
-                            logger.info(f"result 字段包含的键: {list(result_data.keys())}")
+                            logger.debug(f"result 字段包含的键: {list(result_data.keys())}")
                             # 检查 summary
                             if 'summary' in result_data:
                                 summary = result_data['summary']
-                                logger.info(f"订单统计信息 (summary): {json.dumps(summary, ensure_ascii=False, default=str)[:500]}")
+                                logger.debug(f"订单统计信息 (summary): {json.dumps(summary, ensure_ascii=False, default=str)[:500]}")
                             # 查找所有数组字段
                             array_fields = {k: len(v) for k, v in result_data.items() if isinstance(v, list)}
                             if array_fields:
-                                logger.info(f"result 中的数组字段: {array_fields}")
+                                logger.debug(f"result 中的数组字段: {array_fields}")
                                 # 输出第一个数组字段的示例（可能是订单列表）
                                 for key, arr in result_data.items():
                                     if isinstance(arr, list) and len(arr) > 0:
-                                        logger.info(f"result.{key} 示例（第一个元素）: {json.dumps(arr[0] if isinstance(arr[0], dict) else str(arr[0]), ensure_ascii=False, default=str)[:500]}")
+                                        logger.debug(f"result.{key} 示例（第一个元素）: {json.dumps(arr[0] if isinstance(arr[0], dict) else str(arr[0]), ensure_ascii=False, default=str)[:500]}")
                                         break
                         logger.debug(f"完整查询结果（前3000字符）: {json.dumps(result, ensure_ascii=False, default=str)[:3000]}")
                     
@@ -450,7 +450,7 @@ class AlipayVerifier:
         if (end_time - start_time).total_seconds() > 86400:
             start_time = end_time - timedelta(hours=24)
         
-        logger.info(
+        logger.debug(
             f"开始查找匹配订单: 金额={amount}, 交易ID={transaction_id}, "
             f"时间范围={start_time.strftime('%Y-%m-%d %H:%M:%S')} - "
             f"{end_time.strftime('%Y-%m-%d %H:%M:%S')}"
@@ -510,7 +510,7 @@ class AlipayVerifier:
                                     sample = value[0]
                                     if any(field in sample for field in ['tradeAmount', 'amount', 'gmtCreate', 'tradeNo', 'tradeTime']):
                                         trade_list = value
-                                        logger.info(f"从 result.{key} 字段找到订单列表，共 {len(trade_list)} 条")
+                                        logger.debug(f"从 result.{key} 字段找到订单列表，共 {len(trade_list)} 条")
                                         break
             elif 'data' in result and isinstance(result['data'], list):
                 trade_list = result['data']
@@ -538,7 +538,7 @@ class AlipayVerifier:
                     # 检查 summary 字段，看是否有订单统计信息
                     if 'summary' in result['result']:
                         summary = result['result']['summary']
-                        logger.info(f"订单统计信息: {summary}")
+                        logger.debug(f"订单统计信息: {summary}")
                 
                 # 输出完整的查询结果（限制长度避免日志过长）
                 try:
@@ -562,12 +562,12 @@ class AlipayVerifier:
                     logger.debug(f"第{page_num}页没有找到订单，停止查询")
                 break
             
-            logger.info(f"第{page_num}页找到 {len(trade_list)} 条订单记录，开始匹配...")
+            logger.debug(f"第{page_num}页找到 {len(trade_list)} 条订单记录，开始匹配...")
             
             # 遍历订单列表，查找匹配的订单
             for idx, trade in enumerate(trade_list):
                 # 记录原始订单数据（用于调试）
-                logger.info(f"[订单 {idx+1}/{len(trade_list)}] 检查订单，所有字段: {list(trade.keys()) if isinstance(trade, dict) else 'N/A'}")
+                logger.debug(f"[订单 {idx+1}/{len(trade_list)}] 检查订单，所有字段: {list(trade.keys()) if isinstance(trade, dict) else 'N/A'}")
                 logger.debug(f"[订单 {idx+1}] 完整订单数据: {trade}")
                 
                 # 尝试多种可能的金额字段名
@@ -634,14 +634,14 @@ class AlipayVerifier:
                 if 'tradeStatusExt' in trade:
                     status_info += f" (扩展状态={trade.get('tradeStatusExt')})"
                 
-                logger.info(
+                logger.debug(
                     f"[订单 {idx+1}] 解析结果: 交易号={trade_no}, 金额={trade_amount}, "
                     f"时间={trade_time_str}, {status_info}, 备注={trade_memo[:50] if trade_memo else '(无)'}"
                 )
                 
                 # 跳过已匹配的交易号（防重复匹配）
                 if trade_no and trade_no in self.matched_trade_nos:
-                    logger.info(f"[订单 {idx+1}] 交易号 {trade_no} 已被匹配过，跳过")
+                    logger.debug(f"[订单 {idx+1}] 交易号 {trade_no} 已被匹配过，跳过")
                     continue
                 
                 # 只处理成功的交易
@@ -668,7 +668,7 @@ class AlipayVerifier:
                             is_success = True
                 
                 if not is_success:
-                    logger.info(f"[订单 {idx+1}] 交易号 {trade_no} 状态为 '{trade_status}' (状态码: {trade_status_code})，跳过（只接受成功状态）")
+                    logger.debug(f"[订单 {idx+1}] 交易号 {trade_no} 状态为 '{trade_status}' (状态码: {trade_status_code})，跳过（只接受成功状态）")
                     continue
                 
                 # 尝试解析时间
@@ -719,12 +719,12 @@ class AlipayVerifier:
                     )
                     
                     if memo_match:
-                        logger.info(f"[订单 {idx+1}] ✓ 备注匹配成功: 备注内容='{trade_memo}', 交易ID={transaction_id}")
+                        logger.debug(f"[订单 {idx+1}] ✓ 备注匹配成功: 备注内容='{trade_memo}', 交易ID={transaction_id}")
                     else:
                         logger.debug(f"[订单 {idx+1}] ✗ 备注不匹配: 备注内容='{trade_memo}', 交易ID={transaction_id}")
                 
                 # 详细记录匹配情况
-                logger.info(
+                logger.debug(
                     f"[订单 {idx+1}] 匹配检查: "
                     f"金额匹配={amount_match} (订单金额={trade_amount}, 期望={amount}, 差异={amount_diff:.4f}, 容差={tolerance}), "
                     f"时间匹配={time_match} (订单时间={trade_time.strftime('%Y-%m-%d %H:%M:%S')}, "
@@ -747,7 +747,7 @@ class AlipayVerifier:
                             match_score = 4  # 备注匹配 + 金额匹配 + 时间匹配（最准确）
                         elif time_match_relaxed:
                             match_score = 3  # 备注匹配 + 金额匹配 + 时间匹配（放宽）
-                            logger.info(f"[订单 {idx+1}] 备注匹配，时间匹配放宽（订单时间={trade_time.strftime('%Y-%m-%d %H:%M:%S')}，创建时间={created_at.strftime('%Y-%m-%d %H:%M:%S')}）")
+                            logger.debug(f"[订单 {idx+1}] 备注匹配，时间匹配放宽（订单时间={trade_time.strftime('%Y-%m-%d %H:%M:%S')}，创建时间={created_at.strftime('%Y-%m-%d %H:%M:%S')}）")
                     else:
                         # 备注匹配但金额不匹配，可能是错误的订单
                         logger.warning(f"[订单 {idx+1}] 备注匹配但金额不匹配: 订单金额={trade_amount}, 期望={amount}, 跳过")
@@ -761,7 +761,7 @@ class AlipayVerifier:
                     continue
                 
                 # 如果到这里，说明订单匹配成功
-                logger.info(
+                logger.debug(
                     f"[订单 {idx+1}] 找到匹配订单 (匹配度={match_score}): "
                     f"金额={trade_amount} (期望={amount}, 差异={amount_diff:.2f}), "
                     f"时间={trade_time.strftime('%Y-%m-%d %H:%M:%S')} "
@@ -787,7 +787,7 @@ class AlipayVerifier:
             total_count = result.get('totalCount', 0)
             
             if page_num == 1:
-                    logger.info(f"共 {total_count} 条订单记录，{total_pages} 页")
+                    logger.debug(f"共 {total_count} 条订单记录，{total_pages} 页")
             
             if page_num >= total_pages:
                 break
@@ -832,7 +832,7 @@ class AlipayVerifier:
         # 简单实现：定期清理所有记录
         # 实际应用中可以根据时间戳记录更精确的清理
         if len(self.matched_trade_nos) > 1000:  # 如果记录过多，清理一半
-            logger.info(f"清理已匹配交易号记录: 从 {len(self.matched_trade_nos)} 条减少到 {len(self.matched_trade_nos) // 2} 条")
+            logger.debug(f"清理已匹配交易号记录: 从 {len(self.matched_trade_nos)} 条减少到 {len(self.matched_trade_nos) // 2} 条")
             # 保留最近的一半记录（简单实现：随机保留）
             self.matched_trade_nos = set(list(self.matched_trade_nos)[len(self.matched_trade_nos) // 2:])
 
