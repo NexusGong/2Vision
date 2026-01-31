@@ -129,6 +129,10 @@ export const PuzzleBoard = forwardRef<PuzzleBoardRef, PuzzleBoardProps>(
     }, [isReady]);
 
     useEffect(() => {
+      const applySize = (w: number, h: number) => {
+        setStageWidth(w);
+        setStageHeight(h);
+      };
       const handleResize = () => {
         const container = getContainer?.();
         if (container) {
@@ -138,8 +142,8 @@ export const PuzzleBoard = forwardRef<PuzzleBoardRef, PuzzleBoardProps>(
             baseWidth,
             baseHeight
           );
-          setStageWidth(size.width);
-          setStageHeight(size.height);
+          // 延迟更新，避免在 Konva 提交阶段触发 setState 触发 its-fine 报错
+          requestAnimationFrame(() => applySize(size.width, size.height));
         }
       };
       handleResize();

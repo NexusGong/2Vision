@@ -119,15 +119,13 @@ export const PuzzlePiece: React.FC<PuzzlePieceProps> = ({ path, scale, imageUrl,
   };
 
   useEffect(() => {
-    if (pathRef.current) {
-      const rect = pathRef.current.getClientRect();
-      setRect({
-        x: rect.x,
-        y: rect.y,
-        width: rect.width,
-        height: rect.height,
-      });
-    }
+    if (!pathRef.current) return;
+    const node = pathRef.current;
+    const r = node.getClientRect();
+    const next = { x: r.x, y: r.y, width: r.width, height: r.height };
+    // 延迟更新，避免在 Konva 提交阶段 setState 触发 its-fine 报错
+    const id = requestAnimationFrame(() => setRect(next));
+    return () => cancelAnimationFrame(id);
   }, [path, scale, image]);
 
   useEffect(() => {
@@ -141,7 +139,9 @@ export const PuzzlePiece: React.FC<PuzzlePieceProps> = ({ path, scale, imageUrl,
   useEffect(() => {
     if (status === 'loaded' && !isLoaded) {
       setIsLoaded(true);
-      onLoaded?.();
+      // 延迟通知父组件，避免在 Konva 提交阶段触发父 setState 导致 its-fine 报错
+      const t = setTimeout(() => onLoaded?.(), 0);
+      return () => clearTimeout(t);
     }
   }, [status, isLoaded, onLoaded]);
 

@@ -208,11 +208,12 @@ app.include_router(project.router)
 
 # 注册用户、支付、管理后台及自举路由（生产环境也需要）
 try:
-    from app.api import user, payment, admin, admin_bootstrap
+    from app.api import user, payment, admin, admin_bootstrap, visit
 
     app.include_router(user.router)
     app.include_router(payment.router)
     app.include_router(admin.router)
+    app.include_router(visit.router)
     app.include_router(admin_bootstrap.router)
     logger.info("已注册用户、支付、管理后台及自举路由")
 except Exception as e:

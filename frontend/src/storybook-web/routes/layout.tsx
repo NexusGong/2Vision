@@ -23,6 +23,7 @@ import PaymentModal from "@/common/components/Payment";
 import { useUser, UserProvider } from "../contexts/UserContext";
 import { ModalProvider, useModal } from "../contexts/ModalContext";
 import { logout, getOrCreateSessionId } from "../apis/auth";
+import { recordVisit } from "../apis/visit";
 
 import "@arco-design/web-react/dist/css/arco.min.css";
 import "../styles/arco.css";
@@ -44,12 +45,11 @@ function LayoutContent({
   const { user, isAuthenticated, refreshUser, refreshUsage } = useUser();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
 
-  // 初始化session_id（非登录用户）
+  // 初始化 session_id 并记录页面访问（非登录用户也会记录）
   useEffect(() => {
-    if (!isAuthenticated) {
-      getOrCreateSessionId();
-    }
-  }, [isAuthenticated]);
+    const sessionId = getOrCreateSessionId();
+    recordVisit(sessionId);
+  }, []);
 
   const handleLoginSuccess = async (token: string) => {
     // 异步刷新用户信息，不阻塞UI

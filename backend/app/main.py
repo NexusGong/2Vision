@@ -171,10 +171,11 @@ app.include_router(video.router)
 app.include_router(project.router)
 
 # 注册新路由
-from app.api import user, payment, admin
+from app.api import user, payment, admin, visit
 app.include_router(user.router)
 app.include_router(payment.router)
 app.include_router(admin.router)
+app.include_router(visit.router)
 
 @app.get("/")
 async def root():

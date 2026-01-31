@@ -52,9 +52,11 @@ import {
   getCostOverview,
   getCostByUser,
   getCostDetailed,
+  getVisitsList,
   type CostOverview,
   type CostByUser,
   type CostDetailed,
+  type VisitListItem,
 } from "../../apis/admin";
 import {
   createPaymentOrder,
@@ -117,6 +119,13 @@ const AdminPanel: React.FC = () => {
   const [costByUserTotal, setCostByUserTotal] = useState(0);
   const [costDetailedTotal, setCostDetailedTotal] = useState(0);
 
+  // 仅访问未使用列表
+  const [visitList, setVisitList] = useState<VisitListItem[]>([]);
+  const [visitPage, setVisitPage] = useState(1);
+  const [visitTotal, setVisitTotal] = useState(0);
+  const [visitOnlyFilter, setVisitOnlyFilter] = useState<"true" | "false">("true");
+  const [visitLoading, setVisitLoading] = useState(false);
+
   useEffect(() => {
     loadData();
     const interval = setInterval(() => {
@@ -172,6 +181,20 @@ const AdminPanel: React.FC = () => {
       setRealtime(res.data);
     } catch (error) {
       console.error("加载实时数据失败:", error);
+    }
+  };
+
+  const loadVisitsList = async () => {
+    try {
+      setVisitLoading(true);
+      const res = await getVisitsList(visitPage, 20, visitOnlyFilter === "true");
+      setVisitList(res.data);
+      setVisitTotal(res.total);
+    } catch (error) {
+      console.error("加载访问记录失败:", error);
+      Message.error("加载访问记录失败");
+    } finally {
+      setVisitLoading(false);
     }
   };
 
@@ -570,6 +593,10 @@ const AdminPanel: React.FC = () => {
             if (key === "cost-monitoring" && !costOverview) {
               loadCostData();
             }
+            if (key === "visits") {
+              setVisitPage(1);
+              loadVisitsList();
+            }
           }}
         >
         <Tabs.TabPane title="数据概览" key="dashboard">
@@ -596,6 +623,12 @@ const AdminPanel: React.FC = () => {
               <div className="stat-label">总使用次数</div>
               <div className="stat-value">
                 {formatNumber(usageStats?.total_usage_count || 0)}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">总访问数</div>
+              <div className="stat-value">
+                {formatNumber(usageStats?.total_visits ?? 0)}
               </div>
             </div>
             {analytics?.token_stats && (
@@ -716,6 +749,81 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
           )}
+        </Tabs.TabPane>
+
+        <Tabs.TabPane title="访问记录" key="visits">
+          <div className="table-container">
+            <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <Space>
+                <Select
+                  value={visitOnlyFilter}
+                  style={{ width: 200 }}
+                  onChange={(val) => {
+                    setVisitOnlyFilter(val === "false" ? "false" : "true");
+                    setVisitPage(1);
+                  }}
+                >
+                  <Select.Option value="true">仅访问未使用</Select.Option>
+                  <Select.Option value="false">全部访问</Select.Option>
+                </Select>
+                <Button type="primary" onClick={() => { setVisitPage(1); loadVisitsList(); }} loading={visitLoading}>
+                  查询
+                </Button>
+              </Space>
+              <Button icon={<IconRefresh />} onClick={loadVisitsList} loading={visitLoading}>
+                刷新
+              </Button>
+            </div>
+            <Table
+              rowKey="id"
+              loading={visitLoading}
+              data={visitList}
+              border={{ wrapper: true, cell: true }}
+              pagination={{
+                current: visitPage,
+                pageSize: 20,
+                total: visitTotal,
+                showTotal: (t) => `共 ${t} 条`,
+                onChange: (p) => {
+                  setVisitPage(p);
+                  getVisitsList(p, 20, visitOnlyFilter === "true").then((res) => {
+                    setVisitList(res.data);
+                    setVisitTotal(res.total);
+                  });
+                },
+              }}
+              columns={[
+                { title: "ID", dataIndex: "id", width: 70 },
+                { title: "IP", dataIndex: "ip_address", width: 130 },
+                {
+                  title: "设备",
+                  dataIndex: "device_type",
+                  width: 90,
+                  render: (val: string) => {
+                    const icons: Record<string, string> = { mobile: "📱", desktop: "💻", tablet: "📱" };
+                    return <span>{icons[val] || "🖥️"} {val || "未知"}</span>;
+                  },
+                },
+                {
+                  title: "地理位置",
+                  width: 200,
+                  render: (_: any, r: VisitListItem) => (
+                    <span>
+                      {[r.country, r.region, r.city].filter(Boolean).join(" / ") || "—"}
+                    </span>
+                  ),
+                },
+                { title: "浏览器", dataIndex: "browser", width: 140, ellipsis: true },
+                { title: "系统", dataIndex: "os", width: 120, ellipsis: true },
+                {
+                  title: "访问时间",
+                  dataIndex: "created_at",
+                  width: 180,
+                  render: (val: string | null) => (val ? formatDate(val) : "—"),
+                },
+              ]}
+            />
+          </div>
         </Tabs.TabPane>
 
         <Tabs.TabPane title="用户管理" key="users">

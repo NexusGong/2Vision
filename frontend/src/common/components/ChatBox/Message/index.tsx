@@ -102,7 +102,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                       1
                     </div>
                     <div className="text-sm font-medium text-white/90 mb-1">输入诗词</div>
-                    <div className="text-xs text-white/40 leading-tight">粘贴古诗词或古文</div>
+                    <div className="text-xs text-white/40 leading-tight">从诗词雅集中直接选择/粘贴古诗词或古文</div>
                   </div>
                   
                   {/* 步骤2 */}

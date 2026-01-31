@@ -15,6 +15,7 @@ from app.models.usage import UsageRecord
 from app.models.payment import Payment
 from app.models.project import Project
 from app.models.activity import UserActivityLog
+from app.models.visit import PageVisit
 import logging
 import json
 import csv
@@ -141,6 +142,7 @@ class UsageStatsResponse(BaseModel):
     active_users_week: int
     total_usage_count: int
     total_token_used: int
+    total_visits: int  # 总访问数（进入网站即计，含仅访问未使用）
     anonymous_usage_count: int
     registered_usage_count: int
     usage_by_type: dict
@@ -405,6 +407,9 @@ async def get_usage_stats(
         UsageRecord.user_id.isnot(None)
     ).count()
     
+    # 总访问数（进入网站即计）
+    total_visits = db.query(PageVisit).count()
+
     # 按类型统计
     usage_by_type = {}
     for usage_type in ["image", "video"]:
@@ -412,7 +417,7 @@ async def get_usage_stats(
             UsageRecord.usage_type == usage_type
         ).count()
         usage_by_type[usage_type] = count
-    
+
     # 使用趋势（最近7天）
     usage_trend = []
     for i in range(7):
@@ -425,18 +430,77 @@ async def get_usage_stats(
             "count": count
         })
     usage_trend.reverse()
-    
+
     return UsageStatsResponse(
         total_users=total_users,
         active_users_today=active_users_today,
         active_users_week=active_users_week,
         total_usage_count=int(total_usage_count),
         total_token_used=int(total_token_used),
+        total_visits=total_visits,
         anonymous_usage_count=anonymous_usage_count,
         registered_usage_count=registered_usage_count,
         usage_by_type=usage_by_type,
         usage_trend=usage_trend
     )
+
+
+@router.get("/visits/list")
+async def get_visits_list(
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    page: int = 1,
+    page_size: int = 20,
+    visit_only: bool = True,
+):
+    """
+    获取访问记录列表。
+    visit_only=True 时仅返回「仅访问未使用」记录（有 session_id 且该 session 从未产生过使用记录）。
+    返回字段：ip、设备类型、地理位置、访问时间等。
+    """
+    offset = (page - 1) * page_size
+    if visit_only:
+        # 有使用记录的 session_id 集合
+        used_sessions = {
+            r[0] for r in
+            db.query(UsageRecord.session_id).filter(UsageRecord.session_id.isnot(None)).distinct().all()
+        }
+        query = (
+            db.query(PageVisit)
+            .filter(PageVisit.session_id.isnot(None))
+            .filter(~PageVisit.session_id.in_(used_sessions))
+            .order_by(desc(PageVisit.created_at))
+        )
+    else:
+        query = db.query(PageVisit).order_by(desc(PageVisit.created_at))
+    total = query.count()
+    visits = query.offset(offset).limit(page_size).all()
+    result = [
+        {
+            "id": v.id,
+            "session_id": v.session_id,
+            "user_id": v.user_id,
+            "ip_address": v.ip_address,
+            "user_agent": (v.user_agent[:80] + "…") if v.user_agent and len(v.user_agent) > 80 else v.user_agent,
+            "device_type": v.device_type or "unknown",
+            "browser": v.browser,
+            "os": v.os,
+            "country": v.country,
+            "region": v.region,
+            "city": v.city,
+            "timezone": v.timezone,
+            "created_at": (v.created_at.isoformat() + "Z") if v.created_at else None,
+        }
+        for v in visits
+    ]
+    return {
+        "status": "success",
+        "data": result,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
 
 @router.get("/payments")
 async def get_all_payments(

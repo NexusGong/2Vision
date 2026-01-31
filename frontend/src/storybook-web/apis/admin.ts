@@ -23,6 +23,7 @@ export interface UsageStats {
   active_users_week: number;
   total_usage_count: number;
   total_token_used: number;
+  total_visits: number;
   anonymous_usage_count: number;
   registered_usage_count: number;
   usage_by_type: Record<string, number>;
@@ -31,6 +32,50 @@ export interface UsageStats {
     count: number;
   }>;
 }
+
+export interface VisitListItem {
+  id: number;
+  session_id: string | null;
+  user_id: number | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  device_type: string;
+  browser: string | null;
+  os: string | null;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  timezone: string | null;
+  created_at: string | null;
+}
+
+/**
+ * 获取访问记录列表（仅访问未使用或全部）
+ */
+export const getVisitsList = async (
+  page: number = 1,
+  pageSize: number = 20,
+  visitOnly: boolean = true
+): Promise<{
+  status: string;
+  data: VisitListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}> => {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("未登录");
+  const url = `/api/admin/visits/list?page=${page}&page_size=${pageSize}&visit_only=${visitOnly}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || "获取访问记录失败");
+  }
+  return response.json();
+};
 
 /**
  * 获取所有用户列表

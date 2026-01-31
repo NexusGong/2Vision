@@ -50,5 +50,6 @@ def init_db():
     from app.models.usage import UsageRecord
     from app.models.payment import Payment
     from app.models.activity import UserActivityLog
+    from app.models.visit import PageVisit
     Base.metadata.create_all(bind=engine)
 
